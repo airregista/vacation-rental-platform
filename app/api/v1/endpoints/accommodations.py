@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, delete, distinct, func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.dependencies import CurrentAdminDep, SessionDep
+from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
@@ -356,7 +356,7 @@ async def create_accommodation(
 async def update_accommodation(
     id: int,
     acc_in: AccommodationUpdate,
-    admin: CurrentAdminDep,
+    current_user: CurrentUserDep,
     db: SessionDep,
 ) -> AccommodationDetail:
     stmt = select(Accommodation).where(Accommodation.id == id)
@@ -364,6 +364,12 @@ async def update_accommodation(
     acc = res.scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
 
     update_data = acc_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -376,7 +382,7 @@ async def update_accommodation(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_accommodation(
     id: int,
-    admin: CurrentAdminDep,
+    current_user: CurrentUserDep,
     db: SessionDep,
 ) -> None:
     stmt = select(Accommodation).where(Accommodation.id == id)
@@ -384,6 +390,12 @@ async def delete_accommodation(
     acc = res.scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this accommodation",
+        )
 
     # Soft delete / deactivate
     acc.is_active = False

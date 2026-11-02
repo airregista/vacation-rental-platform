@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.accommodation import Accommodation
     from app.models.reservation import Reservation
     from app.models.review import Review
     from app.models.wishlist import Wishlist
@@ -29,3 +30,6 @@ class User(Base):
     reservations: Mapped[list["Reservation"]] = relationship("Reservation", back_populates="user")
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
     wishlists: Mapped[list["Wishlist"]] = relationship("Wishlist", back_populates="user")
+    hosted_accommodations: Mapped[list["Accommodation"]] = relationship(
+        "Accommodation", back_populates="host"
+    )
