@@ -108,3 +108,44 @@ async def test_create_and_read_reviews(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert dup_review.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_wishlist_and_public_review_listing(
+    client: AsyncClient,
+    guest_token: str,
+    admin_token: str,
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    accommodation = acc_res.json()[0]
+    acc_id = accommodation["id"]
+
+    # 1. Wishlist toggle: Add
+    wl_add = await client.post(
+        f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_add.status_code == 200
+    assert wl_add.json()["is_favorite"] is True
+
+    # 2. Wishlist list: Verify presence
+    wl_list = await client.get(
+        f"{settings.API_V1_STR}/wishlists/",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_list.status_code == 200
+    assert any(item["accommodation_id"] == acc_id for item in wl_list.json())
+
+    # 3. Wishlist toggle: Remove
+    wl_rem = await client.post(
+        f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_rem.status_code == 200
+    assert wl_rem.json()["is_favorite"] is False
+
+    # 4. Public reviews listing
+    rev_list = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews")
+    assert rev_list.status_code == 200
+    assert isinstance(rev_list.json(), list)
+
