@@ -1,13 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
+import app.models  # ensure models are registered
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.seeds.seed_data import seed
-import app.models  # ensure models are registered
 
 
 @asynccontextmanager
@@ -15,8 +13,9 @@ async def lifespan(app: FastAPI):
     # Initialize DB tables on startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # Ensure seed data exists
-    await seed()
+    # Ensure seed data exists if enabled
+    if settings.ENABLE_STARTUP_SEED:
+        await seed()
     yield
     # Cleanup on shutdown
     await engine.dispose()

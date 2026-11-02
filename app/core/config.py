@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = "jabama_db"
     DATABASE_URL: str | None = None
+    ENABLE_STARTUP_SEED: bool = False
 
     DB_POOL_TYPE: str = "queue"  # "queue" or "null"
     DB_POOL_SIZE: int = 20
