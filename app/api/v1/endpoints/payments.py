@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
+from app.models.accommodation import Accommodation
 from app.models.payment import Payment
 from app.models.reservation import Reservation
 from app.schemas.payment import (
@@ -13,6 +14,7 @@ from app.schemas.payment import (
     PaymentResponse,
     PaymentVerifyRequest,
 )
+from app.services.reservation_service import check_booking_overlap
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -75,6 +77,7 @@ async def verify_payment(
         select(Payment)
         .options(selectinload(Payment.reservation))
         .where(Payment.id == req.payment_id)
+        .with_for_update(of=Payment)
     )
     res = await db.execute(stmt)
     payment = res.scalars().first()
@@ -89,6 +92,30 @@ async def verify_payment(
         return PaymentResponse.model_validate(payment)
 
     if req.simulate_success:
+        # Lock parent accommodation to serialize concurrent confirmations for this property
+        acc_stmt = (
+            select(Accommodation)
+            .where(Accommodation.id == reservation.accommodation_id)
+            .with_for_update(of=Accommodation)
+        )
+        await db.execute(acc_stmt)
+
+        # Re-verify no conflicting confirmed reservation exists
+        is_conflict = await check_booking_overlap(
+            db=db,
+            accommodation_id=reservation.accommodation_id,
+            check_in=reservation.check_in,
+            check_out=reservation.check_out,
+            exclude_reservation_id=reservation.id,
+        )
+        if is_conflict:
+            payment.status = "failed"
+            await db.commit()  # Persist failed payment state before raising
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Dates are no longer available. Another booking was confirmed while payment was processing.",
+            )
+
         payment.status = "success"
         payment.paid_at = datetime.now(timezone.utc)
         reservation.status = "confirmed"

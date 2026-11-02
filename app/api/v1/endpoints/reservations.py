@@ -206,6 +206,7 @@ async def cancel_reservation(
         select(Reservation)
         .options(selectinload(Reservation.accommodation))
         .where(Reservation.id == id)
+        .with_for_update(of=Reservation)
     )
     res = await db.execute(stmt)
     reservation = res.scalars().first()
