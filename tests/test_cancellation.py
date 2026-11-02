@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 import pytest
 from httpx import AsyncClient
 
@@ -8,6 +9,8 @@ from app.core.database import AsyncSessionLocal
 from app.models.accommodation import Accommodation
 from app.models.reservation import Reservation
 from app.services.cancellation_service import calculate_cancellation_refund
+
+TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
 # ==========================================
@@ -27,7 +30,7 @@ def test_calculate_refund_pending_unpaid():
         base_price=Decimal("500000"),
         cleaning_fee=Decimal("50000"),
     )
-    cancel_dt = datetime(2026, 11, 10, 14, 0, tzinfo=timezone.utc)
+    cancel_dt = datetime(2026, 11, 10, 14, 0, tzinfo=TEHRAN_TZ)
     refundable, penalty, hours = calculate_cancellation_refund(res, acc, cancel_dt)
 
     assert refundable == Decimal(0)
@@ -48,7 +51,7 @@ def test_calculate_refund_flexible_more_than_24h():
         cleaning_fee=Decimal("100000"),
     )
     # 48 hours before check-in
-    cancel_dt = datetime(2026, 11, 18, 14, 0, tzinfo=timezone.utc)
+    cancel_dt = datetime(2026, 11, 18, 14, 0, tzinfo=TEHRAN_TZ)
     refundable, penalty, hours = calculate_cancellation_refund(res, acc, cancel_dt)
 
     assert hours == 48.0
@@ -69,7 +72,7 @@ def test_calculate_refund_flexible_less_than_24h():
         cleaning_fee=Decimal("100000"),
     )
     # 10 hours before check-in
-    cancel_dt = datetime(2026, 11, 20, 4, 0, tzinfo=timezone.utc)
+    cancel_dt = datetime(2026, 11, 20, 4, 0, tzinfo=TEHRAN_TZ)
     refundable, penalty, hours = calculate_cancellation_refund(res, acc, cancel_dt)
 
     expected_penalty = Decimal("600000") + Decimal("100000")  # 700000

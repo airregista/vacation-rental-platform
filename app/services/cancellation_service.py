@@ -1,8 +1,11 @@
 # ponytail: simple tiered cancellation math; upgrade to pluggable policy engine if dynamic rules are needed
 from datetime import datetime, time, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 from app.models.accommodation import Accommodation
 from app.models.reservation import Reservation
+
+TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
 def calculate_cancellation_refund(
@@ -13,7 +16,7 @@ def calculate_cancellation_refund(
     """
     Returns (refundable_amount, penalty_amount, hours_to_checkin).
     Timezone-safe: combines reservation.check_in (date) and accommodation.check_in_time (time)
-    into a timezone-aware UTC datetime before subtracting cancel_time.
+    in Asia/Tehran local time before converting to UTC and subtracting cancel_time.
     """
     if cancel_time is None:
         cancel_time = datetime.now(timezone.utc)
@@ -22,9 +25,10 @@ def calculate_cancellation_refund(
 
     # Timezone-aware check-in datetime
     check_time = getattr(accommodation, "check_in_time", None) or time(14, 0)
-    checkin_dt = datetime.combine(reservation.check_in, check_time).replace(
-        tzinfo=timezone.utc
+    local_checkin_dt = datetime.combine(
+        reservation.check_in, check_time, tzinfo=TEHRAN_TZ
     )
+    checkin_dt = local_checkin_dt.astimezone(timezone.utc)
 
     hours_to_checkin = (checkin_dt - cancel_time).total_seconds() / 3600.0
 

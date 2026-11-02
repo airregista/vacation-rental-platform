@@ -103,3 +103,22 @@ async def test_full_booking_and_payment_flow(client: AsyncClient, guest_token: s
     )
     assert conflict_res.status_code == 409
     assert "overlap" in conflict_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_past_date_reservation_rejected(
+    client: AsyncClient,
+    guest_token: str,
+):
+    res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": 1,
+            "check_in": (date.today() - timedelta(days=2)).isoformat(),
+            "check_out": (date.today() + timedelta(days=2)).isoformat(),
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res.status_code in (400, 422)
+
