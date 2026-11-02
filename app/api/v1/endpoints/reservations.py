@@ -176,16 +176,14 @@ async def preview_cancellation(
             detail=f"Reservation cannot be cancelled from status: {reservation.status}",
         )
 
-    days_until_check_in = (reservation.check_in - date.today()).days
-    if days_until_check_in < 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot cancel reservation after check-in date has passed",
-        )
-
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation, reservation.accommodation
     )
+    if hours_to_checkin <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot cancel reservation: check-in time has already arrived or passed",
+        )
 
     return CancellationPreviewResponse(
         reservation_id=reservation.id,
@@ -223,16 +221,14 @@ async def cancel_reservation(
             detail=f"Reservation cannot be cancelled from status: {reservation.status}",
         )
 
-    days_until_check_in = (reservation.check_in - date.today()).days
-    if days_until_check_in < 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot cancel reservation after check-in date has passed",
-        )
-
-    refundable, penalty, _ = calculate_cancellation_refund(
+    refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation, reservation.accommodation
     )
+    if hours_to_checkin <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot cancel reservation: check-in time has already arrived or passed",
+        )
 
     reservation.status = "cancelled"
     reservation.cancelled_at = datetime.now(timezone.utc)

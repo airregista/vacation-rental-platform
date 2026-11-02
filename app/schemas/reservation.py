@@ -47,6 +47,10 @@ class ReservationResponse(BaseModel):
     total_nights: int
     total_price: Decimal
     status: str
+    cancelled_at: datetime | None = None
+    cancellation_reason: str | None = None
+    refund_amount: Decimal | None = None
+    penalty_amount: Decimal | None = None
     created_at: datetime
     updated_at: datetime
     accommodation_title: str | None = None

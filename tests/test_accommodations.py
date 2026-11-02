@@ -192,3 +192,76 @@ async def test_host_scoping_accommodation_permissions(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert del_res.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_invalid_host_id_returns_400(client: AsyncClient, admin_token: str):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "host_id": 999999,  # Non-existent host ID
+        "title": "اقامتگاه با هاست نامعتبر",
+        "address": "تهران، خیابان تست",
+        "base_price": 2000000,
+        "capacity": 2,
+        "max_capacity": 4,
+    }
+
+    res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert res.status_code == 400
+    assert "Host user with ID 999999 not found" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_cancellation_policy_crud_on_accommodation(
+    client: AsyncClient, admin_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    # 1. Create with strict policy
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": "اقامتگاه با کنسلی سخت‌گیرانه",
+        "address": "تهران، خیابان نیاوران",
+        "base_price": 3000000,
+        "capacity": 2,
+        "max_capacity": 4,
+        "cancellation_policy": "strict",
+    }
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    created_data = create_res.json()
+    acc_id = created_data["id"]
+    assert created_data["cancellation_policy"] == "strict"
+
+    # 2. Get detail
+    get_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["cancellation_policy"] == "strict"
+
+    # 3. Update to moderate policy
+    update_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"cancellation_policy": "moderate"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["cancellation_policy"] == "moderate"

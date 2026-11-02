@@ -57,6 +57,7 @@ class AccommodationCreate(BaseModel):
     check_in_time: time = time(14, 0)
     check_out_time: time = time(12, 0)
     rules: str | None = None
+    cancellation_policy: str = Field(default="flexible", pattern="^(flexible|moderate|strict)$")
     is_active: bool = True
     amenity_ids: list[int] = Field(default_factory=list)
     images: list[AccommodationImageCreate] = Field(default_factory=list)
@@ -80,6 +81,7 @@ class AccommodationUpdate(BaseModel):
     check_in_time: time | None = None
     check_out_time: time | None = None
     rules: str | None = None
+    cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
     is_active: bool | None = None
 
 
@@ -96,6 +98,7 @@ class AccommodationListItem(BaseModel):
     rooms_count: int
     beds_count: int
     cover_image: str | None = None
+    cancellation_policy: str = "flexible"
     average_rating: float | None = None
     reviews_count: int = 0
     is_active: bool
@@ -123,6 +126,7 @@ class AccommodationDetail(BaseModel):
     check_in_time: time
     check_out_time: time
     rules: str | None = None
+    cancellation_policy: str = "flexible"
     is_active: bool
     created_at: datetime
 

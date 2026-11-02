@@ -12,6 +12,7 @@ from app.models.category import Category
 from app.models.geo import City
 from app.models.reservation import Reservation
 from app.models.review import Review
+from app.models.user import User
 from app.schemas.accommodation import (
     AccommodationCreate,
     AccommodationDetail,
@@ -174,6 +175,7 @@ async def list_accommodations(
                 rooms_count=acc.rooms_count,
                 beds_count=acc.beds_count,
                 cover_image=cover,
+                cancellation_policy=acc.cancellation_policy,
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
                 reviews_count=count_rat,
                 is_active=acc.is_active,
@@ -305,7 +307,17 @@ async def create_accommodation(
     if not category:
         raise HTTPException(status_code=400, detail="Category ID not found")
 
-    host_id = acc_in.host_id if acc_in.host_id is not None else admin.id
+    if acc_in.host_id is not None:
+        host_user = (await db.execute(select(User).where(User.id == acc_in.host_id))).scalars().first()
+        if not host_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Host user with ID {acc_in.host_id} not found",
+            )
+        host_id = acc_in.host_id
+    else:
+        host_id = admin.id
+
     accommodation = Accommodation(
         host_id=host_id,
         category_id=acc_in.category_id,
@@ -325,6 +337,7 @@ async def create_accommodation(
         check_in_time=acc_in.check_in_time,
         check_out_time=acc_in.check_out_time,
         rules=acc_in.rules,
+        cancellation_policy=acc_in.cancellation_policy,
         is_active=acc_in.is_active,
     )
     db.add(accommodation)

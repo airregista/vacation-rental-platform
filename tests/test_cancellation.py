@@ -391,3 +391,98 @@ async def test_preview_amounts_match_final_execution_amounts(
 
     assert cancel["refund_amount"] == preview["refundable_amount"]
     assert cancel["penalty_amount"] == preview["penalty_amount"]
+
+
+@pytest.mark.asyncio
+async def test_cannot_cancel_after_checkin_time_has_arrived(
+    client: AsyncClient, guest_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    check_in = date.today() + timedelta(days=80)
+    check_out = date.today() + timedelta(days=82)
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    res_id = booking_res.json()["id"]
+
+    # Manipulate DB to simulate that check-in time was 2 hours ago
+    now = datetime.now(timezone.utc)
+    past_dt = now - timedelta(hours=2)
+    async with AsyncSessionLocal() as session:
+        db_res = await session.get(Reservation, res_id)
+        db_acc = await session.get(Accommodation, acc_id)
+        db_res.check_in = past_dt.date()
+        db_acc.check_in_time = past_dt.time().replace(microsecond=0)
+        await session.commit()
+
+    # Cancel preview must be blocked with HTTP 400
+    preview_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel-preview",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert preview_res.status_code == 400
+    assert "check-in time has already arrived or passed" in preview_res.json()["detail"]
+
+    # Cancel execution must also be blocked with HTTP 400
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "Attempting late cancel"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 400
+    assert "check-in time has already arrived or passed" in cancel_res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_reservation_response_exposes_cancellation_fields(
+    client: AsyncClient, guest_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    check_in = date.today() + timedelta(days=90)
+    check_out = date.today() + timedelta(days=92)
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    res_id = booking_res.json()["id"]
+
+    # Cancel with a specific reason
+    reason_text = "Medical emergency cancellation"
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": reason_text},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 200
+
+    # Query GET /reservations/{id}
+    get_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert get_res.status_code == 200
+    res_data = get_res.json()
+    assert res_data["status"] == "cancelled"
+    assert res_data["cancellation_reason"] == reason_text
+    assert res_data["cancelled_at"] is not None
+    assert Decimal(str(res_data["refund_amount"])) == Decimal(0)
+    assert Decimal(str(res_data["penalty_amount"])) == Decimal(0)

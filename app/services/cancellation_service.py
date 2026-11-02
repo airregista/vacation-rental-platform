@@ -33,6 +33,11 @@ def calculate_cancellation_refund(
         return Decimal(0), Decimal(0), round(hours_to_checkin, 1)
 
     total = Decimal(reservation.total_price)
+
+    if hours_to_checkin <= 0:
+        # Check-in time has arrived or passed; no pre-stay cancellation refund
+        return Decimal(0), total, round(hours_to_checkin, 1)
+
     policy = getattr(accommodation, "cancellation_policy", "flexible")
 
     if policy == "flexible":
