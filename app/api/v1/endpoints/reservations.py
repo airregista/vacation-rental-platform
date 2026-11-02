@@ -126,6 +126,29 @@ async def list_my_reservations(
     return items
 
 
+@router.get("/host", response_model=list[ReservationResponse])
+async def list_host_reservations(
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> list[ReservationResponse]:
+    stmt = (
+        select(Reservation)
+        .join(Reservation.accommodation)
+        .options(selectinload(Reservation.accommodation))
+        .where(Accommodation.host_id == current_user.id)
+        .order_by(Reservation.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    reservations = result.scalars().all()
+
+    items: list[ReservationResponse] = []
+    for r in reservations:
+        item = ReservationResponse.model_validate(r)
+        item.accommodation_title = r.accommodation.title if r.accommodation else None
+        items.append(item)
+    return items
+
+
 @router.get("/{id}", response_model=ReservationResponse)
 async def get_reservation(
     id: int,
