@@ -12,6 +12,7 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -51,6 +52,10 @@ class Reservation(Base):
     total_nights: Mapped[int] = mapped_column(Integer, nullable=False)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     status: Mapped[str] = mapped_column(String(20), server_default="pending", index=True, nullable=False)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    refund_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
+    penalty_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -11,12 +11,15 @@ from app.models.accommodation import Accommodation
 from app.models.payment import Payment
 from app.models.reservation import Reservation
 from app.schemas.reservation import (
+    CancellationPreviewResponse,
+    CancellationRequest,
     CancellationResponse,
     PriceCalculationRequest,
     PriceCalculationResponse,
     ReservationCreate,
     ReservationResponse,
 )
+from app.services.cancellation_service import calculate_cancellation_refund
 from app.services.pricing_service import calculate_reservation_price
 from app.services.reservation_service import check_booking_overlap
 
@@ -148,11 +151,58 @@ async def get_reservation(
     return item
 
 
+@router.get("/{id}/cancel-preview", response_model=CancellationPreviewResponse)
+async def preview_cancellation(
+    id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> CancellationPreviewResponse:
+    stmt = (
+        select(Reservation)
+        .options(selectinload(Reservation.accommodation))
+        .where(Reservation.id == id)
+    )
+    res = await db.execute(stmt)
+    reservation = res.scalars().first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    if current_user.role != "admin" and reservation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access forbidden")
+
+    if reservation.status in ("cancelled", "completed"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Reservation cannot be cancelled from status: {reservation.status}",
+        )
+
+    days_until_check_in = (reservation.check_in - date.today()).days
+    if days_until_check_in < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot cancel reservation after check-in date has passed",
+        )
+
+    refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
+        reservation, reservation.accommodation
+    )
+
+    return CancellationPreviewResponse(
+        reservation_id=reservation.id,
+        cancellation_policy=getattr(reservation.accommodation, "cancellation_policy", "flexible"),
+        hours_to_checkin=hours_to_checkin,
+        total_price=reservation.total_price,
+        refundable_amount=refundable,
+        penalty_amount=penalty,
+    )
+
+
 @router.post("/{id}/cancel", response_model=CancellationResponse)
 async def cancel_reservation(
     id: int,
     current_user: CurrentUserDep,
     db: SessionDep,
+    req: CancellationRequest | None = None,
 ) -> CancellationResponse:
     stmt = (
         select(Reservation)
@@ -180,42 +230,35 @@ async def cancel_reservation(
             detail="Cannot cancel reservation after check-in date has passed",
         )
 
-    refund_amount = Decimal(0)
-    penalty_amount = Decimal(0)
-    message = "Reservation cancelled successfully"
-
-    if reservation.status == "confirmed":
-        if days_until_check_in >= 3:
-            # Full 100% refund for cancellations at least 3 days prior
-            refund_amount = reservation.total_price
-            penalty_amount = Decimal(0)
-            message = "Reservation cancelled with 100% full refund (more than 3 days before check-in)"
-        else:
-            # 70% refund (30% host compensation penalty)
-            refund_amount = (reservation.total_price * Decimal("0.70")).quantize(Decimal("1"))
-            penalty_amount = reservation.total_price - refund_amount
-            message = "Reservation cancelled with 70% refund (30% penalty applied due to late cancellation)"
-
-        if refund_amount > 0:
-            refund_record = Payment(
-                reservation_id=reservation.id,
-                amount=refund_amount,
-                tracking_code=f"REF-{uuid.uuid4().hex[:10].upper()}",
-                status="success",
-                paid_at=datetime.now(timezone.utc),
-            )
-            db.add(refund_record)
+    refundable, penalty, _ = calculate_cancellation_refund(
+        reservation, reservation.accommodation
+    )
 
     reservation.status = "cancelled"
+    reservation.cancelled_at = datetime.now(timezone.utc)
+    reservation.cancellation_reason = req.reason if req else None
+    reservation.refund_amount = refundable
+    reservation.penalty_amount = penalty
+
+    if refundable > 0:
+        refund_record = Payment(
+            reservation_id=reservation.id,
+            amount=refundable,
+            tracking_code=f"REF-{uuid.uuid4().hex[:10].upper()}",
+            status="success",
+            paid_at=datetime.now(timezone.utc),
+        )
+        db.add(refund_record)
+
     await db.commit()
     await db.refresh(reservation)
 
     return CancellationResponse(
         reservation_id=reservation.id,
         status="cancelled",
-        refund_amount=refund_amount,
-        penalty_amount=penalty_amount,
-        message=message,
+        refund_amount=refundable,
+        penalty_amount=penalty,
+        message="Reservation cancelled successfully",
     )
 
 

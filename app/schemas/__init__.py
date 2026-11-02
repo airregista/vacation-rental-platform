@@ -19,6 +19,9 @@ from app.schemas.reservation import (
     ReservationCreate,
     ReservationResponse,
     CalendarDayInfo,
+    CancellationResponse,
+    CancellationPreviewResponse,
+    CancellationRequest,
 )
 from app.schemas.payment import (
     PaymentInitiateRequest,
@@ -57,6 +60,9 @@ __all__ = [
     "ReservationCreate",
     "ReservationResponse",
     "CalendarDayInfo",
+    "CancellationResponse",
+    "CancellationPreviewResponse",
+    "CancellationRequest",
     "PaymentInitiateRequest",
     "PaymentInitiateResponse",
     "PaymentVerifyRequest",
