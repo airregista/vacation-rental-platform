@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import and_, delete, distinct, exists, func, not_, or_, select
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -42,6 +43,9 @@ async def list_accommodations(
     check_in: Annotated[date | None, Query(description="Check-in date for availability check")] = None,
     check_out: Annotated[date | None, Query(description="Check-out date for availability check")] = None,
     amenity_ids: Annotated[list[int] | None, Query(description="Required amenity IDs")] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90, description="Latitude for spatial radius search")] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude for spatial radius search")] = None,
+    radius_km: Annotated[float | None, Query(gt=0, le=1000, description="Search radius in kilometers")] = None,
     sort_by: Annotated[str, Query(description="Sorting: newest, price_asc, price_desc")] = "newest",
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -116,6 +120,18 @@ async def list_accommodations(
             .having(func.count(distinct(Amenity.id)) == len(amenity_ids))
         )
 
+    # Spatial radius search (Haversine formula)
+    if lat is not None and lng is not None and radius_km is not None:
+        cos_angle = (
+            func.cos(func.radians(lat))
+            * func.cos(func.radians(Accommodation.latitude))
+            * func.cos(func.radians(Accommodation.longitude) - func.radians(lng))
+            + func.sin(func.radians(lat)) * func.sin(func.radians(Accommodation.latitude))
+        )
+        clamped_cos = func.greatest(-1.0, func.least(1.0, cos_angle))
+        haversine_expr = 6371 * func.acos(clamped_cos)
+        stmt = stmt.where(Accommodation.latitude.is_not(None), haversine_expr <= radius_km)
+
     # Sorting
     if sort_by == "price_asc":
         stmt = stmt.order_by(Accommodation.base_price.asc())
@@ -129,6 +145,82 @@ async def list_accommodations(
     accommodations = result.scalars().all()
 
     # Pre-fetch reviews aggregate rating
+    acc_ids = [a.id for a in accommodations]
+    ratings_map: dict[int, tuple[float, int]] = {}
+    if acc_ids:
+        agg_stmt = (
+            select(
+                Review.accommodation_id,
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("count_rating"),
+            )
+            .where(Review.accommodation_id.in_(acc_ids))
+            .group_by(Review.accommodation_id)
+        )
+        agg_res = await db.execute(agg_stmt)
+        for row in agg_res.all():
+            ratings_map[row.accommodation_id] = (float(row.avg_rating), int(row.count_rating))
+
+    items: list[AccommodationListItem] = []
+    for acc in accommodations:
+        cover = next((img.image_url for img in acc.images if img.is_cover), None)
+        if not cover and acc.images:
+            cover = acc.images[0].image_url
+
+        avg_rat, count_rat = ratings_map.get(acc.id, (None, 0))
+
+        city_resp = None
+        if acc.city:
+            prov_resp = ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            city_resp = CityResponse(
+                id=acc.city.id,
+                province_id=acc.city.province_id,
+                name=acc.city.name,
+                province=prov_resp,
+            )
+
+        cat_resp = CategoryResponse.model_validate(acc.category) if acc.category else None
+
+        items.append(
+            AccommodationListItem(
+                id=acc.id,
+                title=acc.title,
+                city=city_resp,
+                category=cat_resp,
+                base_price=acc.base_price,
+                capacity=acc.capacity,
+                max_capacity=acc.max_capacity,
+                rooms_count=acc.rooms_count,
+                beds_count=acc.beds_count,
+                cover_image=cover,
+                cancellation_policy=acc.cancellation_policy,
+                average_rating=round(avg_rat, 1) if avg_rat is not None else None,
+                reviews_count=count_rat,
+                is_active=acc.is_active,
+            )
+        )
+    return items
+
+
+@router.get("/my", response_model=list[AccommodationListItem])
+async def list_my_accommodations(
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> list[AccommodationListItem]:
+    stmt = (
+        select(Accommodation)
+        .options(
+            joinedload(Accommodation.city).joinedload(City.province),
+            joinedload(Accommodation.category),
+            joinedload(Accommodation.host),
+            selectinload(Accommodation.images),
+        )
+        .where(Accommodation.host_id == current_user.id)
+        .order_by(Accommodation.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    accommodations = result.scalars().all()
+
     acc_ids = [a.id for a in accommodations]
     ratings_map: dict[int, tuple[float, int]] = {}
     if acc_ids:
@@ -295,6 +387,62 @@ async def get_accommodation_calendar(
     return calendar_days
 
 
+@router.get("/{id}/calendar.ics", response_class=Response)
+async def export_accommodation_calendar_ics(
+    id: int,
+    db: SessionDep,
+) -> Response:
+    acc_stmt = select(Accommodation).where(Accommodation.id == id)
+    acc = (await db.execute(acc_stmt)).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    res_stmt = select(Reservation).where(
+        Reservation.accommodation_id == id,
+        Reservation.status == "confirmed",
+    )
+    reservations = (await db.execute(res_stmt)).scalars().all()
+
+    block_stmt = select(PricingException).where(
+        PricingException.accommodation_id == id,
+        PricingException.is_blocked.is_(True),
+    )
+    blocked = (await db.execute(block_stmt)).scalars().all()
+
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Jabama Accommodation//Calendar Sync//EN",
+        "CALSCALE:GREGORIAN",
+    ]
+
+    for r in reservations:
+        dtstart = r.check_in.strftime("%Y%m%d")
+        dtend = r.check_out.strftime("%Y%m%d")
+        lines.extend([
+            "BEGIN:VEVENT",
+            f"UID:res-{r.id}@jabama.local",
+            f"DTSTART;VALUE=DATE:{dtstart}",
+            f"DTEND;VALUE=DATE:{dtend}",
+            f"SUMMARY:Booked - Reservation #{r.id}",
+            "END:VEVENT",
+        ])
+
+    for b in blocked:
+        dt = b.date.strftime("%Y%m%d")
+        lines.extend([
+            "BEGIN:VEVENT",
+            f"UID:block-{b.id}@jabama.local",
+            f"DTSTART;VALUE=DATE:{dt}",
+            f"SUMMARY:Blocked - Not Available",
+            "END:VEVENT",
+        ])
+
+    lines.append("END:VCALENDAR")
+    ics_content = "\r\n".join(lines)
+    return Response(content=ics_content, media_type="text/calendar")
+
+
 @router.post("/", response_model=AccommodationDetail, status_code=status.HTTP_201_CREATED)
 async def create_accommodation(
     acc_in: AccommodationCreate,
@@ -443,12 +591,18 @@ async def delete_accommodation(
 async def add_accommodation_image(
     id: int,
     img_in: AccommodationImageCreate,
-    admin: CurrentAdminDep,
+    current_user: CurrentUserDep,
     db: SessionDep,
 ) -> AccommodationImageResponse:
     acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
 
     if img_in.is_cover:
         # Reset other covers
@@ -491,12 +645,18 @@ async def remove_accommodation_image(
 async def upsert_pricing_exception(
     id: int,
     ex_in: PricingExceptionCreate,
-    admin: CurrentAdminDep,
+    current_user: CurrentUserDep,
     db: SessionDep,
 ) -> PricingExceptionResponse:
     acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
 
     # Check if exception exists for this date
     stmt = select(PricingException).where(
