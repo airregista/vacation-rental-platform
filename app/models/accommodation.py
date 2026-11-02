@@ -78,7 +78,7 @@ class Accommodation(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    host: Mapped["User"] = relationship("User")
+    host: Mapped["User"] = relationship("User", back_populates="hosted_accommodations")
     category: Mapped["Category"] = relationship("Category", back_populates="accommodations")
     city: Mapped["City"] = relationship("City", back_populates="accommodations")
     images: Mapped[list["AccommodationImage"]] = relationship(
