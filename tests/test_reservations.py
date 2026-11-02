@@ -1,4 +1,6 @@
+import uuid
 from datetime import date, timedelta
+from decimal import Decimal
 import pytest
 from httpx import AsyncClient
 
@@ -12,8 +14,9 @@ async def test_full_booking_and_payment_flow(client: AsyncClient, guest_token: s
     accommodation = acc_res.json()[0]
     acc_id = accommodation["id"]
 
-    check_in = date.today() + timedelta(days=20)
-    check_out = date.today() + timedelta(days=23)  # 3 nights
+    day_offset = 20 + (uuid.uuid4().int % 20000)
+    check_in = date.today() + timedelta(days=day_offset)
+    check_out = date.today() + timedelta(days=day_offset + 3)  # 3 nights
 
     # 2. Calculate price
     calc_res = await client.post(
@@ -29,6 +32,14 @@ async def test_full_booking_and_payment_flow(client: AsyncClient, guest_token: s
     calc_data = calc_res.json()
     assert calc_data["total_nights"] == 3
     assert float(calc_data["total_price"]) > 0
+    assert "extra_guests_count" in calc_data
+    assert "extra_guest_fee_per_night" in calc_data
+    assert calc_data["cancellation_policy"] in ("flexible", "moderate", "strict")
+    assert Decimal(str(calc_data["total_price"])) == (
+        Decimal(str(calc_data["nights_total"]))
+        + Decimal(str(calc_data["extra_guest_total"]))
+        + Decimal(str(calc_data["cleaning_fee"]))
+    )
 
     # 3. Create reservation
     booking_res = await client.post(

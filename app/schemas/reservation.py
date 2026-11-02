@@ -19,9 +19,12 @@ class PriceBreakdownItem(BaseModel):
 class PriceCalculationResponse(BaseModel):
     total_nights: int
     nights_total: Decimal
+    extra_guests_count: int = 0
+    extra_guest_fee_per_night: Decimal = Decimal(0)
     extra_guest_total: Decimal
     cleaning_fee: Decimal
     total_price: Decimal
+    cancellation_policy: str = "flexible"
     breakdown: list[PriceBreakdownItem]
 
 
