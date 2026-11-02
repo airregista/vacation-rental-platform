@@ -84,8 +84,11 @@ async def calculate_reservation_price(
     return PriceCalculationResponse(
         total_nights=total_nights,
         nights_total=nights_total,
+        extra_guests_count=extra_guests,
+        extra_guest_fee_per_night=Decimal(accommodation.extra_guest_fee),
         extra_guest_total=extra_guest_total,
         cleaning_fee=cleaning_fee,
         total_price=total_price,
+        cancellation_policy=getattr(accommodation, "cancellation_policy", "flexible"),
         breakdown=breakdown,
     )
