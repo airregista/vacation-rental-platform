@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "jabama_db"
     DATABASE_URL: str | None = None
 
+    DB_POOL_TYPE: str = "queue"  # "queue" or "null"
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT: int = 30
+
     @property
     def async_database_url(self) -> str:
         if self.DATABASE_URL:

@@ -2,8 +2,8 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import and_, delete, distinct, func, or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import and_, delete, distinct, exists, func, not_, or_, select
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
@@ -49,8 +49,9 @@ async def list_accommodations(
     stmt = (
         select(Accommodation)
         .options(
-            selectinload(Accommodation.city).selectinload(City.province),
-            selectinload(Accommodation.category),
+            joinedload(Accommodation.city).joinedload(City.province),
+            joinedload(Accommodation.category),
+            joinedload(Accommodation.host),
             selectinload(Accommodation.images),
         )
         .where(Accommodation.is_active.is_(True))
@@ -83,42 +84,37 @@ async def list_accommodations(
                 detail="Check-out date must be strictly after check-in date",
             )
 
-        # Subquery: accommodations with overlapping confirmed reservations
-        overlapping_res_subq = (
-            select(Reservation.accommodation_id)
-            .where(
-                Reservation.status == "confirmed",
-                Reservation.check_in < check_out,
-                Reservation.check_out > check_in,
-            )
-            .scalar_subquery()
-        )
-
-        # Subquery: accommodations with blocked pricing exceptions
-        blocked_dates_subq = (
-            select(PricingException.accommodation_id)
-            .where(
-                PricingException.is_blocked.is_(True),
-                PricingException.date >= check_in,
-                PricingException.date < check_out,
-            )
-            .scalar_subquery()
-        )
-
         stmt = stmt.where(
-            Accommodation.id.not_in(overlapping_res_subq),
-            Accommodation.id.not_in(blocked_dates_subq),
+            not_(
+                exists(
+                    select(Reservation.id).where(
+                        Reservation.accommodation_id == Accommodation.id,
+                        Reservation.status == "confirmed",
+                        Reservation.check_in < check_out,
+                        Reservation.check_out > check_in,
+                    )
+                )
+            ),
+            not_(
+                exists(
+                    select(PricingException.id).where(
+                        PricingException.accommodation_id == Accommodation.id,
+                        PricingException.is_blocked.is_(True),
+                        PricingException.date >= check_in,
+                        PricingException.date < check_out,
+                    )
+                )
+            ),
         )
 
     # Filter by amenities if specified
     if amenity_ids:
-        for aid in amenity_ids:
-            subq = (
-                select(AccommodationAmenity.accommodation_id)
-                .where(AccommodationAmenity.amenity_id == aid)
-                .scalar_subquery()
-            )
-            stmt = stmt.where(Accommodation.id.in_(subq))
+        stmt = (
+            stmt.join(Accommodation.amenities)
+            .where(Amenity.id.in_(amenity_ids))
+            .group_by(Accommodation.id)
+            .having(func.count(distinct(Amenity.id)) == len(amenity_ids))
+        )
 
     # Sorting
     if sort_by == "price_asc":

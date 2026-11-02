@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Integer,
     Numeric,
     SmallInteger,
@@ -37,6 +38,7 @@ class Reservation(Base):
             "status IN ('pending', 'confirmed', 'cancelled', 'completed')",
             name="chk_reservation_status",
         ),
+        Index("ix_reservations_overlap", "accommodation_id", "status", "check_in", "check_out"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
