@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Integer,
     Numeric,
     SmallInteger,
@@ -43,6 +44,8 @@ class Accommodation(Base):
             "cancellation_policy IN ('flexible', 'moderate', 'strict')",
             name="chk_accommodation_cancellation_policy",
         ),
+        Index("ix_accommodations_active_created", "is_active", "created_at"),
+        Index("ix_accommodations_active_city_price", "is_active", "city_id", "base_price"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
