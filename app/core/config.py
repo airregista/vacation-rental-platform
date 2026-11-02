@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = "jabama_db"
     DATABASE_URL: str | None = None
+    ENABLE_STARTUP_SEED: bool = False
 
     @property
     def async_database_url(self) -> str:

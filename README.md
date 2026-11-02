@@ -76,6 +76,42 @@ pytest -v
 
 ---
 
+## 🗄️ مایگریشن‌های دیتابیس با Alembic (Database Migrations)
+
+مایگریشن‌های دیتابیس به صورت کاملاً آسنکرون با استفاده از `Alembic` و درایور `asyncpg` مدیریت می‌شوند:
+
+- **مشاهده وضعیت کنونی مایگریشن**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic current
+  ```
+- **ایجاد مایگریشن جدید به صورت خودکار (Autogenerate)**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic revision --autogenerate -m "migration_description"
+  ```
+- **اعمال تغییرات روی دیتابیس (Upgrade to Head)**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic upgrade head
+  ```
+- **برچسب‌گذاری وضعیت دیتابیس (Stamp)**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic stamp head
+  ```
+
+---
+
+## 🛠 ابزارهای بررسی کیفیت کد و لینتینگ (DX & Linting)
+
+- **لینت کد با Ruff**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m ruff check app/
+  ```
+- **بررسی استاتیک تایپ‌ها با Mypy**:
+  ```powershell
+  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m mypy app/
+  ```
+
+---
+
 ## 👤 اطلاعات ورود به حساب‌های اولیه تست (Seed Data)
 
 - **تک‌ادمین سامانه**:
