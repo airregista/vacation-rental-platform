@@ -39,6 +39,10 @@ class Accommodation(Base):
         CheckConstraint("extra_guest_fee >= 0", name="chk_accommodation_extra_guest_fee"),
         CheckConstraint("capacity > 0", name="chk_accommodation_capacity"),
         CheckConstraint("max_capacity >= capacity", name="chk_accommodation_max_capacity"),
+        CheckConstraint(
+            "cancellation_policy IN ('flexible', 'moderate', 'strict')",
+            name="chk_accommodation_cancellation_policy",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
@@ -66,6 +70,9 @@ class Accommodation(Base):
     check_in_time: Mapped[time] = mapped_column(Time, server_default="14:00", nullable=False)
     check_out_time: Mapped[time] = mapped_column(Time, server_default="12:00", nullable=False)
     rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancellation_policy: Mapped[str] = mapped_column(
+        String(20), server_default="flexible", nullable=False
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

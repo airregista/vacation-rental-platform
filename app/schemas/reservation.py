@@ -63,3 +63,17 @@ class CancellationResponse(BaseModel):
     penalty_amount: Decimal
     message: str
 
+
+class CancellationPreviewResponse(BaseModel):
+    reservation_id: int
+    cancellation_policy: str
+    hours_to_checkin: float
+    total_price: Decimal
+    refundable_amount: Decimal
+    penalty_amount: Decimal
+
+
+class CancellationRequest(BaseModel):
+    reason: str | None = None
+
+
