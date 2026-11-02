@@ -1,0 +1,27 @@
+[project]
+name = "jabama-backend"
+version = "0.1.0"
+description = "FastAPI & PostgreSQL backend for Accommodation Booking Platform (Jabama / Airbnb clone)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29.0",
+    "pydantic-settings>=2.4.0",
+    "pyjwt>=2.9.0",
+    "bcrypt>=4.2.0",
+    "python-multipart>=0.0.9",
+    "email-validator>=2.0.0",
+    "alembic>=1.13.0",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
