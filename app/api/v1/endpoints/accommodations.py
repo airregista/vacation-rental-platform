@@ -121,6 +121,13 @@ async def list_accommodations(
         )
 
     # Spatial radius search (Haversine formula)
+    spatial_params = [lat is not None, lng is not None, radius_km is not None]
+    if any(spatial_params) and not all(spatial_params):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Parameters lat, lng, and radius_km must all be provided together for spatial search",
+        )
+
     if lat is not None and lng is not None and radius_km is not None:
         cos_angle = (
             func.cos(func.radians(lat))
@@ -130,7 +137,11 @@ async def list_accommodations(
         )
         clamped_cos = func.greatest(-1.0, func.least(1.0, cos_angle))
         haversine_expr = 6371 * func.acos(clamped_cos)
-        stmt = stmt.where(Accommodation.latitude.is_not(None), haversine_expr <= radius_km)
+        stmt = stmt.where(
+            Accommodation.latitude.is_not(None),
+            Accommodation.longitude.is_not(None),
+            haversine_expr <= radius_km,
+        )
 
     # Sorting
     if sort_by == "price_asc":
@@ -630,9 +641,19 @@ async def add_accommodation_image(
 async def remove_accommodation_image(
     id: int,
     image_id: int,
-    admin: CurrentAdminDep,
+    current_user: CurrentUserDep,
     db: SessionDep,
 ) -> None:
+    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
+
     del_stmt = delete(AccommodationImage).where(
         AccommodationImage.id == image_id,
         AccommodationImage.accommodation_id == id,

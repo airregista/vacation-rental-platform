@@ -170,3 +170,31 @@ async def test_host_reservations_and_permissions(
     ical_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
     assert ical_res.status_code == 200
     assert "Blocked - Not Available" in ical_res.text
+
+    # Non-host cannot delete host's image
+    img_id = img_res.json()["id"]
+    forbidden_del = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/{img_id}",
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert forbidden_del.status_code == 403
+
+    # Host can delete their own image
+    del_res = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/{img_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert del_res.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_incomplete_spatial_search_rejected(client: AsyncClient):
+    # Only lat and lng provided without radius_km
+    res = await client.get(f"{settings.API_V1_STR}/accommodations/?lat=36.9&lng=50.6")
+    assert res.status_code == 400
+    assert "radius_km" in res.json()["detail"].lower()
+
+    # Only radius_km provided without lat and lng
+    res2 = await client.get(f"{settings.API_V1_STR}/accommodations/?radius_km=15")
+    assert res2.status_code == 400
+
