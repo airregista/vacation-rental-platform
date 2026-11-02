@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.amenity import AmenityResponse
 from app.schemas.category import CategoryResponse
@@ -62,6 +63,12 @@ class AccommodationCreate(BaseModel):
     amenity_ids: list[int] = Field(default_factory=list)
     images: list[AccommodationImageCreate] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_capacity(self) -> Self:
+        if self.max_capacity < self.capacity:
+            raise ValueError("max_capacity must be greater than or equal to base capacity")
+        return self
+
 
 class AccommodationUpdate(BaseModel):
     category_id: int | None = None
@@ -83,6 +90,13 @@ class AccommodationUpdate(BaseModel):
     rules: str | None = None
     cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
     is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_capacity(self) -> Self:
+        if self.capacity is not None and self.max_capacity is not None:
+            if self.max_capacity < self.capacity:
+                raise ValueError("max_capacity must be greater than or equal to base capacity")
+        return self
 
 
 class AccommodationListItem(BaseModel):

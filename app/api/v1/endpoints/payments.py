@@ -91,6 +91,24 @@ async def verify_payment(
     if payment.status == "success":
         return PaymentResponse.model_validate(payment)
 
+    if payment.tracking_code and req.tracking_code != payment.tracking_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid tracking code for this payment",
+        )
+
+    if payment.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment is already in '{payment.status}' state",
+        )
+
+    if reservation.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Reservation is no longer pending (current status: {reservation.status})",
+        )
+
     if req.simulate_success:
         # Lock parent accommodation to serialize concurrent confirmations for this property
         acc_stmt = (

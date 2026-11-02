@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkeyforjavabamaccommodationapppleasedonotuseinprod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"]
 
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432

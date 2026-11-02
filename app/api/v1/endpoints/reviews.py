@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
@@ -101,6 +102,12 @@ async def create_review(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviews can only be submitted for confirmed or completed bookings",
+        )
+
+    if reservation.check_out > date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reviews can only be submitted after your stay has completed (on or after check-out date)",
         )
 
     # 3. Check if already reviewed (Candidate Key constraint)
