@@ -1,9 +1,42 @@
+from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal, engine, get_db
 from app.main import app
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def db_isolation() -> AsyncGenerator[None, None]:
+    """Wraps each test in an isolated transaction savepoint that rolls back at test completion."""
+    async with engine.connect() as connection:
+        trans = await connection.begin()
+
+        AsyncSessionLocal.configure(
+            bind=connection,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+
+        async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+            session = AsyncSession(
+                bind=connection,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            )
+            async with session:
+                yield session
+
+        app.dependency_overrides[get_db] = override_get_db
+        try:
+            yield
+        finally:
+            await trans.rollback()
+            app.dependency_overrides.clear()
+            AsyncSessionLocal.configure(bind=engine)
 
 
 @pytest_asyncio.fixture
