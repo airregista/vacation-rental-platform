@@ -70,6 +70,12 @@ async def list_accommodations(
         stmt = stmt.where(Accommodation.base_price <= max_price)
 
     # Date range availability filter: exclude accommodations with overlapping confirmed bookings or blocked dates
+    if (check_in is not None and check_out is None) or (check_in is None and check_out is not None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Both check_in and check_out parameters must be provided together for availability filtering",
+        )
+
     if check_in and check_out:
         if check_out <= check_in:
             raise HTTPException(
@@ -300,12 +306,24 @@ async def create_accommodation(
     db: SessionDep,
 ) -> AccommodationDetail:
     # Verify city and category
-    city = (await db.execute(select(City).where(City.id == acc_in.city_id))).scalars().first()
-    if not city:
-        raise HTTPException(status_code=400, detail="City ID not found")
-    category = (await db.execute(select(Category).where(Category.id == acc_in.category_id))).scalars().first()
-    if not category:
-        raise HTTPException(status_code=400, detail="Category ID not found")
+    city_exists = (await db.execute(select(City.id).where(City.id == acc_in.city_id))).scalar_one_or_none()
+    if not city_exists:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"City ID {acc_in.city_id} does not exist")
+
+    cat_exists = (await db.execute(select(Category.id).where(Category.id == acc_in.category_id))).scalar_one_or_none()
+    if not cat_exists:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category ID {acc_in.category_id} does not exist")
+
+    if acc_in.amenity_ids:
+        existing_amenities = (
+            await db.execute(select(Amenity.id).where(Amenity.id.in_(acc_in.amenity_ids)))
+        ).scalars().all()
+        missing = set(acc_in.amenity_ids) - set(existing_amenities)
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Amenity IDs not found: {sorted(list(missing))}",
+            )
 
     if acc_in.host_id is not None:
         host_user = (await db.execute(select(User).where(User.id == acc_in.host_id))).scalars().first()
@@ -383,6 +401,16 @@ async def update_accommodation(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to modify this accommodation",
         )
+
+    if acc_in.city_id is not None:
+        city_exists = (await db.execute(select(City.id).where(City.id == acc_in.city_id))).scalar_one_or_none()
+        if not city_exists:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"City ID {acc_in.city_id} does not exist")
+
+    if acc_in.category_id is not None:
+        cat_exists = (await db.execute(select(Category.id).where(Category.id == acc_in.category_id))).scalar_one_or_none()
+        if not cat_exists:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category ID {acc_in.category_id} does not exist")
 
     update_data = acc_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():

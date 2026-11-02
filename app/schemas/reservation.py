@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+from zoneinfo import ZoneInfo
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PriceCalculationRequest(BaseModel):
@@ -8,6 +10,15 @@ class PriceCalculationRequest(BaseModel):
     check_in: date
     check_out: date
     guests_count: int = Field(default=1, gt=0)
+
+    @model_validator(mode="after")
+    def validate_reservation_dates(self) -> Self:
+        iran_today = datetime.now(ZoneInfo("Asia/Tehran")).date()
+        if self.check_in < iran_today:
+            raise ValueError("Check-in date cannot be in the past")
+        if self.check_out <= self.check_in:
+            raise ValueError("Check-out date must be strictly after check-in date")
+        return self
 
 
 class PriceBreakdownItem(BaseModel):
@@ -33,6 +44,15 @@ class ReservationCreate(BaseModel):
     check_in: date
     check_out: date
     guests_count: int = Field(default=1, gt=0)
+
+    @model_validator(mode="after")
+    def validate_reservation_dates(self) -> Self:
+        iran_today = datetime.now(ZoneInfo("Asia/Tehran")).date()
+        if self.check_in < iran_today:
+            raise ValueError("Check-in date cannot be in the past")
+        if self.check_out <= self.check_in:
+            raise ValueError("Check-out date must be strictly after check-in date")
+        return self
 
 
 class ReservationResponse(BaseModel):

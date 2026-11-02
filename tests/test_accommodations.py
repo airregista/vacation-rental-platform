@@ -265,3 +265,13 @@ async def test_cancellation_policy_crud_on_accommodation(
     )
     assert update_res.status_code == 200
     assert update_res.json()["cancellation_policy"] == "moderate"
+
+
+@pytest.mark.asyncio
+async def test_unpaired_date_search_rejected(client: AsyncClient):
+    res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?check_in={date.today().isoformat()}"
+    )
+    assert res.status_code == 400
+    assert "both check_in and check_out" in res.json()["detail"].lower()
+
