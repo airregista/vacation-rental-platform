@@ -497,6 +497,10 @@ async def test_inactive_accommodation_hidden_from_public_detail_and_calendar(
     assert anon_calendar.status_code == 404
     assert anon_calendar.json()["detail"] == "Accommodation not found or is currently inactive"
 
+    anon_ical = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
+    assert anon_ical.status_code == 404
+    assert anon_ical.json()["detail"] == "Accommodation not found or is currently inactive"
+
     # Host caller -> 200
     host_detail = await client.get(
         f"{settings.API_V1_STR}/accommodations/{acc_id}",
@@ -510,6 +514,12 @@ async def test_inactive_accommodation_hidden_from_public_detail_and_calendar(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert host_calendar.status_code == 200
+
+    host_ical = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_ical.status_code == 200
 
     # Admin caller -> 200
     admin_detail = await client.get(

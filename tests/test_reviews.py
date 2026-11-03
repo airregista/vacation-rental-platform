@@ -289,7 +289,6 @@ async def test_concurrent_wishlist_toggle_no_500(
         responses = await asyncio.gather(*(do_toggle() for _ in range(2)))
         for r in responses:
             assert r.status_code == 200
-            assert r.status_code != 500
     finally:
         async with pool_session_maker() as session:
             await session.execute(delete(Wishlist).where(Wishlist.accommodation_id == acc_id))
