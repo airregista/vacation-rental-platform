@@ -9,6 +9,25 @@ from app.core.database import AsyncSessionLocal, engine, get_db
 from app.main import app
 
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def ensure_database_seeded():
+    """Ensures test database tables and essential seed data exist before running tests."""
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal, Base, engine
+    from app.models.user import User
+    from app.seeds.seed_data import seed
+
+    # 1. Ensure all DDL tables exist (handles clean CI runs without prior migration)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # 2. Ensure seed data exists
+    async with AsyncSessionLocal() as session:
+        admin_check = (await session.execute(select(User).where(User.phone == "09120000000"))).scalars().first()
+        if not admin_check:
+            await seed()
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def db_isolation() -> AsyncGenerator[None, None]:
     """Wraps each test in an isolated transaction savepoint that rolls back at test completion."""
