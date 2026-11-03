@@ -100,6 +100,8 @@ async def update_me(
         current_user.last_name = user_update.last_name
     if user_update.avatar_url is not None:
         current_user.avatar_url = user_update.avatar_url
+    if user_update.shaba_number is not None:
+        current_user.shaba_number = user_update.shaba_number
 
     await db.commit()
     await db.refresh(current_user)

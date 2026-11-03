@@ -23,7 +23,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.accommodation import Accommodation
-    from app.models.payment import Payment
+    from app.models.payment import HostPayout, Payment
     from app.models.review import Review
     from app.models.user import User
 
@@ -79,3 +79,6 @@ class Reservation(Base):
         "Payment", back_populates="reservation", cascade="all, delete-orphan"
     )
     review: Mapped["Review"] = relationship("Review", back_populates="reservation", uselist=False)
+    payout: Mapped["HostPayout | None"] = relationship(
+        "HostPayout", back_populates="reservation", uselist=False
+    )

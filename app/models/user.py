@@ -8,6 +8,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.accommodation import Accommodation
+    from app.models.payment import HostPayout
     from app.models.reservation import Reservation
     from app.models.review import Review
     from app.models.wishlist import Wishlist
@@ -26,6 +27,7 @@ class User(Base):
         String(20), default="guest", nullable=False
     )  # "admin" or "guest"
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    shaba_number: Mapped[str | None] = mapped_column(String(26), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -36,3 +38,4 @@ class User(Base):
     hosted_accommodations: Mapped[list["Accommodation"]] = relationship(
         "Accommodation", back_populates="host"
     )
+    payouts: Mapped[list["HostPayout"]] = relationship("HostPayout", back_populates="host")
