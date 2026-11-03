@@ -191,3 +191,41 @@ async def test_payments_history_and_authorization(client: AsyncClient, guest_tok
     )
     assert forbidden_res.status_code == 403
 
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_reservations(client: AsyncClient, admin_token: str, guest_token: str):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+    check_in = (date.today() + timedelta(days=70)).isoformat()
+    check_out = (date.today() + timedelta(days=73)).isoformat()
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 201
+    res_id = booking_res.json()["id"]
+
+    # Calling cleanup with ttl_minutes=0 immediately expires any pending reservation
+    cleanup_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/cleanup-expired?ttl_minutes=0",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert cleanup_res.status_code == 200
+    assert cleanup_res.json()["expired_count"] >= 1
+
+    # Check reservation is cancelled
+    check = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert check.status_code == 200
+    assert check.json()["status"] == "cancelled"
+
+

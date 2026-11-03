@@ -22,6 +22,8 @@ from app.schemas.accommodation import (
     AccommodationImageResponse,
     AccommodationListItem,
     AccommodationUpdate,
+    PricingExceptionBatchCreate,
+    PricingExceptionBatchResponse,
     PricingExceptionCreate,
     PricingExceptionResponse,
 )
@@ -765,6 +767,57 @@ async def upsert_pricing_exception(
     await db.commit()
     await db.refresh(exception_obj)
     return PricingExceptionResponse.model_validate(exception_obj)
+
+
+@router.post("/{id}/pricing-exceptions/batch", response_model=PricingExceptionBatchResponse)
+async def batch_pricing_exceptions(
+    id: int,
+    batch_in: PricingExceptionBatchCreate,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> PricingExceptionBatchResponse:
+    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
+
+    # Pre-fetch existing exceptions in range
+    stmt = select(PricingException).where(
+        PricingException.accommodation_id == id,
+        PricingException.date >= batch_in.start_date,
+        PricingException.date <= batch_in.end_date,
+    )
+    existing_map = {e.date: e for e in (await db.execute(stmt)).scalars().all()}
+
+    curr = batch_in.start_date
+    count = 0
+    while curr <= batch_in.end_date:
+        if curr in existing_map:
+            obj = existing_map[curr]
+            obj.price = batch_in.price
+            obj.is_blocked = batch_in.is_blocked
+        else:
+            obj = PricingException(
+                accommodation_id=id,
+                date=curr,
+                price=batch_in.price,
+                is_blocked=batch_in.is_blocked,
+            )
+            db.add(obj)
+        count += 1
+        curr += timedelta(days=1)
+
+    await db.commit()
+    return PricingExceptionBatchResponse(
+        updated_count=count,
+        start_date=batch_in.start_date,
+        end_date=batch_in.end_date,
+    )
 
 
 @router.delete("/{id}/pricing-exceptions/{exception_date}", status_code=status.HTTP_204_NO_CONTENT)

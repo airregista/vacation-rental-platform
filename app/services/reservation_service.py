@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,3 +29,21 @@ async def check_booking_overlap(
     result = await db.execute(stmt)
     overlapping = result.scalars().first()
     return overlapping is not None
+
+
+async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int = 30) -> int:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
+    stmt = (
+        select(Reservation)
+        .where(Reservation.status == "pending", Reservation.created_at < cutoff)
+        .with_for_update(skip_locked=True)
+    )
+    res = await db.execute(stmt)
+    stale = res.scalars().all()
+    for r in stale:
+        r.status = "cancelled"
+        r.cancellation_reason = "Payment session expired (TTL timeout)"
+        r.cancelled_at = datetime.now(timezone.utc)
+    await db.commit()
+    return len(stale)
+

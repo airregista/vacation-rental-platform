@@ -227,3 +227,25 @@ async def test_incomplete_spatial_search_rejected(client: AsyncClient):
     # Only radius_km provided without lat and lng
     res2 = await client.get(f"{settings.API_V1_STR}/accommodations/?radius_km=15")
     assert res2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_batch_pricing_exceptions(client: AsyncClient, admin_token: str):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+    start = date.today() + timedelta(days=80)
+    end = date.today() + timedelta(days=86)
+
+    batch_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions/batch",
+        json={
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "price": 1250000,
+            "is_blocked": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert batch_res.status_code == 200
+    assert batch_res.json()["updated_count"] == 7
+

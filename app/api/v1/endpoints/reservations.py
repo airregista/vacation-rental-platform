@@ -21,9 +21,22 @@ from app.schemas.reservation import (
 )
 from app.services.cancellation_service import calculate_cancellation_refund
 from app.services.pricing_service import calculate_reservation_price
-from app.services.reservation_service import check_booking_overlap
+from app.services.reservation_service import (
+    check_booking_overlap,
+    expire_stale_pending_reservations,
+)
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
+
+
+@router.post("/cleanup-expired")
+async def cleanup_expired_reservations(
+    admin: CurrentAdminDep,
+    db: SessionDep,
+    ttl_minutes: Annotated[int, Query(ge=0, description="Minutes after which pending reservations expire")] = 30,
+) -> dict[str, int]:
+    count = await expire_stale_pending_reservations(db, ttl_minutes=ttl_minutes)
+    return {"expired_count": count}
 
 
 @router.post("/calculate-price", response_model=PriceCalculationResponse)

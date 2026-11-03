@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
@@ -48,6 +48,19 @@ async def checkout_payment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot initiate payment for reservation with status '{reservation.status}'. Only 'pending' allowed.",
+        )
+
+    res_created = reservation.created_at
+    if res_created.tzinfo is None:
+        res_created = res_created.replace(tzinfo=timezone.utc)
+    if res_created < datetime.now(timezone.utc) - timedelta(minutes=30):
+        reservation.status = "cancelled"
+        reservation.cancellation_reason = "Payment session expired (TTL timeout)"
+        reservation.cancelled_at = datetime.now(timezone.utc)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reservation has expired due to payment timeout. Please create a new booking.",
         )
 
     tracking_code = f"SHP-{uuid.uuid4().hex[:12].upper()}"
@@ -112,6 +125,20 @@ async def verify_payment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Reservation is no longer pending (current status: {reservation.status})",
+        )
+
+    res_created = reservation.created_at
+    if res_created.tzinfo is None:
+        res_created = res_created.replace(tzinfo=timezone.utc)
+    if res_created < datetime.now(timezone.utc) - timedelta(minutes=30):
+        reservation.status = "cancelled"
+        reservation.cancellation_reason = "Payment session expired (TTL timeout)"
+        reservation.cancelled_at = datetime.now(timezone.utc)
+        payment.status = "failed"
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reservation has expired due to payment timeout. Please create a new booking.",
         )
 
     if req.simulate_success:

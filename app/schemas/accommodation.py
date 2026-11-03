@@ -40,6 +40,27 @@ class PricingExceptionResponse(BaseModel):
     is_blocked: bool
 
 
+class PricingExceptionBatchCreate(BaseModel):
+    start_date: date
+    end_date: date
+    price: Decimal | None = Field(default=None, ge=0)
+    is_blocked: bool = True
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> Self:
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        if (self.end_date - self.start_date).days > 365:
+            raise ValueError("Date range cannot exceed 365 days")
+        return self
+
+
+class PricingExceptionBatchResponse(BaseModel):
+    updated_count: int
+    start_date: date
+    end_date: date
+
+
 class AccommodationCreate(BaseModel):
     category_id: int
     city_id: int
