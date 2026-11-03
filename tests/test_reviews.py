@@ -149,3 +149,27 @@ async def test_wishlist_and_public_review_listing(
     rev_list = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews")
     assert rev_list.status_code == 200
     assert isinstance(rev_list.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_wishlist_pagination(
+    client: AsyncClient,
+    guest_token: str,
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    # Toggle to add
+    await client.post(
+        f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Test pagination parameters
+    paged = await client.get(
+        f"{settings.API_V1_STR}/wishlists/?skip=0&limit=1",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert paged.status_code == 200
+    assert len(paged.json()) <= 1
+

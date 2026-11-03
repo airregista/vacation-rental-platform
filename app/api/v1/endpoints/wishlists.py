@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -61,6 +63,8 @@ async def toggle_wishlist(
 async def list_my_wishlist(
     current_user: CurrentUserDep,
     db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[WishlistItemResponse]:
     stmt = (
         select(Wishlist)
@@ -73,6 +77,8 @@ async def list_my_wishlist(
         )
         .where(Wishlist.user_id == current_user.id)
         .order_by(Wishlist.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     items = result.scalars().all()

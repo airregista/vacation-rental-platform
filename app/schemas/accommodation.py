@@ -91,6 +91,7 @@ class AccommodationUpdate(BaseModel):
     rules: str | None = None
     cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
     is_active: bool | None = None
+    amenity_ids: list[int] | None = None
 
     @model_validator(mode="after")
     def validate_capacity(self) -> Self:

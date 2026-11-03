@@ -613,11 +613,28 @@ async def update_accommodation(
             detail=f"max_capacity ({new_max_capacity}) must be greater than or equal to base capacity ({new_capacity})",
         )
 
+    if acc_in.amenity_ids is not None:
+        if acc_in.amenity_ids:
+            existing_amenities = (
+                await db.execute(select(Amenity.id).where(Amenity.id.in_(acc_in.amenity_ids)))
+            ).scalars().all()
+            missing = set(acc_in.amenity_ids) - set(existing_amenities)
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Amenity IDs not found: {sorted(list(missing))}",
+                )
+        await db.execute(delete(AccommodationAmenity).where(AccommodationAmenity.accommodation_id == id))
+        for aid in acc_in.amenity_ids:
+            db.add(AccommodationAmenity(accommodation_id=id, amenity_id=aid))
+
     update_data = acc_in.model_dump(exclude_unset=True)
+    update_data.pop("amenity_ids", None)
     for field, value in update_data.items():
         setattr(acc, field, value)
 
     await db.commit()
+    db.expire_all()  # Crucial: invalidates session identity map so get_accommodation reloads fresh amenities
     return await get_accommodation(id, db)
 
 
@@ -748,3 +765,31 @@ async def upsert_pricing_exception(
     await db.commit()
     await db.refresh(exception_obj)
     return PricingExceptionResponse.model_validate(exception_obj)
+
+
+@router.delete("/{id}/pricing-exceptions/{exception_date}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pricing_exception(
+    id: int,
+    exception_date: date,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> None:
+    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this accommodation",
+        )
+
+    del_stmt = delete(PricingException).where(
+        PricingException.accommodation_id == id,
+        PricingException.date == exception_date,
+    )
+    res = await db.execute(del_stmt)
+    await db.commit()
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Pricing exception for this date not found")
+

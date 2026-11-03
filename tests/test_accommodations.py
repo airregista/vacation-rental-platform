@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -272,3 +272,48 @@ async def test_unpaired_date_search_rejected(client: AsyncClient):
     )
     assert res.status_code == 400
     assert "both check_in and check_out" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_pricing_exception_deletion_and_amenity_updates(
+    client: AsyncClient,
+    admin_token: str,
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+    test_date = (date.today() + timedelta(days=25)).isoformat()
+
+    # 1. Create a pricing exception
+    ex_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions",
+        json={"date": test_date, "price": 880000, "is_blocked": True},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert ex_res.status_code == 200
+
+    # 2. Delete the pricing exception
+    del_res = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions/{test_date}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert del_res.status_code == 204
+
+    # 3. Deleting non-existent exception returns 404
+    dup_del = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions/{test_date}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert dup_del.status_code == 404
+
+    # 4. Update accommodation amenities
+    am_res = await client.get(f"{settings.API_V1_STR}/amenities/")
+    am_id = am_res.json()[0]["id"]
+    update_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"amenity_ids": [am_id]},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert update_res.status_code == 200
+    updated_amenity_ids = [a["id"] for a in update_res.json()["amenities"]]
+    assert am_id in updated_amenity_ids
+
