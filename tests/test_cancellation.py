@@ -484,3 +484,58 @@ async def test_reservation_response_exposes_cancellation_fields(
     assert res_data["cancelled_at"] is not None
     assert Decimal(str(res_data["refund_amount"])) == Decimal(0)
     assert Decimal(str(res_data["penalty_amount"])) == Decimal(0)
+
+
+@pytest.mark.asyncio
+async def test_cancellation_marks_pending_payments_failed(
+    client: AsyncClient, guest_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    check_in = (date.today() + timedelta(days=120)).isoformat()
+    check_out = (date.today() + timedelta(days=123)).isoformat()
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 201
+    res_id = booking_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout_res.status_code in (200, 201)
+    payment_id = checkout_res.json()["payment_id"]
+
+    p_get = await client.get(
+        f"{settings.API_V1_STR}/payments/{payment_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert p_get.status_code == 200
+    assert p_get.json()["status"] == "pending"
+
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "Cancelled while payment pending"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "cancelled"
+
+    p_after = await client.get(
+        f"{settings.API_V1_STR}/payments/{payment_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert p_after.status_code == 200
+    assert p_after.json()["status"] == "failed"
+

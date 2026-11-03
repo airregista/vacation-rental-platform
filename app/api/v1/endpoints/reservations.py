@@ -104,7 +104,27 @@ async def create_reservation(
         coupon_code=res_in.coupon_code,
     )
 
-    init_status = "confirmed" if calc.total_price == Decimal(0) else "pending"
+    init_status = "pending"
+    if calc.total_price == Decimal(0):
+        # ponytail: row lock serializes concurrent zero-payable bookings
+        acc_lock_stmt = (
+            select(Accommodation)
+            .where(Accommodation.id == acc.id)
+            .with_for_update(of=Accommodation)
+        )
+        await db.execute(acc_lock_stmt)
+        if await check_booking_overlap(
+            db=db,
+            accommodation_id=acc.id,
+            check_in=res_in.check_in,
+            check_out=res_in.check_out,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="These dates overlap with an already confirmed booking. Please select different dates.",
+            )
+        init_status = "confirmed"
+
     reservation = Reservation(
         user_id=current_user.id,
         accommodation_id=acc.id,
@@ -273,7 +293,10 @@ async def cancel_reservation(
 ) -> CancellationResponse:
     stmt = (
         select(Reservation)
-        .options(selectinload(Reservation.accommodation))
+        .options(
+            selectinload(Reservation.accommodation),
+            selectinload(Reservation.payments),
+        )
         .where(Reservation.id == id)
         .with_for_update(of=Reservation)
     )
@@ -305,6 +328,10 @@ async def cancel_reservation(
     reservation.cancellation_reason = req.reason if req else None
     reservation.refund_amount = refundable
     reservation.penalty_amount = penalty
+
+    for p in reservation.payments:
+        if p.status == "pending":
+            p.status = "failed"
 
     if refundable > 0:
         refund_record = Payment(

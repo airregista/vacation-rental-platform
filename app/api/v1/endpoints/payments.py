@@ -185,7 +185,17 @@ async def verify_payment(
         )
         if is_conflict:
             payment.status = "failed"
-            await db.commit()  # Persist failed payment state before raising
+            reservation.status = "cancelled"
+            reservation.cancellation_reason = "Dates occupied by concurrent confirmed booking"
+            reservation.cancelled_at = datetime.now(timezone.utc)
+            if reservation.coupon_code:
+                c_stmt = (
+                    select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
+                )
+                c_obj = (await db.execute(c_stmt)).scalars().first()
+                if c_obj and c_obj.used_count > 0:
+                    c_obj.used_count -= 1
+            await db.commit()  # Persist failed payment and cancelled reservation state before raising
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Dates are no longer available. Another booking was confirmed while payment was processing.",
