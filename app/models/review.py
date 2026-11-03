@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     SmallInteger,
     Text,
     func,
@@ -33,6 +34,7 @@ class Review(Base):
             "accuracy_rating IS NULL OR (accuracy_rating >= 1 AND accuracy_rating <= 5)",
             name="chk_review_accuracy_rating",
         ),
+        Index("ix_reviews_accommodation_created", "accommodation_id", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)

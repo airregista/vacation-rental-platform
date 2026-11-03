@@ -40,6 +40,8 @@ class Reservation(Base):
             name="chk_reservation_status",
         ),
         Index("ix_reservations_overlap", "accommodation_id", "status", "check_in", "check_out"),
+        Index("ix_reservations_user_created", "user_id", "created_at"),
+        Index("ix_reservations_status_created", "status", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)

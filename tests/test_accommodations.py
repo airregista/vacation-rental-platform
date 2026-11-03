@@ -634,3 +634,143 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
     assert "UID:booking-" in host_res.text
 
 
+@pytest.mark.asyncio
+async def test_my_accommodations_pagination(client: AsyncClient, admin_token: str):
+    uid = uuid.uuid4().hex[:8]
+    reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "email": f"host_page_{uid}@example.com",
+            "password": "Password123!",
+            "first_name": "Host",
+            "last_name": "PageUser",
+        },
+    )
+    assert reg.status_code == 201
+    host_token = reg.json()["access_token"]
+    user_me = await client.get(
+        f"{settings.API_V1_STR}/auth/me",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    host_id = user_me.json()["id"]
+
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    created_ids = []
+    for i in range(3):
+        create_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/",
+            json={
+                "category_id": category_id,
+                "city_id": city_id,
+                "host_id": host_id,
+                "title": f"اقامتگاه صفحه‌بندی {uid}_{i}",
+                "address": f"آدرس صفحه‌بندی {i}",
+                "base_price": 1000000 + i * 100000,
+                "capacity": 2,
+                "max_capacity": 4,
+                "is_active": True,
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert create_res.status_code == 201
+        created_ids.append(create_res.json()["id"])
+
+    expected_order = list(reversed(created_ids))
+
+    p1 = await client.get(
+        f"{settings.API_V1_STR}/accommodations/my?skip=0&limit=2",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert p1.status_code == 200
+    p1_items = p1.json()
+    assert len(p1_items) == 2
+    assert [a["id"] for a in p1_items] == expected_order[:2]
+
+    p2 = await client.get(
+        f"{settings.API_V1_STR}/accommodations/my?skip=2&limit=2",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert p2.status_code == 200
+    p2_items = p2.json()
+    assert len(p2_items) == 1
+    assert [a["id"] for a in p2_items] == expected_order[2:]
+
+    p_mid = await client.get(
+        f"{settings.API_V1_STR}/accommodations/my?skip=1&limit=1",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert p_mid.status_code == 200
+    assert [a["id"] for a in p_mid.json()] == [expected_order[1]]
+
+    err_skip = await client.get(
+        f"{settings.API_V1_STR}/accommodations/my?skip=-1",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert err_skip.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_spatial_bounding_box_filtering(client: AsyncClient, admin_token: str):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+    uid = uuid.uuid4().hex[:6]
+
+    in_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"اقامتگاه درون محدوده {uid}",
+            "address": "خیابان ساحلی",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "latitude": 36.9000,
+            "longitude": 50.6000,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert in_res.status_code == 201
+    in_id = in_res.json()["id"]
+
+    out_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"اقامتگاه خارج محدوده {uid}",
+            "address": "خیابان آزادی",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "latitude": 35.6892,
+            "longitude": 51.3890,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert out_res.status_code == 201
+    out_id = out_res.json()["id"]
+
+    search_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=36.9005&lng=50.6005&radius_km=10"
+    )
+    assert search_res.status_code == 200
+    search_ids = [a["id"] for a in search_res.json()]
+    assert in_id in search_ids
+    assert out_id not in search_ids
+
+    pole_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=89.9&lng=0.0&radius_km=50"
+    )
+    assert pole_res.status_code == 200
+
+

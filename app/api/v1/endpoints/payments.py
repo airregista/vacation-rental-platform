@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -216,12 +217,16 @@ async def verify_payment(
 async def list_my_payments(
     current_user: CurrentUserDep,
     db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[PaymentResponse]:
     stmt = (
         select(Payment)
         .join(Payment.reservation)
         .where(Reservation.user_id == current_user.id)
-        .order_by(Payment.created_at.desc())
+        .order_by(Payment.created_at.desc(), Payment.id.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     payments = result.scalars().all()

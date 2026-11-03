@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import math
 import secrets
 from datetime import date, timedelta
 from decimal import Decimal
@@ -157,6 +158,29 @@ async def list_accommodations(
         )
 
     if lat is not None and lng is not None and radius_km is not None:
+        delta_lat = radius_km / 111.0
+        min_lat = max(-90.0, lat - delta_lat)
+        max_lat = min(90.0, lat + delta_lat)
+
+        stmt = stmt.where(
+            Accommodation.latitude.is_not(None),
+            Accommodation.longitude.is_not(None),
+            Accommodation.latitude >= min_lat,
+            Accommodation.latitude <= max_lat,
+        )
+
+        cos_lat = math.cos(math.radians(lat))
+        if cos_lat > 0.001:
+            delta_lng = radius_km / (111.0 * cos_lat)
+            if delta_lng < 180.0:
+                min_lng = lng - delta_lng
+                max_lng = lng + delta_lng
+                if min_lng >= -180.0 and max_lng <= 180.0:
+                    stmt = stmt.where(
+                        Accommodation.longitude >= min_lng,
+                        Accommodation.longitude <= max_lng,
+                    )
+
         cos_angle = func.cos(func.radians(lat)) * func.cos(
             func.radians(Accommodation.latitude)
         ) * func.cos(func.radians(Accommodation.longitude) - func.radians(lng)) + func.sin(
@@ -164,11 +188,7 @@ async def list_accommodations(
         ) * func.sin(func.radians(Accommodation.latitude))
         clamped_cos = func.greatest(-1.0, func.least(1.0, cos_angle))
         haversine_expr = 6371 * func.acos(clamped_cos)
-        stmt = stmt.where(
-            Accommodation.latitude.is_not(None),
-            Accommodation.longitude.is_not(None),
-            haversine_expr <= radius_km,
-        )
+        stmt = stmt.where(haversine_expr <= radius_km)
 
     # Sorting with deterministic primary key tie-breaker for pagination
     if sort_by == "price_asc":
@@ -246,6 +266,8 @@ async def list_accommodations(
 async def list_my_accommodations(
     current_user: CurrentUserDep,
     db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[AccommodationListItem]:
     stmt = (
         select(Accommodation)
@@ -256,7 +278,9 @@ async def list_my_accommodations(
             selectinload(Accommodation.images),
         )
         .where(Accommodation.host_id == current_user.id)
-        .order_by(Accommodation.created_at.desc())
+        .order_by(Accommodation.created_at.desc(), Accommodation.id.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     accommodations = result.scalars().all()

@@ -19,6 +19,7 @@ from sqlalchemy import (
     Time,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +48,7 @@ class Accommodation(Base):
         ),
         Index("ix_accommodations_active_created", "is_active", "created_at"),
         Index("ix_accommodations_active_city_price", "is_active", "city_id", "base_price"),
+        Index("ix_accommodations_lat_lng", "latitude", "longitude"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
@@ -132,6 +134,12 @@ class PricingException(Base):
             "accommodation_id", "date", name="uq_pricing_exception_accommodation_date"
         ),
         CheckConstraint("price IS NULL OR price >= 0", name="chk_pricing_exception_price"),
+        Index(
+            "ix_pricing_exceptions_blocked",
+            "accommodation_id",
+            "date",
+            postgresql_where=text("is_blocked = true"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
