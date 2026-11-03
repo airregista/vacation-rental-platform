@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     amenities,
     auth,
     categories,
+    coupons,
     geo,
     payments,
     reservations,
@@ -21,6 +22,7 @@ api_router.include_router(geo.router)
 api_router.include_router(categories.router)
 api_router.include_router(amenities.router)
 api_router.include_router(accommodations.router)
+api_router.include_router(coupons.router)
 api_router.include_router(reservations.router)
 api_router.include_router(payments.router)
 api_router.include_router(reviews.router)

@@ -45,6 +45,7 @@ async def calculate_price(
         check_in=req.check_in,
         check_out=req.check_out,
         guests_count=req.guests_count,
+        coupon_code=req.coupon_code,
     )
 
 
@@ -83,6 +84,7 @@ async def create_reservation(
         check_in=res_in.check_in,
         check_out=res_in.check_out,
         guests_count=res_in.guests_count,
+        coupon_code=res_in.coupon_code,
     )
 
     reservation = Reservation(

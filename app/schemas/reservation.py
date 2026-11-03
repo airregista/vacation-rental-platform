@@ -11,6 +11,7 @@ class PriceCalculationRequest(BaseModel):
     check_in: date
     check_out: date
     guests_count: int = Field(default=1, gt=0)
+    coupon_code: str | None = None
 
     @model_validator(mode="after")
     def validate_reservation_dates(self) -> Self:
@@ -35,6 +36,8 @@ class PriceCalculationResponse(BaseModel):
     extra_guest_fee_per_night: Decimal = Decimal(0)
     extra_guest_total: Decimal
     cleaning_fee: Decimal
+    discount_amount: Decimal = Decimal(0)
+    coupon_code: str | None = None
     total_price: Decimal
     cancellation_policy: str = "flexible"
     breakdown: list[PriceBreakdownItem]
@@ -45,6 +48,7 @@ class ReservationCreate(BaseModel):
     check_in: date
     check_out: date
     guests_count: int = Field(default=1, gt=0)
+    coupon_code: str | None = None
 
     @model_validator(mode="after")
     def validate_reservation_dates(self) -> Self:
