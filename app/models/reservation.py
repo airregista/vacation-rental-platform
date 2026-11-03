@@ -54,6 +54,7 @@ class Reservation(Base):
     guests_count: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     total_nights: Mapped[int] = mapped_column(Integer, nullable=False)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
+    coupon_code: Mapped[str | None] = mapped_column(String(30), nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), server_default="pending", index=True, nullable=False
     )

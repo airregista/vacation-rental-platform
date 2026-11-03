@@ -71,6 +71,7 @@ class ReservationResponse(BaseModel):
     guests_count: int
     total_nights: int
     total_price: Decimal
+    coupon_code: str | None = None
     status: str
     cancelled_at: datetime | None = None
     cancellation_reason: str | None = None

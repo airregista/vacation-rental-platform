@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.coupon import Coupon
 from app.models.reservation import Reservation
 
 
@@ -49,5 +50,10 @@ async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int =
         for p in r.payments:
             if p.status == "pending":
                 p.status = "failed"
+        if r.coupon_code:
+            coupon_stmt = select(Coupon).where(Coupon.code == r.coupon_code).with_for_update()
+            coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+            if coupon_obj and coupon_obj.used_count > 0:
+                coupon_obj.used_count -= 1
     await db.commit()
     return len(stale)

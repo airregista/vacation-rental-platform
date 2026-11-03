@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -103,6 +104,7 @@ async def create_reservation(
         coupon_code=res_in.coupon_code,
     )
 
+    init_status = "confirmed" if calc.total_price == Decimal(0) else "pending"
     reservation = Reservation(
         user_id=current_user.id,
         accommodation_id=acc.id,
@@ -111,7 +113,8 @@ async def create_reservation(
         guests_count=res_in.guests_count,
         total_nights=calc.total_nights,
         total_price=calc.total_price,
-        status="pending",
+        coupon_code=calc.coupon_code,
+        status=init_status,
     )
     db.add(reservation)
 
@@ -119,6 +122,14 @@ async def create_reservation(
         coupon_stmt = select(Coupon).where(Coupon.code == calc.coupon_code).with_for_update()
         coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
         if coupon_obj:
+            if (
+                coupon_obj.usage_limit is not None
+                and coupon_obj.used_count >= coupon_obj.usage_limit
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Coupon code usage limit has been reached",
+                )
             coupon_obj.used_count += 1
 
     await db.commit()
@@ -304,6 +315,12 @@ async def cancel_reservation(
             paid_at=datetime.now(timezone.utc),
         )
         db.add(refund_record)
+
+    if reservation.coupon_code:
+        c_stmt = select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
+        c_obj = (await db.execute(c_stmt)).scalars().first()
+        if c_obj and c_obj.used_count > 0:
+            c_obj.used_count -= 1
 
     await db.commit()
     await db.refresh(reservation)

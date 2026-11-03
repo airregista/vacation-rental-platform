@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
+from app.models.coupon import Coupon
 from app.models.payment import Payment
 from app.models.reservation import Reservation
 from app.schemas.payment import (
@@ -50,6 +52,12 @@ async def checkout_payment(
             detail=f"Cannot initiate payment for reservation with status '{reservation.status}'. Only 'pending' allowed.",
         )
 
+    if reservation.total_price <= Decimal(0):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reservation total price is zero; payment is not required.",
+        )
+
     res_created = reservation.created_at
     if res_created.tzinfo is None:
         res_created = res_created.replace(tzinfo=timezone.utc)
@@ -60,6 +68,13 @@ async def checkout_payment(
         for p in reservation.payments:
             if p.status == "pending":
                 p.status = "failed"
+        if reservation.coupon_code:
+            coupon_stmt = (
+                select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
+            )
+            coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+            if coupon_obj and coupon_obj.used_count > 0:
+                coupon_obj.used_count -= 1
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -138,6 +153,13 @@ async def verify_payment(
         reservation.cancellation_reason = "Payment session expired (TTL timeout)"
         reservation.cancelled_at = datetime.now(timezone.utc)
         payment.status = "failed"
+        if reservation.coupon_code:
+            coupon_stmt = (
+                select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
+            )
+            coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+            if coupon_obj and coupon_obj.used_count > 0:
+                coupon_obj.used_count -= 1
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
