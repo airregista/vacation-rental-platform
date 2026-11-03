@@ -122,3 +122,72 @@ async def test_past_date_reservation_rejected(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert res.status_code in (400, 422)
+
+
+@pytest.mark.asyncio
+async def test_payments_history_and_authorization(client: AsyncClient, guest_token: str):
+    # 1. Create a reservation and checkout payment to ensure at least one payment exists
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+    check_in = (date.today() + timedelta(days=60)).isoformat()
+    check_out = (date.today() + timedelta(days=62)).isoformat()
+
+    res_booking = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_booking.status_code == 201
+    reservation_id = res_booking.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": reservation_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout_res.status_code == 201
+    payment_id = checkout_res.json()["payment_id"]
+
+    # 2. List payments for current guest
+    my_payments_res = await client.get(
+        f"{settings.API_V1_STR}/payments/my",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert my_payments_res.status_code == 200
+    my_payments = my_payments_res.json()
+    assert isinstance(my_payments, list)
+    assert any(p["id"] == payment_id for p in my_payments)
+
+    # 3. Get single payment details by ID
+    single_res = await client.get(
+        f"{settings.API_V1_STR}/payments/{payment_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert single_res.status_code == 200
+    assert single_res.json()["id"] == payment_id
+
+    # 4. Register a second guest user and verify 403 Forbidden on other guest's payment
+    second_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    guest2_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": second_phone,
+            "password": "strongPassword123",
+            "first_name": "مهمان",
+            "last_name": "دوم",
+        },
+    )
+    assert guest2_reg.status_code == 201
+    guest2_token = guest2_reg.json()["access_token"]
+
+    forbidden_res = await client.get(
+        f"{settings.API_V1_STR}/payments/{payment_id}",
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert forbidden_res.status_code == 403
+

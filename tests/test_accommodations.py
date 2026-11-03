@@ -1,5 +1,10 @@
 import uuid
+<<<<<<< HEAD
 from datetime import date, timedelta
+=======
+from datetime import date
+from decimal import Decimal
+>>>>>>> advisor/015-search-sorting-and-payments-test-coverage
 
 import pytest
 from httpx import AsyncClient
@@ -316,4 +321,43 @@ async def test_pricing_exception_deletion_and_amenity_updates(
     assert update_res.status_code == 200
     updated_amenity_ids = [a["id"] for a in update_res.json()["amenities"]]
     assert am_id in updated_amenity_ids
+
+
+@pytest.mark.asyncio
+async def test_filter_by_amenities_and_sorting(client: AsyncClient):
+    # 1. Fetch available amenities
+    amenities_res = await client.get(f"{settings.API_V1_STR}/amenities/")
+    assert amenities_res.status_code == 200
+    amenities = amenities_res.json()
+    assert len(amenities) >= 2
+
+    # Seed accommodation 1 has amenities: چشم‌انداز ابدی جنگل و کوه, باربیکیو و منقل هیزمی, وای‌فای پرسرعت رایگان, پارکینگ اختصاصی سرپوشیده
+    amenity_ids = [amenities[0]["id"], amenities[1]["id"]]
+    query_str = f"amenity_ids={amenity_ids[0]}&amenity_ids={amenity_ids[1]}"
+
+    filtered_res = await client.get(f"{settings.API_V1_STR}/accommodations/?{query_str}")
+    assert filtered_res.status_code == 200
+    filtered_items = filtered_res.json()
+    assert isinstance(filtered_items, list)
+    assert len(filtered_items) >= 1
+
+    # Verify each returned accommodation has both amenities by querying detail
+    for item in filtered_items:
+        detail_res = await client.get(f"{settings.API_V1_STR}/accommodations/{item['id']}")
+        assert detail_res.status_code == 200
+        prop_amenity_ids = {a["id"] for a in detail_res.json()["amenities"]}
+        assert set(amenity_ids).issubset(prop_amenity_ids)
+
+    # 2. Verify sorting by price ascending
+    asc_res = await client.get(f"{settings.API_V1_STR}/accommodations/?sort_by=price_asc")
+    assert asc_res.status_code == 200
+    asc_prices = [Decimal(str(item["base_price"])) for item in asc_res.json()]
+    assert asc_prices == sorted(asc_prices)
+
+    # 3. Verify sorting by price descending
+    desc_res = await client.get(f"{settings.API_V1_STR}/accommodations/?sort_by=price_desc")
+    assert desc_res.status_code == 200
+    desc_prices = [Decimal(str(item["base_price"])) for item in desc_res.json()]
+    assert desc_prices == sorted(desc_prices, reverse=True)
+
 
