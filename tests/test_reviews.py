@@ -83,6 +83,7 @@ async def test_create_and_read_reviews(
 
     async with AsyncSessionLocal() as session:
         db_res = await session.get(Reservation, res_id)
+        assert db_res is not None
         db_res.check_in = date.today() - timedelta(days=3)
         db_res.check_out = date.today() - timedelta(days=1)
         await session.commit()

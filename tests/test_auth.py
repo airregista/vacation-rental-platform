@@ -148,3 +148,86 @@ async def test_case_insensitive_email_login_and_registration(client: AsyncClient
         )
         assert login_res.status_code == 200
         assert "access_token" in login_res.json()
+
+
+@pytest.mark.asyncio
+async def test_update_user_profile_success(client: AsyncClient):
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    register_payload = {
+        "phone": random_phone,
+        "email": f"user_{uuid.uuid4().hex[:6]}@example.com",
+        "password": "strongPassword123",
+        "first_name": "سارا",
+        "last_name": "بهرامی",
+    }
+    reg_res = await client.post(f"{settings.API_V1_STR}/auth/register", json=register_payload)
+    assert reg_res.status_code == 201
+    token = reg_res.json()["access_token"]
+
+    update_payload = {
+        "first_name": "مریم",
+        "last_name": "رضایی",
+        "avatar_url": "https://example.com/avatars/maryam.jpg",
+    }
+    put_res = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json=update_payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert put_res.status_code == 200
+    data = put_res.json()
+    assert data["first_name"] == update_payload["first_name"]
+    assert data["last_name"] == update_payload["last_name"]
+    assert data["avatar_url"] == update_payload["avatar_url"]
+    assert data["phone"] == random_phone
+
+
+@pytest.mark.asyncio
+async def test_update_user_profile_email_collision_rejected(client: AsyncClient):
+    uid_a = uuid.uuid4().hex[:6]
+    uid_b = uuid.uuid4().hex[:6]
+    email_a = f"usera_{uid_a}@example.com"
+    email_b = f"userb_{uid_b}@example.com"
+    password = "strongPassword123"
+
+    # Register User A
+    res_a = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "email": email_a,
+            "password": password,
+        },
+    )
+    assert res_a.status_code == 201
+
+    # Register User B
+    res_b = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "email": email_b,
+            "password": password,
+        },
+    )
+    assert res_b.status_code == 201
+    token_b = res_b.json()["access_token"]
+
+    # User B attempts PUT /auth/me with User A's email (lowercase)
+    collision_res = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"email": email_a},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert collision_res.status_code == 400
+    assert "already in use" in collision_res.json()["detail"]
+
+    # User B attempts PUT /auth/me with User A's email (mixed-case)
+    collision_mixed = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"email": email_a.upper()},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert collision_mixed.status_code == 400
+    assert "already in use" in collision_mixed.json()["detail"]
+

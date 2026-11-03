@@ -319,6 +319,8 @@ async def test_cancel_flexible_less_than_24_hours_retains_penalty(
     async with AsyncSessionLocal() as session:
         db_res = await session.get(Reservation, res_id)
         db_acc = await session.get(Accommodation, acc_id)
+        assert db_res is not None
+        assert db_acc is not None
         db_res.check_in = target_dt.date()
         db_res.check_out = target_dt.date() + timedelta(days=3)
         db_acc.check_in_time = target_dt.time().replace(microsecond=0)
@@ -419,6 +421,8 @@ async def test_cannot_cancel_after_checkin_time_has_arrived(client: AsyncClient,
     async with AsyncSessionLocal() as session:
         db_res = await session.get(Reservation, res_id)
         db_acc = await session.get(Accommodation, acc_id)
+        assert db_res is not None
+        assert db_acc is not None
         db_res.check_in = past_dt.date()
         db_acc.check_in_time = past_dt.time().replace(microsecond=0)
         await session.commit()

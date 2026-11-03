@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 
 from app.core.config import settings
 from app.main import app
@@ -270,12 +270,14 @@ async def test_concurrent_zero_payable_booking_mutual_exclusion(
 
             results = await asyncio.gather(task1, task2, return_exceptions=True)
 
-            statuses = [r.status_code for r in results if not isinstance(r, Exception)]
+            statuses = [r.status_code for r in results if isinstance(r, Response)]
             assert 201 in statuses
             assert 409 in statuses
 
             success_res = next(r for r in results if getattr(r, "status_code", None) == 201)
             conflict_res = next(r for r in results if getattr(r, "status_code", None) == 409)
+            assert isinstance(success_res, Response)
+            assert isinstance(conflict_res, Response)
 
             assert success_res.json()["status"] == "confirmed"
             assert Decimal(str(success_res.json()["total_price"])) == Decimal(0)

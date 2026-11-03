@@ -236,6 +236,70 @@ async def test_incomplete_spatial_search_rejected(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_spatial_search_coordinate_validation_boundaries(
+    client: AsyncClient,
+    admin_token: str,
+):
+    # 1. Out-of-bounds latitude (lat=95.0, -95.0) returns HTTP 422
+    res_lat_high = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=95.0&lng=50.0&radius_km=10"
+    )
+    assert res_lat_high.status_code == 422
+
+    res_lat_low = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=-95.0&lng=50.0&radius_km=10"
+    )
+    assert res_lat_low.status_code == 422
+
+    # 2. Out-of-bounds longitude (lng=190.0, -190.0) returns HTTP 422
+    res_lng_high = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=35.0&lng=190.0&radius_km=10"
+    )
+    assert res_lng_high.status_code == 422
+
+    res_lng_low = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=35.0&lng=-190.0&radius_km=10"
+    )
+    assert res_lng_low.status_code == 422
+
+    # 3. Zero or negative radius (radius_km=0 or -5) returns HTTP 422
+    res_radius_zero = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=35.0&lng=50.0&radius_km=0"
+    )
+    assert res_radius_zero.status_code == 422
+
+    res_radius_neg = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=35.0&lng=50.0&radius_km=-5"
+    )
+    assert res_radius_neg.status_code == 422
+
+    # 4. Verify accommodations with latitude IS NULL are omitted from radius search results without exceptions
+    acc_null_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه بدون مختصات-{uuid.uuid4().hex[:6]}",
+            "address": "تهران، بدون مختصات",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+            "host_id": 1,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_null_res.status_code == 201
+    null_acc_id = acc_null_res.json()["id"]
+
+    search_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?lat=35.6892&lng=51.3890&radius_km=500"
+    )
+    assert search_res.status_code == 200
+    search_ids = [a["id"] for a in search_res.json()]
+    assert null_acc_id not in search_ids
+
+
+@pytest.mark.asyncio
 async def test_batch_pricing_exceptions(client: AsyncClient, admin_token: str):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]

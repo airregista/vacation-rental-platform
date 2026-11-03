@@ -29,6 +29,52 @@ async def test_users_endpoints_and_rbac(
 
 
 @pytest.mark.asyncio
+async def test_admin_get_user_by_id_and_permissions(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    # Fetch user IDs via /auth/me
+    guest_me = await client.get(
+        f"{settings.API_V1_STR}/auth/me",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert guest_me.status_code == 200
+    guest_user_id = guest_me.json()["id"]
+
+    admin_me = await client.get(
+        f"{settings.API_V1_STR}/auth/me",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_me.status_code == 200
+    admin_user_id = admin_me.json()["id"]
+
+    # 1. Admin queries GET /users/{guest_user_id} and receives HTTP 200 with User response
+    res_admin_query = await client.get(
+        f"{settings.API_V1_STR}/users/{guest_user_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert res_admin_query.status_code == 200
+    guest_data = res_admin_query.json()
+    assert guest_data["id"] == guest_user_id
+    assert guest_data["role"] == "guest"
+
+    # 2. Guest queries GET /users/{admin_user_id} and receives HTTP 403 Forbidden
+    res_guest_query = await client.get(
+        f"{settings.API_V1_STR}/users/{admin_user_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_guest_query.status_code == 403
+
+    # 3. Admin queries GET /users/999999 and receives HTTP 404 Not Found
+    res_not_found = await client.get(
+        f"{settings.API_V1_STR}/users/999999",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert res_not_found.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_geo_provinces_and_cities(
     client: AsyncClient,
     admin_token: str,
