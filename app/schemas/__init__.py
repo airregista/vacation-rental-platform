@@ -10,6 +10,12 @@ from app.schemas.accommodation import (
 )
 from app.schemas.amenity import AmenityCreate, AmenityResponse
 from app.schemas.category import CategoryCreate, CategoryResponse
+from app.schemas.coupon import (
+    CouponCreate,
+    CouponResponse,
+    CouponValidateRequest,
+    CouponValidateResponse,
+)
 from app.schemas.geo import CityCreate, CityResponse, ProvinceCreate, ProvinceResponse
 from app.schemas.payment import (
     PaymentInitiateRequest,
@@ -44,6 +50,10 @@ __all__ = [
     "CityResponse",
     "CategoryCreate",
     "CategoryResponse",
+    "CouponCreate",
+    "CouponResponse",
+    "CouponValidateRequest",
+    "CouponValidateResponse",
     "AmenityCreate",
     "AmenityResponse",
     "AccommodationCreate",

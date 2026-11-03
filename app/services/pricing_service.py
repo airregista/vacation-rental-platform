@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accommodation import Accommodation, PricingException
+from app.models.coupon import Coupon
 from app.schemas.reservation import PriceBreakdownItem, PriceCalculationResponse
 
 TEHRAN_TZ = ZoneInfo("Asia/Tehran")
@@ -18,6 +19,7 @@ async def calculate_reservation_price(
     check_in: date,
     check_out: date,
     guests_count: int,
+    coupon_code: str | None = None,
 ) -> PriceCalculationResponse:
     iran_today = datetime.now(TEHRAN_TZ).date()
     if check_in < iran_today:
@@ -88,8 +90,34 @@ async def calculate_reservation_price(
     extra_guest_total = (
         Decimal(extra_guests) * Decimal(accommodation.extra_guest_fee) * Decimal(total_nights)
     )
+
+    subtotal = nights_total + extra_guest_total
+    discount_amount = Decimal(0)
+
+    if coupon_code:
+        clean_code = coupon_code.strip().upper()
+        coupon = (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
+        now_utc = datetime.now(timezone.utc)
+        if not coupon or not coupon.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive coupon code")
+        if not (coupon.valid_from <= now_utc <= coupon.valid_until):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon code has expired or is not yet valid")
+        if subtotal < coupon.min_booking_amount:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Booking subtotal must be at least {coupon.min_booking_amount} to use this coupon")
+        if coupon.usage_limit is not None and coupon.used_count >= coupon.usage_limit:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon code usage limit has been reached")
+
+        if coupon.discount_type == "percentage":
+            raw_discount = (subtotal * Decimal(coupon.discount_value)) / Decimal(100)
+            if coupon.max_discount_amount is not None:
+                raw_discount = min(raw_discount, Decimal(coupon.max_discount_amount))
+        else:
+            raw_discount = min(subtotal, Decimal(coupon.discount_value))
+
+        discount_amount = Decimal(round(raw_discount))
+
     cleaning_fee = Decimal(accommodation.cleaning_fee)
-    total_price = nights_total + extra_guest_total + cleaning_fee
+    total_price = max(Decimal(0), subtotal + cleaning_fee - discount_amount)
 
     return PriceCalculationResponse(
         total_nights=total_nights,
@@ -98,6 +126,8 @@ async def calculate_reservation_price(
         extra_guest_fee_per_night=Decimal(accommodation.extra_guest_fee),
         extra_guest_total=extra_guest_total,
         cleaning_fee=cleaning_fee,
+        discount_amount=discount_amount,
+        coupon_code=coupon_code,
         total_price=total_price,
         cancellation_policy=getattr(accommodation, "cancellation_policy", "flexible"),
         breakdown=breakdown,
