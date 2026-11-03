@@ -355,3 +355,106 @@ async def test_filter_by_amenities_and_sorting(client: AsyncClient):
     assert desc_res.status_code == 200
     desc_prices = [Decimal(str(item["base_price"])) for item in desc_res.json()]
     assert desc_prices == sorted(desc_prices, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_amenity_filter_duplicate_query_params(client: AsyncClient):
+    amenities_res = await client.get(f"{settings.API_V1_STR}/amenities/")
+    assert amenities_res.status_code == 200
+    amenities = amenities_res.json()
+    assert len(amenities) >= 1
+    am_id = amenities[0]["id"]
+
+    single_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?amenity_ids={am_id}"
+    )
+    assert single_res.status_code == 200
+    single_items = single_res.json()
+    assert len(single_items) >= 1
+
+    dup_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?amenity_ids={am_id}&amenity_ids={am_id}"
+    )
+    assert dup_res.status_code == 200
+    dup_items = dup_res.json()
+    assert [a["id"] for a in dup_items] == [a["id"] for a in single_items]
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_image_returns_404(
+    client: AsyncClient,
+    admin_token: str,
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    assert acc_res.status_code == 200
+    acc_id = acc_res.json()[0]["id"]
+
+    del_res = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/999999",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert del_res.status_code == 404
+    assert del_res.json()["detail"] == "Accommodation image not found"
+
+
+@pytest.mark.asyncio
+async def test_pagination_deterministic_ordering_with_duplicate_prices(
+    client: AsyncClient,
+    admin_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    target_price = 7654321
+    for _ in range(4):
+        create_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/",
+            json={
+                "category_id": category_id,
+                "city_id": city_id,
+                "title": f"اقامتگاه مرتب‌سازی {uuid.uuid4().hex[:6]}",
+                "description": "توضیحات تست",
+                "address": "آدرس تست",
+                "base_price": target_price,
+                "cleaning_fee": 100000,
+                "capacity": 2,
+                "max_capacity": 4,
+                "extra_guest_fee": 50000,
+                "rooms_count": 1,
+                "beds_count": 1,
+                "rules": "قوانین",
+                "is_active": True,
+                "images": [],
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert create_res.status_code == 201
+
+    p1_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?min_price={target_price}&max_price={target_price}&sort_by=price_asc&skip=0&limit=2"
+    )
+    assert p1_res.status_code == 200
+    p1_items = p1_res.json()
+    assert len(p1_items) == 2
+
+    p2_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?min_price={target_price}&max_price={target_price}&sort_by=price_asc&skip=2&limit=2"
+    )
+    assert p2_res.status_code == 200
+    p2_items = p2_res.json()
+    assert len(p2_items) == 2
+
+    p1_ids = [item["id"] for item in p1_items]
+    p2_ids = [item["id"] for item in p2_items]
+
+    assert set(p1_ids).isdisjoint(set(p2_ids))
+    all_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?min_price={target_price}&max_price={target_price}&sort_by=price_asc&skip=0&limit=4"
+    )
+    assert all_res.status_code == 200
+    all_ids = [item["id"] for item in all_res.json()]
+    assert p1_ids + p2_ids == all_ids
+    assert p1_ids[0] > p1_ids[1] > p2_ids[0] > p2_ids[1]
+
