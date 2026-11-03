@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
 
@@ -121,4 +122,3 @@ async def test_past_date_reservation_rejected(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert res.status_code in (400, 422)
-

@@ -1,3 +1,6 @@
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,7 +10,22 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkeyforjavabamaccommodationapppleasedonotuseinprod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+    ]
+
+    ENVIRONMENT: str = "development"
+
+    @model_validator(mode="after")
+    def validate_production_secret(self) -> Self:
+        if (
+            self.ENVIRONMENT.lower() in ("production", "prod")
+            and "donotuseinprod" in self.SECRET_KEY
+        ):
+            raise ValueError("Insecure default SECRET_KEY cannot be used in production environment")
+        return self
 
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
@@ -31,11 +49,7 @@ class Settings(BaseSettings):
             auth += f":{self.POSTGRES_PASSWORD}"
         return f"postgresql+asyncpg://{auth}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 settings = Settings()

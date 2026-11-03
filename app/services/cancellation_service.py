@@ -2,6 +2,7 @@
 from datetime import datetime, time, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+
 from app.models.accommodation import Accommodation
 from app.models.reservation import Reservation
 
@@ -25,9 +26,7 @@ def calculate_cancellation_refund(
 
     # Timezone-aware check-in datetime
     check_time = getattr(accommodation, "check_in_time", None) or time(14, 0)
-    local_checkin_dt = datetime.combine(
-        reservation.check_in, check_time, tzinfo=TEHRAN_TZ
-    )
+    local_checkin_dt = datetime.combine(reservation.check_in, check_time, tzinfo=TEHRAN_TZ)
     checkin_dt = local_checkin_dt.astimezone(timezone.utc)
 
     hours_to_checkin = (checkin_dt - cancel_time).total_seconds() / 3600.0

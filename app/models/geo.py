@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey, Identity, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,9 +22,7 @@ class Province(Base):
 
 class City(Base):
     __tablename__ = "cities"
-    __table_args__ = (
-        UniqueConstraint("province_id", "name", name="uq_city_province_name"),
-    )
+    __table_args__ = (UniqueConstraint("province_id", "name", name="uq_city_province_name"),)
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     province_id: Mapped[int] = mapped_column(

@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -64,10 +65,14 @@ class Accommodation(Base):
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7), nullable=True)
     base_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    cleaning_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), server_default="0", nullable=False)
+    cleaning_fee: Mapped[Decimal] = mapped_column(
+        Numeric(10, 0), server_default="0", nullable=False
+    )
     capacity: Mapped[int] = mapped_column(SmallInteger, server_default="2", nullable=False)
     max_capacity: Mapped[int] = mapped_column(SmallInteger, server_default="4", nullable=False)
-    extra_guest_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), server_default="0", nullable=False)
+    extra_guest_fee: Mapped[Decimal] = mapped_column(
+        Numeric(10, 0), server_default="0", nullable=False
+    )
     rooms_count: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
     beds_count: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
     check_in_time: Mapped[time] = mapped_column(Time, server_default="14:00", nullable=False)
@@ -76,7 +81,9 @@ class Accommodation(Base):
     cancellation_policy: Mapped[str] = mapped_column(
         String(20), server_default="flexible", nullable=False
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", index=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, server_default="true", index=True, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -121,7 +128,9 @@ class AccommodationImage(Base):
 class PricingException(Base):
     __tablename__ = "pricing_exceptions"
     __table_args__ = (
-        UniqueConstraint("accommodation_id", "date", name="uq_pricing_exception_accommodation_date"),
+        UniqueConstraint(
+            "accommodation_id", "date", name="uq_pricing_exception_accommodation_date"
+        ),
         CheckConstraint("price IS NULL OR price >= 0", name="chk_pricing_exception_price"),
     )
 

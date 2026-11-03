@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+
 import pytest
 from httpx import AsyncClient
 
@@ -147,9 +148,7 @@ def test_calculate_refund_strict_policy():
 
 
 @pytest.mark.asyncio
-async def test_cancel_pending_reservation_yields_zero_refund(
-    client: AsyncClient, guest_token: str
-):
+async def test_cancel_pending_reservation_yields_zero_refund(client: AsyncClient, guest_token: str):
     # 1. Fetch accommodation
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]
@@ -356,9 +355,7 @@ async def test_cancel_flexible_less_than_24_hours_retains_penalty(
 
 
 @pytest.mark.asyncio
-async def test_preview_amounts_match_final_execution_amounts(
-    client: AsyncClient, guest_token: str
-):
+async def test_preview_amounts_match_final_execution_amounts(client: AsyncClient, guest_token: str):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]
 
@@ -397,9 +394,7 @@ async def test_preview_amounts_match_final_execution_amounts(
 
 
 @pytest.mark.asyncio
-async def test_cannot_cancel_after_checkin_time_has_arrived(
-    client: AsyncClient, guest_token: str
-):
+async def test_cannot_cancel_after_checkin_time_has_arrived(client: AsyncClient, guest_token: str):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]
 

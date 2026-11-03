@@ -1,5 +1,6 @@
 from datetime import date
 from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -70,7 +71,11 @@ async def create_review(
     db: SessionDep,
 ) -> ReviewResponse:
     # 1. Verify accommodation exists
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == accommodation_id))).scalars().first()
+    acc = (
+        (await db.execute(select(Accommodation).where(Accommodation.id == accommodation_id)))
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

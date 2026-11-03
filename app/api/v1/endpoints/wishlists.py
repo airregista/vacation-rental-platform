@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
@@ -21,7 +21,11 @@ async def toggle_wishlist(
     db: SessionDep,
 ) -> WishlistToggleResponse:
     # Verify accommodation exists
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == accommodation_id))).scalars().first()
+    acc = (
+        (await db.execute(select(Accommodation).where(Accommodation.id == accommodation_id)))
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
@@ -61,7 +65,9 @@ async def list_my_wishlist(
     stmt = (
         select(Wishlist)
         .options(
-            selectinload(Wishlist.accommodation).selectinload(Accommodation.city).selectinload(City.province),
+            selectinload(Wishlist.accommodation)
+            .selectinload(Accommodation.city)
+            .selectinload(City.province),
             selectinload(Wishlist.accommodation).selectinload(Accommodation.category),
             selectinload(Wishlist.accommodation).selectinload(Accommodation.images),
         )
@@ -80,7 +86,9 @@ async def list_my_wishlist(
 
         city_resp = None
         if acc.city:
-            prov_resp = ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            prov_resp = (
+                ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            )
             city_resp = CityResponse(
                 id=acc.city.id,
                 province_id=acc.city.province_id,

@@ -1,9 +1,10 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accommodation import Accommodation, PricingException
 from app.schemas.reservation import PriceBreakdownItem, PriceCalculationResponse
@@ -44,13 +45,10 @@ async def calculate_reservation_price(
         )
 
     # Fetch pricing exceptions in the date range
-    stmt = (
-        select(PricingException)
-        .where(
-            PricingException.accommodation_id == accommodation.id,
-            PricingException.date >= check_in,
-            PricingException.date < check_out,
-        )
+    stmt = select(PricingException).where(
+        PricingException.accommodation_id == accommodation.id,
+        PricingException.date >= check_in,
+        PricingException.date < check_out,
     )
     result = await db.execute(stmt)
     exceptions_by_date = {ex.date: ex for ex in result.scalars().all()}
@@ -87,7 +85,9 @@ async def calculate_reservation_price(
 
     # Calculate extra guest fee
     extra_guests = max(0, guests_count - accommodation.capacity)
-    extra_guest_total = Decimal(extra_guests) * Decimal(accommodation.extra_guest_fee) * Decimal(total_nights)
+    extra_guest_total = (
+        Decimal(extra_guests) * Decimal(accommodation.extra_guest_fee) * Decimal(total_nights)
+    )
     cleaning_fee = Decimal(accommodation.cleaning_fee)
     total_price = nights_total + extra_guest_total + cleaning_fee
 

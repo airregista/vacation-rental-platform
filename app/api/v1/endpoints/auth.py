@@ -53,9 +53,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 @router.post("/login", response_model=Token)
 async def login(login_data: UserLogin, db: SessionDep) -> Token:
     identifier = login_data.login.strip()
-    stmt = select(User).where(
-        or_(User.phone == identifier, User.email == identifier)
-    )
+    stmt = select(User).where(or_(User.phone == identifier, User.email == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 

@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -19,7 +20,9 @@ from app.services.reservation_service import check_booking_overlap
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
-@router.post("/checkout", response_model=PaymentInitiateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/checkout", response_model=PaymentInitiateResponse, status_code=status.HTTP_201_CREATED
+)
 async def checkout_payment(
     req: PaymentInitiateRequest,
     current_user: CurrentUserDep,
@@ -82,7 +85,9 @@ async def verify_payment(
     res = await db.execute(stmt)
     payment = res.scalars().first()
     if not payment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found"
+        )
 
     reservation = payment.reservation
     if current_user.role != "admin" and reservation.user_id != current_user.id:
@@ -167,11 +172,7 @@ async def get_payment(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> PaymentResponse:
-    stmt = (
-        select(Payment)
-        .options(selectinload(Payment.reservation))
-        .where(Payment.id == id)
-    )
+    stmt = select(Payment).options(selectinload(Payment.reservation)).where(Payment.id == id)
     res = await db.execute(stmt)
     payment = res.scalars().first()
     if not payment:
