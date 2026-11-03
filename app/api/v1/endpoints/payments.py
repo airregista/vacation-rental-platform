@@ -30,7 +30,7 @@ async def checkout_payment(
 ) -> PaymentInitiateResponse:
     stmt = (
         select(Reservation)
-        .options(selectinload(Reservation.accommodation))
+        .options(selectinload(Reservation.accommodation), selectinload(Reservation.payments))
         .where(Reservation.id == req.reservation_id)
     )
     res = await db.execute(stmt)
@@ -57,6 +57,9 @@ async def checkout_payment(
         reservation.status = "cancelled"
         reservation.cancellation_reason = "Payment session expired (TTL timeout)"
         reservation.cancelled_at = datetime.now(timezone.utc)
+        for p in reservation.payments:
+            if p.status == "pending":
+                p.status = "failed"
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

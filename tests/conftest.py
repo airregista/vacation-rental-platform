@@ -24,7 +24,11 @@ async def ensure_database_seeded():
 
     # 2. Ensure seed data exists
     async with AsyncSessionLocal() as session:
-        admin_check = (await session.execute(select(User).where(User.phone == "09120000000"))).scalars().first()
+        admin_check = (
+            (await session.execute(select(User).where(User.phone == "09120000000")))
+            .scalars()
+            .first()
+        )
         if not admin_check:
             await seed()
 

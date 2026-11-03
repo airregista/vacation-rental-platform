@@ -32,6 +32,8 @@ class CouponCreate(BaseModel):
     def validate_discount(self) -> Self:
         if self.discount_type == "percentage" and self.discount_value > 100:
             raise ValueError("Percentage discount cannot exceed 100%")
+        if self.valid_until < self.valid_from:
+            raise ValueError("valid_until must be on or after valid_from")
         return self
 
 

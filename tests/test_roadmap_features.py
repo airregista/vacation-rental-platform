@@ -248,4 +248,3 @@ async def test_batch_pricing_exceptions(client: AsyncClient, admin_token: str):
     )
     assert batch_res.status_code == 200
     assert batch_res.json()["updated_count"] == 7
-

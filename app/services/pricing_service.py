@@ -93,19 +93,33 @@ async def calculate_reservation_price(
 
     subtotal = nights_total + extra_guest_total
     discount_amount = Decimal(0)
+    applied_coupon_code: str | None = None
 
-    if coupon_code:
+    if coupon_code and coupon_code.strip():
         clean_code = coupon_code.strip().upper()
-        coupon = (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
+        coupon = (
+            (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
+        )
         now_utc = datetime.now(timezone.utc)
         if not coupon or not coupon.is_active:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive coupon code")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive coupon code"
+            )
         if not (coupon.valid_from <= now_utc <= coupon.valid_until):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon code has expired or is not yet valid")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Coupon code has expired or is not yet valid",
+            )
         if subtotal < coupon.min_booking_amount:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Booking subtotal must be at least {coupon.min_booking_amount} to use this coupon")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Booking subtotal must be at least {coupon.min_booking_amount} to use this coupon",
+            )
         if coupon.usage_limit is not None and coupon.used_count >= coupon.usage_limit:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon code usage limit has been reached")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Coupon code usage limit has been reached",
+            )
 
         if coupon.discount_type == "percentage":
             raw_discount = (subtotal * Decimal(coupon.discount_value)) / Decimal(100)
@@ -115,6 +129,7 @@ async def calculate_reservation_price(
             raw_discount = min(subtotal, Decimal(coupon.discount_value))
 
         discount_amount = Decimal(round(raw_discount))
+        applied_coupon_code = clean_code
 
     cleaning_fee = Decimal(accommodation.cleaning_fee)
     total_price = max(Decimal(0), subtotal + cleaning_fee - discount_amount)
@@ -127,7 +142,7 @@ async def calculate_reservation_price(
         extra_guest_total=extra_guest_total,
         cleaning_fee=cleaning_fee,
         discount_amount=discount_amount,
-        coupon_code=coupon_code,
+        coupon_code=applied_coupon_code,
         total_price=total_price,
         cancellation_policy=getattr(accommodation, "cancellation_policy", "flexible"),
         breakdown=breakdown,

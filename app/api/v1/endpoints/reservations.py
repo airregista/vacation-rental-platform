@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
+from app.models.coupon import Coupon
 from app.models.payment import Payment
 from app.models.reservation import Reservation
 from app.schemas.reservation import (
@@ -33,7 +34,9 @@ router = APIRouter(prefix="/reservations", tags=["reservations"])
 async def cleanup_expired_reservations(
     admin: CurrentAdminDep,
     db: SessionDep,
-    ttl_minutes: Annotated[int, Query(ge=0, description="Minutes after which pending reservations expire")] = 30,
+    ttl_minutes: Annotated[
+        int, Query(ge=0, description="Minutes after which pending reservations expire")
+    ] = 30,
 ) -> dict[str, int]:
     count = await expire_stale_pending_reservations(db, ttl_minutes=ttl_minutes)
     return {"expired_count": count}
@@ -111,6 +114,13 @@ async def create_reservation(
         status="pending",
     )
     db.add(reservation)
+
+    if calc.coupon_code:
+        coupon_stmt = select(Coupon).where(Coupon.code == calc.coupon_code).with_for_update()
+        coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+        if coupon_obj:
+            coupon_obj.used_count += 1
+
     await db.commit()
     await db.refresh(reservation)
 
@@ -182,7 +192,9 @@ async def get_reservation(
 
     is_admin = current_user.role == "admin"
     is_guest = reservation.user_id == current_user.id
-    is_host = bool(reservation.accommodation and reservation.accommodation.host_id == current_user.id)
+    is_host = bool(
+        reservation.accommodation and reservation.accommodation.host_id == current_user.id
+    )
 
     if not (is_admin or is_guest or is_host):
         raise HTTPException(

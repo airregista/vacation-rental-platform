@@ -557,7 +557,7 @@ async def create_accommodation(
 
     # Add amenities
     if acc_in.amenity_ids:
-        for aid in acc_in.amenity_ids:
+        for aid in dict.fromkeys(acc_in.amenity_ids):
             link = AccommodationAmenity(accommodation_id=accommodation.id, amenity_id=aid)
             db.add(link)
 
@@ -616,18 +616,23 @@ async def update_accommodation(
         )
 
     if acc_in.amenity_ids is not None:
-        if acc_in.amenity_ids:
+        unique_amenity_ids = list(dict.fromkeys(acc_in.amenity_ids))
+        if unique_amenity_ids:
             existing_amenities = (
-                await db.execute(select(Amenity.id).where(Amenity.id.in_(acc_in.amenity_ids)))
-            ).scalars().all()
-            missing = set(acc_in.amenity_ids) - set(existing_amenities)
+                (await db.execute(select(Amenity.id).where(Amenity.id.in_(unique_amenity_ids))))
+                .scalars()
+                .all()
+            )
+            missing = set(unique_amenity_ids) - set(existing_amenities)
             if missing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Amenity IDs not found: {sorted(list(missing))}",
                 )
-        await db.execute(delete(AccommodationAmenity).where(AccommodationAmenity.accommodation_id == id))
-        for aid in acc_in.amenity_ids:
+        await db.execute(
+            delete(AccommodationAmenity).where(AccommodationAmenity.accommodation_id == id)
+        )
+        for aid in unique_amenity_ids:
             db.add(AccommodationAmenity(accommodation_id=id, amenity_id=aid))
 
     update_data = acc_in.model_dump(exclude_unset=True)
@@ -847,4 +852,3 @@ async def delete_pricing_exception(
 
     await db.delete(existing)
     await db.commit()
-

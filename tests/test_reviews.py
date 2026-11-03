@@ -172,4 +172,3 @@ async def test_wishlist_pagination(
     )
     assert paged.status_code == 200
     assert len(paged.json()) <= 1
-

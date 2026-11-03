@@ -306,12 +306,12 @@ async def test_pricing_exception_deletion_and_amenity_updates(
     )
     assert dup_del.status_code == 404
 
-    # 4. Update accommodation amenities
+    # 4. Update accommodation amenities (passing duplicate IDs should be deduplicated safely)
     am_res = await client.get(f"{settings.API_V1_STR}/amenities/")
     am_id = am_res.json()[0]["id"]
     update_res = await client.put(
         f"{settings.API_V1_STR}/accommodations/{acc_id}",
-        json={"amenity_ids": [am_id]},
+        json={"amenity_ids": [am_id, am_id]},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert update_res.status_code == 200
@@ -355,5 +355,3 @@ async def test_filter_by_amenities_and_sorting(client: AsyncClient):
     assert desc_res.status_code == 200
     desc_prices = [Decimal(str(item["base_price"])) for item in desc_res.json()]
     assert desc_prices == sorted(desc_prices, reverse=True)
-
-

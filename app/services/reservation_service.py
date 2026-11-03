@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.reservation import Reservation
 
@@ -35,6 +36,7 @@ async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int =
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
     stmt = (
         select(Reservation)
+        .options(selectinload(Reservation.payments))
         .where(Reservation.status == "pending", Reservation.created_at < cutoff)
         .with_for_update(skip_locked=True)
     )
@@ -44,6 +46,8 @@ async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int =
         r.status = "cancelled"
         r.cancellation_reason = "Payment session expired (TTL timeout)"
         r.cancelled_at = datetime.now(timezone.utc)
+        for p in r.payments:
+            if p.status == "pending":
+                p.status = "failed"
     await db.commit()
     return len(stale)
-

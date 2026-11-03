@@ -193,7 +193,9 @@ async def test_payments_history_and_authorization(client: AsyncClient, guest_tok
 
 
 @pytest.mark.asyncio
-async def test_cleanup_expired_reservations(client: AsyncClient, admin_token: str, guest_token: str):
+async def test_cleanup_expired_reservations(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]
     check_in = (date.today() + timedelta(days=70)).isoformat()
@@ -212,6 +214,15 @@ async def test_cleanup_expired_reservations(client: AsyncClient, admin_token: st
     assert booking_res.status_code == 201
     res_id = booking_res.json()["id"]
 
+    # Initiate payment so a pending payment record exists
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout_res.status_code == 201
+    payment_id = checkout_res.json()["payment_id"]
+
     # Calling cleanup with ttl_minutes=0 immediately expires any pending reservation
     cleanup_res = await client.post(
         f"{settings.API_V1_STR}/reservations/cleanup-expired?ttl_minutes=0",
@@ -228,4 +239,10 @@ async def test_cleanup_expired_reservations(client: AsyncClient, admin_token: st
     assert check.status_code == 200
     assert check.json()["status"] == "cancelled"
 
-
+    # Check payment is failed
+    pay_check = await client.get(
+        f"{settings.API_V1_STR}/payments/{payment_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pay_check.status_code == 200
+    assert pay_check.json()["status"] == "failed"
