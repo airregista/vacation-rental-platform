@@ -13,6 +13,7 @@ from app.main import app
 async def ensure_database_seeded():
     """Ensures test database tables and essential seed data exist before running tests."""
     from sqlalchemy import select
+
     from app.core.database import AsyncSessionLocal, Base, engine
     from app.models.user import User
     from app.seeds.seed_data import seed
