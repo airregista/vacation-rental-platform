@@ -112,3 +112,34 @@ async def test_payment_failure_simulation(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert res_detail.json()["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_update_accommodation_capacity_cross_validation(
+    client: AsyncClient,
+    admin_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": "کلبه اعتبارسنجی ظرفیت",
+            "address": "خیابان تست ظرفیت، پلاک ۲",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    # Updating capacity to 10 when max_capacity is 4 must return HTTP 400
+    update_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"capacity": 10},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert update_res.status_code == 400
+    assert "max_capacity" in update_res.json()["detail"]

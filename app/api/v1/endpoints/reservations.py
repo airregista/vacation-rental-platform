@@ -165,9 +165,15 @@ async def get_reservation(
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
 
-    # Authorization check: guest can view their own, admin can view any
-    if current_user.role != "admin" and reservation.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    is_admin = current_user.role == "admin"
+    is_guest = reservation.user_id == current_user.id
+    is_host = bool(reservation.accommodation and reservation.accommodation.host_id == current_user.id)
+
+    if not (is_admin or is_guest or is_host):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: you do not have permission to view this reservation",
+        )
 
     item = ReservationResponse.model_validate(reservation)
     item.accommodation_title = reservation.accommodation.title if reservation.accommodation else None

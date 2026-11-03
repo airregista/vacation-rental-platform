@@ -567,6 +567,15 @@ async def update_accommodation(
         if not cat_exists:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category ID {acc_in.category_id} does not exist")
 
+    new_capacity = acc_in.capacity if acc_in.capacity is not None else acc.capacity
+    new_max_capacity = acc_in.max_capacity if acc_in.max_capacity is not None else acc.max_capacity
+
+    if new_max_capacity < new_capacity:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"max_capacity ({new_max_capacity}) must be greater than or equal to base capacity ({new_capacity})",
+        )
+
     update_data = acc_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(acc, field, value)

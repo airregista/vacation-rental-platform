@@ -15,7 +15,7 @@ async def list_users(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[UserResponse]:
-    stmt = select(User).offset(skip).limit(limit)
+    stmt = select(User).order_by(User.id.asc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     users = result.scalars().all()
     return [UserResponse.model_validate(u) for u in users]

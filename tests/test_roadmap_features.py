@@ -186,6 +186,34 @@ async def test_host_reservations_and_permissions(
     )
     assert del_res.status_code == 204
 
+    # Host can view reservation details
+    host_detail_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{booking_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_detail_res.status_code == 200
+    assert host_detail_res.json()["id"] == booking_id
+
+    # Register an unrelated 3rd guest user and verify 403 Forbidden
+    unrelated_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    guest3_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": unrelated_phone,
+            "password": "guestPassword123",
+            "first_name": "غریبه",
+            "last_name": "تست",
+        },
+    )
+    assert guest3_res.status_code == 201
+    guest3_token = guest3_res.json()["access_token"]
+
+    forbidden_detail_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{booking_id}",
+        headers={"Authorization": f"Bearer {guest3_token}"},
+    )
+    assert forbidden_detail_res.status_code == 403
+
 
 @pytest.mark.asyncio
 async def test_incomplete_spatial_search_rejected(client: AsyncClient):
