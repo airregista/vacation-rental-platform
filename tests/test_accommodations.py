@@ -1,10 +1,6 @@
 import uuid
-<<<<<<< HEAD
 from datetime import date, timedelta
-=======
-from datetime import date
 from decimal import Decimal
->>>>>>> advisor/015-search-sorting-and-payments-test-coverage
 
 import pytest
 from httpx import AsyncClient

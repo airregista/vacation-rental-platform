@@ -784,12 +784,14 @@ async def delete_pricing_exception(
             detail="You do not have permission to modify this accommodation",
         )
 
-    del_stmt = delete(PricingException).where(
+    stmt = select(PricingException).where(
         PricingException.accommodation_id == id,
         PricingException.date == exception_date,
     )
-    res = await db.execute(del_stmt)
-    await db.commit()
-    if res.rowcount == 0:
+    existing = (await db.execute(stmt)).scalars().first()
+    if not existing:
         raise HTTPException(status_code=404, detail="Pricing exception for this date not found")
+
+    await db.delete(existing)
+    await db.commit()
 
