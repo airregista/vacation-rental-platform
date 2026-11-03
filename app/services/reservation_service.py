@@ -1,10 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.coupon import Coupon
+from app.models.payment import Payment
 from app.models.reservation import Reservation
 
 
@@ -31,6 +32,43 @@ async def check_booking_overlap(
     result = await db.execute(stmt)
     overlapping = result.scalars().first()
     return overlapping is not None
+
+
+async def check_and_expire_reservation(
+    db: AsyncSession,
+    reservation: Reservation,
+    ttl_minutes: int = 30,
+    commit: bool = True,
+) -> bool:
+    res_created = reservation.created_at
+    if res_created.tzinfo is None:
+        res_created = res_created.replace(tzinfo=timezone.utc)
+
+    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes):
+        return False
+
+    reservation.status = "cancelled"
+    reservation.cancellation_reason = "Payment session expired (TTL timeout)"
+    reservation.cancelled_at = datetime.now(timezone.utc)
+
+    # Direct update to avoid MissingGreenlet error on un-eager-loaded payments
+    await db.execute(
+        update(Payment)
+        .where(Payment.reservation_id == reservation.id, Payment.status == "pending")
+        .values(status="failed")
+    )
+
+    if reservation.coupon_code:
+        coupon_stmt = (
+            select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
+        )
+        coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+        if coupon_obj and coupon_obj.used_count > 0:
+            coupon_obj.used_count -= 1
+
+    if commit:
+        await db.commit()
+    return True
 
 
 async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int = 30) -> int:
