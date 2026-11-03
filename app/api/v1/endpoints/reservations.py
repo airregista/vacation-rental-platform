@@ -5,13 +5,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
 from app.models.payment import Payment
-from app.models.reservation import Reservation
+from app.models.reservation import Reservation, ReservationMessage
 from app.schemas.reservation import (
     CancellationPreviewResponse,
     CancellationRequest,
@@ -19,6 +19,8 @@ from app.schemas.reservation import (
     PriceCalculationRequest,
     PriceCalculationResponse,
     ReservationCreate,
+    ReservationMessageCreate,
+    ReservationMessageResponse,
     ReservationResponse,
 )
 from app.services.cancellation_service import calculate_cancellation_refund
@@ -246,6 +248,102 @@ async def get_reservation(
         reservation.accommodation.title if reservation.accommodation else None
     )
     return item
+
+
+@router.get("/{id}/messages", response_model=list[ReservationMessageResponse])
+async def list_reservation_messages(
+    id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[ReservationMessageResponse]:
+    res_stmt = (
+        select(Reservation)
+        .options(selectinload(Reservation.accommodation))
+        .where(Reservation.id == id)
+    )
+    reservation = (await db.execute(res_stmt)).scalars().first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    is_guest = reservation.user_id == current_user.id
+    is_host = bool(
+        reservation.accommodation and reservation.accommodation.host_id == current_user.id
+    )
+    is_admin = current_user.role == "admin"
+    if not (is_guest or is_host or is_admin):
+        raise HTTPException(status_code=403, detail="Access forbidden")
+
+    msg_stmt = (
+        select(ReservationMessage)
+        .options(joinedload(ReservationMessage.sender))
+        .where(ReservationMessage.reservation_id == id)
+        .order_by(ReservationMessage.created_at.asc())
+        .offset(skip)
+        .limit(limit)
+    )
+    messages = (await db.execute(msg_stmt)).scalars().all()
+    result = []
+    for m in messages:
+        resp = ReservationMessageResponse.model_validate(m)
+        resp.sender_name = (
+            f"{m.sender.first_name or ''} {m.sender.last_name or ''}".strip()
+            or m.sender.phone
+        )
+        result.append(resp)
+    return result
+
+
+@router.post(
+    "/{id}/messages",
+    response_model=ReservationMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_reservation_message(
+    id: int,
+    msg_in: ReservationMessageCreate,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> ReservationMessageResponse:
+    res_stmt = (
+        select(Reservation)
+        .options(selectinload(Reservation.accommodation))
+        .where(Reservation.id == id)
+    )
+    reservation = (await db.execute(res_stmt)).scalars().first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    is_guest = reservation.user_id == current_user.id
+    is_host = bool(
+        reservation.accommodation and reservation.accommodation.host_id == current_user.id
+    )
+    is_admin = current_user.role == "admin"
+    if not (is_guest or is_host or is_admin):
+        raise HTTPException(status_code=403, detail="Access forbidden")
+
+    if reservation.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot send messages on cancelled bookings",
+        )
+
+    new_msg = ReservationMessage(
+        reservation_id=id,
+        sender_id=current_user.id,
+        message=msg_in.message,
+    )
+    db.add(new_msg)
+    await db.commit()
+    await db.refresh(new_msg)
+
+    resp = ReservationMessageResponse.model_validate(new_msg)
+    resp.sender_name = (
+        f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
+        or current_user.phone
+    )
+    return resp
 
 
 @router.get("/{id}/cancel-preview", response_model=CancellationPreviewResponse)

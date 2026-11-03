@@ -624,3 +624,197 @@ async def test_host_payout_ledger_and_settlement_flow(
     assert settle_again.status_code == 400
     assert "already been completed" in settle_again.json()["detail"].lower()
 
+
+@pytest.mark.asyncio
+async def test_reservation_messaging_flow(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    # 1. Register a dedicated host user
+    uid = uuid.uuid4().hex[:6]
+    host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    host_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": host_phone,
+            "email": f"msghost_{uid}@example.com",
+            "password": "HostPassword123!",
+            "first_name": "علی",
+            "last_name": "میزبان",
+        },
+    )
+    assert host_reg.status_code == 201
+    host_data = host_reg.json()["user"]
+    host_id = host_data["id"]
+    host_token = host_reg.json()["access_token"]
+
+    # 2. Admin creates an accommodation for this host
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": host_id,
+            "title": f"Messaging Property {uid}",
+            "address": "مازندران، چالوس",
+            "base_price": 1800000,
+            "min_nights": 1,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    # 3. Guest creates reservation and completes payment to confirm it
+    ci = (date.today() + timedelta(days=150)).isoformat()
+    co = (date.today() + timedelta(days=152)).isoformat()
+    book_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert book_res.status_code == 201
+    res_id = book_res.json()["id"]
+
+    pay_init = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pay_init.status_code == 201
+    payment_id = pay_init.json()["payment_id"]
+    tracking_code = pay_init.json()["tracking_code"]
+
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": payment_id,
+            "tracking_code": tracking_code,
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify_res.status_code == 200
+
+    # 4. Guest posts message to host on confirmed reservation. Verify HTTP 201.
+    guest_msg_payload = {"message": "سلام، ساعت تحویل کلید چند است؟"}
+    guest_msg_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json=guest_msg_payload,
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert guest_msg_res.status_code == 201
+    guest_msg = guest_msg_res.json()
+    assert guest_msg["reservation_id"] == res_id
+    assert guest_msg["message"] == guest_msg_payload["message"]
+    assert guest_msg["sender_name"] is not None and len(guest_msg["sender_name"]) > 0
+    assert guest_msg["created_at"] is not None
+
+    # 5. Host retrieves message list and posts a reply
+    host_list_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_list_res.status_code == 200
+    host_msgs = host_list_res.json()
+    assert len(host_msgs) == 1
+    assert host_msgs[0]["id"] == guest_msg["id"]
+
+    host_reply_payload = {"message": "سلام، از ساعت ۱۴ در خدمتتون هستیم."}
+    host_reply_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json=host_reply_payload,
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_reply_res.status_code == 201
+    host_reply = host_reply_res.json()
+    assert host_reply["sender_id"] == host_id
+    assert host_reply["sender_name"] == "علی میزبان"
+    assert host_reply["message"] == host_reply_payload["message"]
+
+    # 6. Verify messages appear in chronological order with correct sender_id and populated sender_name
+    final_list_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert final_list_res.status_code == 200
+    all_msgs = final_list_res.json()
+    assert len(all_msgs) == 2
+    assert all_msgs[0]["id"] == guest_msg["id"]
+    assert all_msgs[1]["id"] == host_reply["id"]
+    assert all_msgs[0]["sender_id"] != all_msgs[1]["sender_id"]
+    assert all_msgs[0]["sender_id"] == guest_msg["sender_id"]
+    assert all_msgs[1]["sender_id"] == host_id
+    assert all_msgs[0]["sender_name"] == guest_msg["sender_name"]
+    assert all_msgs[1]["sender_name"] == "علی میزبان"
+    assert all_msgs[0]["created_at"] <= all_msgs[1]["created_at"]
+
+    # Admin can also read messages
+    admin_list_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_list_res.status_code == 200
+    assert len(admin_list_res.json()) == 2
+
+    # 7. Unrelated third-party user attempts access and receives HTTP 403 Forbidden
+    other_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    other_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": other_phone,
+            "password": "OtherPassword123!",
+            "first_name": "غریبه",
+            "last_name": "سوم",
+        },
+    )
+    assert other_reg.status_code == 201
+    other_token = other_reg.json()["access_token"]
+
+    other_read = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert other_read.status_code == 403
+
+    other_write = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json={"message": "پیام از کاربر نامربوط"},
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert other_write.status_code == 403
+
+    # Empty/whitespace message validation
+    empty_write = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json={"message": "   "},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert empty_write.status_code == 422
+
+    # 8. Attempting to post message on cancelled reservation returns HTTP 400 Bad Request
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "کنسلی به دلیل برنامه سفر"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 200
+
+    cancelled_write = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json={"message": "پیام پس از کنسلی رزرو"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancelled_write.status_code == 400
+    assert "cancelled" in cancelled_write.json()["detail"].lower()
+
+
