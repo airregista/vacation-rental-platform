@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -318,3 +319,180 @@ async def test_batch_pricing_exceptions(client: AsyncClient, admin_token: str):
     )
     assert batch_res.status_code == 200
     assert batch_res.json()["updated_count"] == 7
+
+
+@pytest.mark.asyncio
+async def test_external_calendar_sync_flow(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    # 1. Admin creates accommodation owned by host (host_id=2) with external_calendar_url
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست آی‌کَل-{uuid.uuid4().hex[:6]}",
+            "address": "گیلان، رشت",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 1000000,
+            "host_id": 2,
+            "external_calendar_url": "https://calendar.example.com/feed.ics",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+    assert acc_res.json()["external_calendar_url"] == "https://calendar.example.com/feed.ics"
+
+    # 2. Mock httpx.AsyncClient.get returning valid ICS text with 2 VEVENT blocks
+    start1 = (date.today() + timedelta(days=10)).strftime("%Y%m%d")
+    end1 = (date.today() + timedelta(days=13)).strftime("%Y%m%d")  # 3 days: 10, 11, 12
+    start2 = (date.today() + timedelta(days=20)).strftime("%Y%m%d")
+    end2 = (date.today() + timedelta(days=22)).strftime("%Y%m%d")  # 2 days: 20, 21
+    ics_text = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Airbnb Inc//Hosting Calendar 0.8.8//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:{start1}
+DTEND;VALUE=DATE:{end1}
+SUMMARY:Airbnb (Not available)
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:{start2}
+DTEND;VALUE=DATE:{end2}
+SUMMARY:Airbnb (Not available)
+END:VEVENT
+END:VCALENDAR"""
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = ics_text
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_resp
+
+        # Host sends POST /accommodations/{id}/calendar/sync
+        sync_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert sync_res.status_code == 200
+        sync_data = sync_res.json()
+        assert sync_data["synced_events_count"] == 2
+        assert sync_data["blocked_days_count"] == 5
+        assert sync_data["last_sync_at"] is not None
+
+    # Assert PricingException entries exist with is_blocked = True via calendar endpoint
+    cal_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar?days=30",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cal_res.status_code == 200
+    days = cal_res.json()
+    blocked_dates = {d["date"] for d in days if not d["is_available"]}
+    expected_dates = {
+        (date.today() + timedelta(days=d)).isoformat()
+        for d in [10, 11, 12, 20, 21]
+    }
+    assert blocked_dates.issuperset(expected_dates)
+
+    # Assert exported iCal calendar contains blocked entries
+    cal_ics = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cal_ics.status_code == 200
+    assert "Blocked - Not Available" in cal_ics.text
+
+    # Assert detail endpoint returns updated last_calendar_sync_at
+    detail_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert detail_res.status_code == 200
+    assert detail_res.json()["last_calendar_sync_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_external_calendar_sync_unauthorized(
+    client: AsyncClient,
+    admin_token: str,
+):
+    # Admin creates accommodation owned by user 2
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه مجوز تست-{uuid.uuid4().hex[:6]}",
+            "address": "گیلان، لاهیجان",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 900000,
+            "host_id": 2,
+            "external_calendar_url": "https://calendar.example.com/ical.ics",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    # Register an unrelated guest
+    unrelated_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    guest_other_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": unrelated_phone,
+            "password": "guestPassword123",
+            "first_name": "کاربر",
+            "last_name": "غیرمجاز",
+        },
+    )
+    assert guest_other_res.status_code == 201
+    guest_other_token = guest_other_res.json()["access_token"]
+
+    # Non-host guest receives HTTP 403 Forbidden
+    sync_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+        headers={"Authorization": f"Bearer {guest_other_token}"},
+    )
+    assert sync_res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_external_calendar_sync_ssrf_rejection(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    # Host creates/updates accommodation with loopback calendar URL
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست اس‌اس‌آراف-{uuid.uuid4().hex[:6]}",
+            "address": "مازندران، چالوس",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 950000,
+            "host_id": 2,
+            "external_calendar_url": "http://127.0.0.1/admin.ics",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    # Host attempts syncing with http://127.0.0.1/admin.ics and receives HTTP 400 Bad Request
+    sync_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert sync_res.status_code == 400
+    assert "Loopback" in sync_res.json()["detail"] or "forbidden" in sync_res.json()["detail"].lower()

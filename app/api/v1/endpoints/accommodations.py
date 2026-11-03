@@ -1,14 +1,19 @@
 import hashlib
 import hmac
+import ipaddress
 import math
+import re
 import secrets
-from datetime import date, timedelta
+import urllib.parse
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import delete, distinct, exists, func, not_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, OptionalCurrentUserDep, SessionDep
@@ -27,6 +32,7 @@ from app.schemas.accommodation import (
     AccommodationImageResponse,
     AccommodationListItem,
     AccommodationUpdate,
+    CalendarSyncResponse,
     PricingExceptionBatchCreate,
     PricingExceptionBatchResponse,
     PricingExceptionCreate,
@@ -264,6 +270,7 @@ async def list_accommodations(
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
                 reviews_count=count_rat,
                 is_active=acc.is_active,
+                external_calendar_url=acc.external_calendar_url,
             )
         )
     return items
@@ -347,6 +354,7 @@ async def list_my_accommodations(
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
                 reviews_count=count_rat,
                 is_active=acc.is_active,
+                external_calendar_url=acc.external_calendar_url,
             )
         )
     return items
@@ -556,6 +564,116 @@ async def export_accommodation_calendar_ics(
     return Response(content=ics_content, media_type="text/calendar")
 
 
+def validate_external_feed_url(url_str: str) -> None:
+    parsed = urllib.parse.urlparse(url_str)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only HTTP/HTTPS calendar feed URLs are supported",
+        )
+    hostname = parsed.hostname or ""
+    if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Loopback calendar URLs are forbidden",
+        )
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Private network calendar URLs are forbidden",
+            )
+    except ValueError:
+        pass
+
+
+def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
+    ranges: list[tuple[date, date]] = []
+    vevents = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_content, re.DOTALL)
+    for vevent in vevents:
+        dtstart_match = re.search(r"DTSTART(?:;[^:\r\n]*)?:?(\d{8})", vevent)
+        dtend_match = re.search(r"DTEND(?:;[^:\r\n]*)?:?(\d{8})", vevent)
+        if dtstart_match and dtend_match:
+            start_str = dtstart_match.group(1)
+            end_str = dtend_match.group(1)
+            try:
+                s_date = datetime.strptime(start_str, "%Y%m%d").date()
+                e_date = datetime.strptime(end_str, "%Y%m%d").date()
+                if e_date > s_date:
+                    ranges.append((s_date, e_date))
+            except ValueError:
+                continue
+        elif dtstart_match and not dtend_match:
+            try:
+                s_date = datetime.strptime(dtstart_match.group(1), "%Y%m%d").date()
+                ranges.append((s_date, s_date + timedelta(days=1)))
+            except ValueError:
+                continue
+    return ranges
+
+
+@router.post("/{id}/calendar/sync", response_model=CalendarSyncResponse)
+async def sync_external_calendar(
+    id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> CalendarSyncResponse:
+    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
+    if current_user.role != "admin" and acc.host_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden")
+    if not acc.external_calendar_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No external calendar URL configured for this accommodation",
+        )
+
+    validate_external_feed_url(acc.external_calendar_url)
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(acc.external_calendar_url)
+            resp.raise_for_status()
+            ics_text = resp.text
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch external calendar feed: {str(exc)}",
+        )
+
+    event_ranges = parse_ical_blocked_ranges(ics_text)
+    total_blocked_days = 0
+    today = date.today()
+    max_future = today + timedelta(days=180)
+
+    for s_date, e_date in event_ranges:
+        curr = max(today, s_date)
+        while curr < min(max_future, e_date):
+            stmt = (
+                pg_insert(PricingException)
+                .values(accommodation_id=acc.id, date=curr, is_blocked=True)
+                .on_conflict_do_update(
+                    constraint="uq_pricing_exception_accommodation_date",
+                    set_={"is_blocked": True},
+                )
+            )
+            await db.execute(stmt)
+            total_blocked_days += 1
+            curr += timedelta(days=1)
+
+    now_utc = datetime.now(timezone.utc)
+    acc.last_calendar_sync_at = now_utc
+    await db.commit()
+
+    return CalendarSyncResponse(
+        synced_events_count=len(event_ranges),
+        blocked_days_count=total_blocked_days,
+        last_sync_at=now_utc,
+    )
+
+
 @router.post("/", response_model=AccommodationDetail, status_code=status.HTTP_201_CREATED)
 async def create_accommodation(
     acc_in: AccommodationCreate,
@@ -629,6 +747,7 @@ async def create_accommodation(
         rules=acc_in.rules,
         cancellation_policy=acc_in.cancellation_policy,
         is_active=acc_in.is_active,
+        external_calendar_url=acc_in.external_calendar_url,
     )
     db.add(accommodation)
     await db.flush()
