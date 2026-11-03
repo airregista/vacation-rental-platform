@@ -164,12 +164,16 @@ async def create_reservation(
 async def list_my_reservations(
     current_user: CurrentUserDep,
     db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[ReservationResponse]:
     stmt = (
         select(Reservation)
         .options(selectinload(Reservation.accommodation))
         .where(Reservation.user_id == current_user.id)
-        .order_by(Reservation.created_at.desc())
+        .order_by(Reservation.created_at.desc(), Reservation.id.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     reservations = result.scalars().all()
@@ -186,13 +190,17 @@ async def list_my_reservations(
 async def list_host_reservations(
     current_user: CurrentUserDep,
     db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[ReservationResponse]:
     stmt = (
         select(Reservation)
         .join(Reservation.accommodation)
         .options(selectinload(Reservation.accommodation))
         .where(Accommodation.host_id == current_user.id)
-        .order_by(Reservation.created_at.desc())
+        .order_by(Reservation.created_at.desc(), Reservation.id.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(stmt)
     reservations = result.scalars().all()

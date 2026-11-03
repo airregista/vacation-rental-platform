@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -41,8 +43,16 @@ async def create_province(
 async def list_cities(
     db: SessionDep,
     province_id: int | None = Query(default=None, description="Filter cities by province ID"),
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[CityResponse]:
-    stmt = select(City).options(selectinload(City.province)).order_by(City.name)
+    stmt = (
+        select(City)
+        .options(selectinload(City.province))
+        .order_by(City.name, City.id.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     if province_id is not None:
         stmt = stmt.where(City.province_id == province_id)
     result = await db.execute(stmt)

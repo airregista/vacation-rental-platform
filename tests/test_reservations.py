@@ -246,3 +246,80 @@ async def test_cleanup_expired_reservations(
     )
     assert pay_check.status_code == 200
     assert pay_check.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_my_reservations_pagination(client: AsyncClient):
+    uid = uuid.uuid4().hex[:8]
+    reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "email": f"res_page_{uid}@example.com",
+            "password": "Password123!",
+            "first_name": "Res",
+            "last_name": "PageUser",
+        },
+    )
+    assert reg.status_code == 201
+    user_token = reg.json()["access_token"]
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    res_ids = []
+    base_offset = 300 + (uuid.uuid4().int % 10000)
+    for i in range(3):
+        ci = (date.today() + timedelta(days=base_offset + i * 5)).isoformat()
+        co = (date.today() + timedelta(days=base_offset + i * 5 + 2)).isoformat()
+        res = await client.post(
+            f"{settings.API_V1_STR}/reservations/",
+            json={
+                "accommodation_id": acc_id,
+                "check_in": ci,
+                "check_out": co,
+                "guests_count": 1,
+            },
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+        assert res.status_code == 201
+        res_ids.append(res.json()["id"])
+
+    expected_order = list(reversed(res_ids))
+
+    p1 = await client.get(
+        f"{settings.API_V1_STR}/reservations/my?skip=0&limit=2",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert p1.status_code == 200
+    p1_data = p1.json()
+    assert len(p1_data) == 2
+    assert [r["id"] for r in p1_data] == expected_order[:2]
+
+    p2 = await client.get(
+        f"{settings.API_V1_STR}/reservations/my?skip=2&limit=2",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert p2.status_code == 200
+    p2_data = p2.json()
+    assert len(p2_data) == 1
+    assert [r["id"] for r in p2_data] == expected_order[2:]
+
+    p_mid = await client.get(
+        f"{settings.API_V1_STR}/reservations/my?skip=1&limit=1",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert p_mid.status_code == 200
+    assert [r["id"] for r in p_mid.json()] == [expected_order[1]]
+
+    err_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/my?skip=-1",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert err_res.status_code == 422
+
+    err_res2 = await client.get(
+        f"{settings.API_V1_STR}/reservations/my?limit=101",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert err_res2.status_code == 422
