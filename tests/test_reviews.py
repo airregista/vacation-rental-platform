@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+
 import pytest
 from httpx import AsyncClient
 
@@ -148,4 +149,3 @@ async def test_wishlist_and_public_review_listing(
     rev_list = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews")
     assert rev_list.status_code == 200
     assert isinstance(rev_list.json(), list)
-

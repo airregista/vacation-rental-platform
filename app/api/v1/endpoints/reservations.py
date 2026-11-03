@@ -1,7 +1,7 @@
-from datetime import date, datetime, timezone
-from decimal import Decimal
-from typing import Annotated
 import uuid
+from datetime import datetime, timezone
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -170,7 +170,9 @@ async def get_reservation(
         raise HTTPException(status_code=403, detail="Access forbidden")
 
     item = ReservationResponse.model_validate(reservation)
-    item.accommodation_title = reservation.accommodation.title if reservation.accommodation else None
+    item.accommodation_title = (
+        reservation.accommodation.title if reservation.accommodation else None
+    )
     return item
 
 

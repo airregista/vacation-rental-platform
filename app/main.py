@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import app.models  # ensure models are registered
+
+import app.models as _models  # noqa: F401 - ensure models are registered
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine

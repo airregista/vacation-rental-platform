@@ -1,7 +1,9 @@
-from datetime import date, timedelta
 import uuid
+from datetime import date, timedelta
+
 import pytest
 from httpx import AsyncClient
+
 from app.core.config import settings
 
 
@@ -197,4 +199,3 @@ async def test_incomplete_spatial_search_rejected(client: AsyncClient):
     # Only radius_km provided without lat and lng
     res2 = await client.get(f"{settings.API_V1_STR}/accommodations/?radius_km=15")
     assert res2.status_code == 400
-

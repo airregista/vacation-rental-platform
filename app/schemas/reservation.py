@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Self
 from zoneinfo import ZoneInfo
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
@@ -102,5 +103,3 @@ class CancellationPreviewResponse(BaseModel):
 
 class CancellationRequest(BaseModel):
     reason: str | None = None
-
-

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -53,7 +54,9 @@ class Reservation(Base):
     guests_count: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     total_nights: Mapped[int] = mapped_column(Integer, nullable=False)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), server_default="pending", index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="pending", index=True, nullable=False
+    )
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     refund_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
@@ -66,7 +69,9 @@ class Reservation(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="reservations")
-    accommodation: Mapped["Accommodation"] = relationship("Accommodation", back_populates="reservations")
+    accommodation: Mapped["Accommodation"] = relationship(
+        "Accommodation", back_populates="reservations"
+    )
     payments: Mapped[list["Payment"]] = relationship(
         "Payment", back_populates="reservation", cascade="all, delete-orphan"
     )

@@ -1,9 +1,10 @@
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import and_, delete, distinct, exists, func, not_, or_, select
+from sqlalchemy import delete, distinct, exists, func, not_, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
@@ -37,15 +38,27 @@ async def list_accommodations(
     city_id: Annotated[int | None, Query(description="Filter by city ID")] = None,
     province_id: Annotated[int | None, Query(description="Filter by province ID")] = None,
     category_id: Annotated[int | None, Query(description="Filter by category ID")] = None,
-    guests_count: Annotated[int | None, Query(ge=1, description="Minimum maximum capacity required")] = None,
+    guests_count: Annotated[
+        int | None, Query(ge=1, description="Minimum maximum capacity required")
+    ] = None,
     min_price: Annotated[Decimal | None, Query(ge=0, description="Minimum base price")] = None,
     max_price: Annotated[Decimal | None, Query(ge=0, description="Maximum base price")] = None,
-    check_in: Annotated[date | None, Query(description="Check-in date for availability check")] = None,
-    check_out: Annotated[date | None, Query(description="Check-out date for availability check")] = None,
+    check_in: Annotated[
+        date | None, Query(description="Check-in date for availability check")
+    ] = None,
+    check_out: Annotated[
+        date | None, Query(description="Check-out date for availability check")
+    ] = None,
     amenity_ids: Annotated[list[int] | None, Query(description="Required amenity IDs")] = None,
-    lat: Annotated[float | None, Query(ge=-90, le=90, description="Latitude for spatial radius search")] = None,
-    lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude for spatial radius search")] = None,
-    radius_km: Annotated[float | None, Query(gt=0, le=1000, description="Search radius in kilometers")] = None,
+    lat: Annotated[
+        float | None, Query(ge=-90, le=90, description="Latitude for spatial radius search")
+    ] = None,
+    lng: Annotated[
+        float | None, Query(ge=-180, le=180, description="Longitude for spatial radius search")
+    ] = None,
+    radius_km: Annotated[
+        float | None, Query(gt=0, le=1000, description="Search radius in kilometers")
+    ] = None,
     sort_by: Annotated[str, Query(description="Sorting: newest, price_asc, price_desc")] = "newest",
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -129,12 +142,11 @@ async def list_accommodations(
         )
 
     if lat is not None and lng is not None and radius_km is not None:
-        cos_angle = (
-            func.cos(func.radians(lat))
-            * func.cos(func.radians(Accommodation.latitude))
-            * func.cos(func.radians(Accommodation.longitude) - func.radians(lng))
-            + func.sin(func.radians(lat)) * func.sin(func.radians(Accommodation.latitude))
-        )
+        cos_angle = func.cos(func.radians(lat)) * func.cos(
+            func.radians(Accommodation.latitude)
+        ) * func.cos(func.radians(Accommodation.longitude) - func.radians(lng)) + func.sin(
+            func.radians(lat)
+        ) * func.sin(func.radians(Accommodation.latitude))
         clamped_cos = func.greatest(-1.0, func.least(1.0, cos_angle))
         haversine_expr = 6371 * func.acos(clamped_cos)
         stmt = stmt.where(
@@ -182,7 +194,9 @@ async def list_accommodations(
 
         city_resp = None
         if acc.city:
-            prov_resp = ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            prov_resp = (
+                ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            )
             city_resp = CityResponse(
                 id=acc.city.id,
                 province_id=acc.city.province_id,
@@ -258,7 +272,9 @@ async def list_my_accommodations(
 
         city_resp = None
         if acc.city:
-            prov_resp = ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            prov_resp = (
+                ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
+            )
             city_resp = CityResponse(
                 id=acc.city.id,
                 province_id=acc.city.province_id,
@@ -311,13 +327,10 @@ async def get_accommodation(id: int, db: SessionDep) -> AccommodationDetail:
         )
 
     # Reviews aggregate
-    agg_stmt = (
-        select(
-            func.avg(Review.rating).label("avg_rating"),
-            func.count(Review.id).label("count_rating"),
-        )
-        .where(Review.accommodation_id == id)
-    )
+    agg_stmt = select(
+        func.avg(Review.rating).label("avg_rating"),
+        func.count(Review.id).label("count_rating"),
+    ).where(Review.accommodation_id == id)
     agg_res = await db.execute(agg_stmt)
     avg_r, count_r = agg_res.one()
 
@@ -348,26 +361,20 @@ async def get_accommodation_calendar(
         )
 
     # Fetch pricing exceptions
-    ex_stmt = (
-        select(PricingException)
-        .where(
-            PricingException.accommodation_id == id,
-            PricingException.date >= start_date,
-            PricingException.date < end_date,
-        )
+    ex_stmt = select(PricingException).where(
+        PricingException.accommodation_id == id,
+        PricingException.date >= start_date,
+        PricingException.date < end_date,
     )
     ex_res = await db.execute(ex_stmt)
     exceptions = {e.date: e for e in ex_res.scalars().all()}
 
     # Fetch confirmed reservations
-    res_stmt = (
-        select(Reservation)
-        .where(
-            Reservation.accommodation_id == id,
-            Reservation.status == "confirmed",
-            Reservation.check_in < end_date,
-            Reservation.check_out > start_date,
-        )
+    res_stmt = select(Reservation).where(
+        Reservation.accommodation_id == id,
+        Reservation.status == "confirmed",
+        Reservation.check_in < end_date,
+        Reservation.check_out > start_date,
     )
     res_result = await db.execute(res_stmt)
     confirmed_reservations = res_result.scalars().all()
@@ -376,7 +383,9 @@ async def get_accommodation_calendar(
     curr = start_date
     while curr < end_date:
         exception = exceptions.get(curr)
-        day_price = exception.price if (exception and exception.price is not None) else acc.base_price
+        day_price = (
+            exception.price if (exception and exception.price is not None) else acc.base_price
+        )
         is_exception = exception is not None and exception.price is not None
 
         # Check if booked
@@ -430,24 +439,28 @@ async def export_accommodation_calendar_ics(
     for r in reservations:
         dtstart = r.check_in.strftime("%Y%m%d")
         dtend = r.check_out.strftime("%Y%m%d")
-        lines.extend([
-            "BEGIN:VEVENT",
-            f"UID:res-{r.id}@jabama.local",
-            f"DTSTART;VALUE=DATE:{dtstart}",
-            f"DTEND;VALUE=DATE:{dtend}",
-            f"SUMMARY:Booked - Reservation #{r.id}",
-            "END:VEVENT",
-        ])
+        lines.extend(
+            [
+                "BEGIN:VEVENT",
+                f"UID:res-{r.id}@jabama.local",
+                f"DTSTART;VALUE=DATE:{dtstart}",
+                f"DTEND;VALUE=DATE:{dtend}",
+                f"SUMMARY:Booked - Reservation #{r.id}",
+                "END:VEVENT",
+            ]
+        )
 
     for b in blocked:
         dt = b.date.strftime("%Y%m%d")
-        lines.extend([
-            "BEGIN:VEVENT",
-            f"UID:block-{b.id}@jabama.local",
-            f"DTSTART;VALUE=DATE:{dt}",
-            f"SUMMARY:Blocked - Not Available",
-            "END:VEVENT",
-        ])
+        lines.extend(
+            [
+                "BEGIN:VEVENT",
+                f"UID:block-{b.id}@jabama.local",
+                f"DTSTART;VALUE=DATE:{dt}",
+                "SUMMARY:Blocked - Not Available",
+                "END:VEVENT",
+            ]
+        )
 
     lines.append("END:VCALENDAR")
     ics_content = "\r\n".join(lines)
@@ -461,18 +474,30 @@ async def create_accommodation(
     db: SessionDep,
 ) -> AccommodationDetail:
     # Verify city and category
-    city_exists = (await db.execute(select(City.id).where(City.id == acc_in.city_id))).scalar_one_or_none()
+    city_exists = (
+        await db.execute(select(City.id).where(City.id == acc_in.city_id))
+    ).scalar_one_or_none()
     if not city_exists:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"City ID {acc_in.city_id} does not exist")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"City ID {acc_in.city_id} does not exist",
+        )
 
-    cat_exists = (await db.execute(select(Category.id).where(Category.id == acc_in.category_id))).scalar_one_or_none()
+    cat_exists = (
+        await db.execute(select(Category.id).where(Category.id == acc_in.category_id))
+    ).scalar_one_or_none()
     if not cat_exists:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category ID {acc_in.category_id} does not exist")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Category ID {acc_in.category_id} does not exist",
+        )
 
     if acc_in.amenity_ids:
         existing_amenities = (
-            await db.execute(select(Amenity.id).where(Amenity.id.in_(acc_in.amenity_ids)))
-        ).scalars().all()
+            (await db.execute(select(Amenity.id).where(Amenity.id.in_(acc_in.amenity_ids))))
+            .scalars()
+            .all()
+        )
         missing = set(acc_in.amenity_ids) - set(existing_amenities)
         if missing:
             raise HTTPException(
@@ -481,7 +506,9 @@ async def create_accommodation(
             )
 
     if acc_in.host_id is not None:
-        host_user = (await db.execute(select(User).where(User.id == acc_in.host_id))).scalars().first()
+        host_user = (
+            (await db.execute(select(User).where(User.id == acc_in.host_id))).scalars().first()
+        )
         if not host_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -558,14 +585,24 @@ async def update_accommodation(
         )
 
     if acc_in.city_id is not None:
-        city_exists = (await db.execute(select(City.id).where(City.id == acc_in.city_id))).scalar_one_or_none()
+        city_exists = (
+            await db.execute(select(City.id).where(City.id == acc_in.city_id))
+        ).scalar_one_or_none()
         if not city_exists:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"City ID {acc_in.city_id} does not exist")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"City ID {acc_in.city_id} does not exist",
+            )
 
     if acc_in.category_id is not None:
-        cat_exists = (await db.execute(select(Category.id).where(Category.id == acc_in.category_id))).scalar_one_or_none()
+        cat_exists = (
+            await db.execute(select(Category.id).where(Category.id == acc_in.category_id))
+        ).scalar_one_or_none()
         if not cat_exists:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category ID {acc_in.category_id} does not exist")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category ID {acc_in.category_id} does not exist",
+            )
 
     update_data = acc_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -598,7 +635,9 @@ async def delete_accommodation(
     await db.commit()
 
 
-@router.post("/{id}/images", response_model=AccommodationImageResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{id}/images", response_model=AccommodationImageResponse, status_code=status.HTTP_201_CREATED
+)
 async def add_accommodation_image(
     id: int,
     img_in: AccommodationImageCreate,
@@ -617,9 +656,8 @@ async def add_accommodation_image(
 
     if img_in.is_cover:
         # Reset other covers
-        reset_stmt = (
-            select(AccommodationImage)
-            .where(AccommodationImage.accommodation_id == id, AccommodationImage.is_cover.is_(True))
+        reset_stmt = select(AccommodationImage).where(
+            AccommodationImage.accommodation_id == id, AccommodationImage.is_cover.is_(True)
         )
         existing_covers = (await db.execute(reset_stmt)).scalars().all()
         for c in existing_covers:

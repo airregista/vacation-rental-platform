@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -35,7 +36,9 @@ class Payment(Base):
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     tracking_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), server_default="pending", index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="pending", index=True, nullable=False
+    )
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

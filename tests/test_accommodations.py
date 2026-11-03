@@ -1,6 +1,6 @@
 import uuid
-from datetime import date, timedelta
-from decimal import Decimal
+from datetime import date
+
 import pytest
 from httpx import AsyncClient
 
@@ -222,9 +222,7 @@ async def test_invalid_host_id_returns_400(client: AsyncClient, admin_token: str
 
 
 @pytest.mark.asyncio
-async def test_cancellation_policy_crud_on_accommodation(
-    client: AsyncClient, admin_token: str
-):
+async def test_cancellation_policy_crud_on_accommodation(client: AsyncClient, admin_token: str):
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
@@ -274,4 +272,3 @@ async def test_unpaired_date_search_rejected(client: AsyncClient):
     )
     assert res.status_code == 400
     assert "both check_in and check_out" in res.json()["detail"].lower()
-
