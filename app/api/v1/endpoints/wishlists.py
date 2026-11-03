@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
@@ -46,17 +47,25 @@ async def toggle_wishlist(
             message="Accommodation removed from your wishlist",
         )
     else:
-        wishlist_item = Wishlist(
-            user_id=current_user.id,
-            accommodation_id=accommodation_id,
-        )
-        db.add(wishlist_item)
-        await db.commit()
-        return WishlistToggleResponse(
-            accommodation_id=accommodation_id,
-            is_favorite=True,
-            message="Accommodation saved to your wishlist",
-        )
+        try:
+            wishlist_item = Wishlist(
+                user_id=current_user.id,
+                accommodation_id=accommodation_id,
+            )
+            db.add(wishlist_item)
+            await db.commit()
+            return WishlistToggleResponse(
+                accommodation_id=accommodation_id,
+                is_favorite=True,
+                message="Accommodation saved to your wishlist",
+            )
+        except IntegrityError:
+            await db.rollback()
+            return WishlistToggleResponse(
+                accommodation_id=accommodation_id,
+                is_favorite=True,
+                message="Accommodation saved to your wishlist",
+            )
 
 
 @router.get("/", response_model=list[WishlistItemResponse])
