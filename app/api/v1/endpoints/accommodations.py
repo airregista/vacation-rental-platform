@@ -128,11 +128,12 @@ async def list_accommodations(
 
     # Filter by amenities if specified
     if amenity_ids:
+        unique_amenity_ids = list(dict.fromkeys(amenity_ids))
         stmt = (
             stmt.join(Accommodation.amenities)
-            .where(Amenity.id.in_(amenity_ids))
+            .where(Amenity.id.in_(unique_amenity_ids))
             .group_by(Accommodation.id)
-            .having(func.count(distinct(Amenity.id)) == len(amenity_ids))
+            .having(func.count(distinct(Amenity.id)) == len(unique_amenity_ids))
         )
 
     # Spatial radius search (Haversine formula)
@@ -157,13 +158,13 @@ async def list_accommodations(
             haversine_expr <= radius_km,
         )
 
-    # Sorting
+    # Sorting with deterministic primary key tie-breaker for pagination
     if sort_by == "price_asc":
-        stmt = stmt.order_by(Accommodation.base_price.asc())
+        stmt = stmt.order_by(Accommodation.base_price.asc(), Accommodation.id.desc())
     elif sort_by == "price_desc":
-        stmt = stmt.order_by(Accommodation.base_price.desc())
+        stmt = stmt.order_by(Accommodation.base_price.desc(), Accommodation.id.desc())
     else:
-        stmt = stmt.order_by(Accommodation.created_at.desc())
+        stmt = stmt.order_by(Accommodation.created_at.desc(), Accommodation.id.desc())
 
     stmt = stmt.offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -725,11 +726,18 @@ async def remove_accommodation_image(
             detail="You do not have permission to modify this accommodation",
         )
 
-    del_stmt = delete(AccommodationImage).where(
+    stmt = select(AccommodationImage).where(
         AccommodationImage.id == image_id,
         AccommodationImage.accommodation_id == id,
     )
-    await db.execute(del_stmt)
+    image = (await db.execute(stmt)).scalars().first()
+    if not image:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Accommodation image not found",
+        )
+
+    await db.delete(image)
     await db.commit()
 
 
