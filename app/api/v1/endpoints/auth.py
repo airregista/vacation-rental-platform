@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.security import create_access_token, get_password_hash, verify_password
@@ -22,7 +22,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 
     # Check email uniqueness if provided
     if user_in.email:
-        stmt = select(User).where(User.email == user_in.email)
+        stmt = select(User).where(func.lower(User.email) == user_in.email)
         result = await db.execute(stmt)
         if result.scalars().first():
             raise HTTPException(
@@ -53,7 +53,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 @router.post("/login", response_model=Token)
 async def login(login_data: UserLogin, db: SessionDep) -> Token:
     identifier = login_data.login.strip()
-    stmt = select(User).where(or_(User.phone == identifier, User.email == identifier))
+    stmt = select(User).where(or_(User.phone == identifier, func.lower(User.email) == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 
@@ -83,7 +83,9 @@ async def update_me(
     db: SessionDep,
 ) -> UserResponse:
     if user_update.email and user_update.email != current_user.email:
-        stmt = select(User).where(User.email == user_update.email, User.id != current_user.id)
+        stmt = select(User).where(
+            func.lower(User.email) == user_update.email, User.id != current_user.id
+        )
         result = await db.execute(stmt)
         if result.scalars().first():
             raise HTTPException(
