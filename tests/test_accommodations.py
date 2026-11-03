@@ -458,3 +458,169 @@ async def test_pagination_deterministic_ordering_with_duplicate_prices(
     assert p1_ids + p2_ids == all_ids
     assert p1_ids[0] > p1_ids[1] > p2_ids[0] > p2_ids[1]
 
+
+@pytest.mark.asyncio
+async def test_inactive_accommodation_hidden_from_public_detail_and_calendar(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": 2,
+            "title": f"اقامتگاه غیرفعال تست {uuid.uuid4().hex[:6]}",
+            "address": "آدرس غیرفعال",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": False,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+
+    # Unauthenticated caller -> 404
+    anon_detail = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert anon_detail.status_code == 404
+    assert anon_detail.json()["detail"] == "Accommodation not found or is currently inactive"
+
+    anon_calendar = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar")
+    assert anon_calendar.status_code == 404
+    assert anon_calendar.json()["detail"] == "Accommodation not found or is currently inactive"
+
+    # Host caller -> 200
+    host_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_detail.status_code == 200
+    assert host_detail.json()["is_active"] is False
+
+    host_calendar = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_calendar.status_code == 200
+
+    # Admin caller -> 200
+    admin_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_detail.status_code == 200
+
+    admin_calendar = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_calendar.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_ical_export_requires_auth_or_valid_feed_token(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": 2,
+            "title": f"اقامتگاه تست تقویم آی‌کل {uuid.uuid4().hex[:6]}",
+            "address": "آدرس تقویم آی‌کل",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+
+    res_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=10)).isoformat(),
+            "check_out": (date.today() + timedelta(days=12)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_res.status_code == 201
+    res_id = res_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": checkout_res.json()["payment_id"],
+            "tracking_code": checkout_res.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # 1. Unauthenticated request without token returns 403
+    unauth_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
+    assert unauth_res.status_code == 403
+    assert "Access denied" in unauth_res.json()["detail"]
+
+    # 2. Invalid token returns 403
+    invalid_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics?token=badtoken"
+    )
+    assert invalid_res.status_code == 403
+
+    # 3. Host detail exposes calendar_ics_token
+    host_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    feed_token = host_detail.json().get("calendar_ics_token")
+    assert feed_token is not None
+
+    # Public detail should NOT expose calendar_ics_token
+    public_detail = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert public_detail.json().get("calendar_ics_token") is None
+
+    # 4. Valid token access returns 200 with masked UID and anonymized summary
+    token_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics?token={feed_token}"
+    )
+    assert token_res.status_code == 200
+    assert "UID:booking-" in token_res.text
+    assert f"UID:res-{res_id}" not in token_res.text
+    assert "SUMMARY:Reserved / Unavailable" in token_res.text
+    assert f"Reservation #{res_id}" not in token_res.text
+
+    # 5. Host auth access returns 200
+    host_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_res.status_code == 200
+    assert "UID:booking-" in host_res.text
+
+

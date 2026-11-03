@@ -56,7 +56,10 @@ async def test_host_listing_and_reservations_isolation(
     far_ids = [a["id"] for a in far_res.json()]
     assert acc_id not in far_ids
 
-    ical_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
+    ical_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
     assert ical_res.status_code == 200
     assert "BEGIN:VCALENDAR" in ical_res.text
     assert "text/calendar" in ical_res.headers["content-type"]
@@ -169,7 +172,10 @@ async def test_host_reservations_and_permissions(
     assert booking_id not in guest2_res_ids
 
     # iCalendar export contains the blocked date
-    ical_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
+    ical_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
     assert ical_res.status_code == 200
     assert "Blocked - Not Available" in ical_res.text
 

@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import secrets
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated
@@ -7,7 +10,8 @@ from fastapi.responses import Response
 from sqlalchemy import delete, distinct, exists, func, not_, select
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
+from app.api.dependencies import CurrentAdminDep, CurrentUserDep, OptionalCurrentUserDep, SessionDep
+from app.core.config import settings
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
@@ -32,6 +36,14 @@ from app.schemas.geo import CityResponse, ProvinceResponse
 from app.schemas.reservation import CalendarDayInfo
 
 router = APIRouter(prefix="/accommodations", tags=["accommodations"])
+
+
+def generate_calendar_feed_token(accommodation_id: int) -> str:
+    return hmac.new(
+        settings.SECRET_KEY.encode(),
+        f"calendar:{accommodation_id}".encode(),
+        hashlib.sha256,
+    ).hexdigest()[:16]
 
 
 @router.get("/", response_model=list[AccommodationListItem])
@@ -309,7 +321,11 @@ async def list_my_accommodations(
 
 
 @router.get("/{id}", response_model=AccommodationDetail)
-async def get_accommodation(id: int, db: SessionDep) -> AccommodationDetail:
+async def get_accommodation(
+    id: int,
+    db: SessionDep,
+    current_user: OptionalCurrentUserDep = None,
+) -> AccommodationDetail:
     stmt = (
         select(Accommodation)
         .options(
@@ -329,6 +345,14 @@ async def get_accommodation(id: int, db: SessionDep) -> AccommodationDetail:
             detail="Accommodation not found",
         )
 
+    if not acc.is_active and (
+        not current_user or (current_user.role != "admin" and acc.host_id != current_user.id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Accommodation not found or is currently inactive",
+        )
+
     # Reviews aggregate
     agg_stmt = select(
         func.avg(Review.rating).label("avg_rating"),
@@ -340,6 +364,8 @@ async def get_accommodation(id: int, db: SessionDep) -> AccommodationDetail:
     detail = AccommodationDetail.model_validate(acc)
     detail.average_rating = round(float(avg_r), 1) if avg_r is not None else None
     detail.reviews_count = int(count_r)
+    if current_user and (current_user.role == "admin" or acc.host_id == current_user.id):
+        detail.calendar_ics_token = generate_calendar_feed_token(acc.id)
     return detail
 
 
@@ -347,6 +373,7 @@ async def get_accommodation(id: int, db: SessionDep) -> AccommodationDetail:
 async def get_accommodation_calendar(
     id: int,
     db: SessionDep,
+    current_user: OptionalCurrentUserDep = None,
     start_date: Annotated[date | None, Query(description="Start date (defaults to today)")] = None,
     days: Annotated[int, Query(ge=1, le=90, description="Number of days to check")] = 30,
 ) -> list[CalendarDayInfo]:
@@ -361,6 +388,14 @@ async def get_accommodation_calendar(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Accommodation not found",
+        )
+
+    if not acc.is_active and (
+        not current_user or (current_user.role != "admin" and acc.host_id != current_user.id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Accommodation not found or is currently inactive",
         )
 
     # Fetch pricing exceptions
@@ -414,11 +449,24 @@ async def get_accommodation_calendar(
 async def export_accommodation_calendar_ics(
     id: int,
     db: SessionDep,
+    current_user: OptionalCurrentUserDep = None,
+    token: Annotated[str | None, Query()] = None,
 ) -> Response:
     acc_stmt = select(Accommodation).where(Accommodation.id == id)
     acc = (await db.execute(acc_stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    expected_token = generate_calendar_feed_token(acc.id)
+    is_token_valid = bool(token and secrets.compare_digest(token, expected_token))
+    is_authorized_user = bool(
+        current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
+    )
+    if not (is_authorized_user or is_token_valid):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to calendar feed. Please provide a valid feed token or authenticate as host.",
+        )
 
     res_stmt = select(Reservation).where(
         Reservation.accommodation_id == id,
@@ -442,13 +490,14 @@ async def export_accommodation_calendar_ics(
     for r in reservations:
         dtstart = r.check_in.strftime("%Y%m%d")
         dtend = r.check_out.strftime("%Y%m%d")
+        opaque_id = hashlib.sha256(f"{r.id}-{settings.SECRET_KEY}".encode()).hexdigest()[:12]
         lines.extend(
             [
                 "BEGIN:VEVENT",
-                f"UID:res-{r.id}@jabama.local",
+                f"UID:booking-{opaque_id}@jabama.local",
                 f"DTSTART;VALUE=DATE:{dtstart}",
                 f"DTEND;VALUE=DATE:{dtend}",
-                f"SUMMARY:Booked - Reservation #{r.id}",
+                "SUMMARY:Reserved / Unavailable",
                 "END:VEVENT",
             ]
         )
@@ -565,7 +614,7 @@ async def create_accommodation(
     await db.commit()
 
     # Re-fetch with relationships
-    return await get_accommodation(accommodation.id, db)
+    return await get_accommodation(accommodation.id, db, current_user=admin)
 
 
 @router.put("/{id}", response_model=AccommodationDetail)
@@ -642,8 +691,8 @@ async def update_accommodation(
         setattr(acc, field, value)
 
     await db.commit()
-    db.expire_all()  # Crucial: invalidates session identity map so get_accommodation reloads fresh amenities
-    return await get_accommodation(id, db)
+    db.expire(acc)  # Invalidate accommodation to reload fresh amenities in get_accommodation
+    return await get_accommodation(id, db, current_user=current_user)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,3 +1,5 @@
+import asyncio
+import uuid
 from datetime import date, timedelta
 
 import pytest
@@ -77,7 +79,7 @@ async def test_create_and_read_reviews(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
     assert early_review.status_code == 400
-    assert "completed" in early_review.json()["detail"].lower()
+    assert "check-out" in early_review.json()["detail"].lower()
 
     async with AsyncSessionLocal() as session:
         db_res = await session.get(Reservation, res_id)
@@ -172,3 +174,128 @@ async def test_wishlist_pagination(
     )
     assert paged.status_code == 200
     assert len(paged.json()) <= 1
+
+
+@pytest.mark.asyncio
+async def test_review_before_checkout_time_rejected(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست بررسی ساعت خروج {uuid.uuid4().hex[:6]}",
+            "address": "مازندران، نوشهر",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 600000,
+            "cleaning_fee": 50000,
+            "check_out_time": "23:59:00",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    res_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=40)).isoformat(),
+            "check_out": (date.today() + timedelta(days=42)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_res.status_code == 201
+    res_id = res_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": checkout_res.json()["payment_id"],
+            "tracking_code": checkout_res.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Set check_out to today via direct DB manipulation
+    async with AsyncSessionLocal() as session:
+        db_res = await session.get(Reservation, res_id)
+        assert db_res is not None
+        db_res.check_in = date.today() - timedelta(days=2)
+        db_res.check_out = date.today()
+        await session.commit()
+
+    review_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
+        json={
+            "reservation_id": res_id,
+            "rating": 5,
+            "cleanliness_rating": 5,
+            "accuracy_rating": 5,
+            "comment": "قبل از ساعت خروج ثبت کردم",
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert review_res.status_code == 400
+    assert "check-out time" in review_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_wishlist_toggle_no_500(
+    client: AsyncClient,
+    guest_token: str,
+):
+    from sqlalchemy import delete
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.core.database import engine, get_db
+    from app.main import app
+    from app.models.wishlist import Wishlist
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    original_override = app.dependency_overrides.get(get_db)
+    pool_session_maker = async_sessionmaker(bind=engine, expire_on_commit=False)
+
+    async def concurrent_get_db():
+        async with pool_session_maker() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = concurrent_get_db
+    try:
+        # Clean up any existing wishlist item for this accommodation
+        async with pool_session_maker() as session:
+            await session.execute(delete(Wishlist).where(Wishlist.accommodation_id == acc_id))
+            await session.commit()
+
+        async def do_toggle():
+            return await client.post(
+                f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+                headers={"Authorization": f"Bearer {guest_token}"},
+            )
+
+        responses = await asyncio.gather(*(do_toggle() for _ in range(2)))
+        for r in responses:
+            assert r.status_code == 200
+            assert r.status_code != 500
+    finally:
+        async with pool_session_maker() as session:
+            await session.execute(delete(Wishlist).where(Wishlist.accommodation_id == acc_id))
+            await session.commit()
+        if original_override is not None:
+            app.dependency_overrides[get_db] = original_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+

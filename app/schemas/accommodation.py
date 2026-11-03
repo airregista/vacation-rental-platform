@@ -174,3 +174,4 @@ class AccommodationDetail(BaseModel):
     amenities: list[AmenityResponse] = Field(default_factory=list)
     average_rating: float | None = None
     reviews_count: int = 0
+    calendar_ics_token: str | None = None
