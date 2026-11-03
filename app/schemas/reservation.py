@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Self
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class PriceCalculationRequest(BaseModel):
@@ -108,3 +108,28 @@ class CancellationPreviewResponse(BaseModel):
 
 class CancellationRequest(BaseModel):
     reason: str | None = None
+
+
+class ReservationMessageCreate(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("message")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str:
+        clean = v.strip()
+        if not clean:
+            raise ValueError("Message cannot be empty or whitespace only")
+        return clean
+
+
+class ReservationMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reservation_id: int
+    sender_id: int
+    sender_name: str | None = None
+    message: str
+    read_at: datetime | None = None
+    created_at: datetime
+

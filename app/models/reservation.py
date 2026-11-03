@@ -82,3 +82,30 @@ class Reservation(Base):
     payout: Mapped["HostPayout | None"] = relationship(
         "HostPayout", back_populates="reservation", uselist=False
     )
+    messages: Mapped[list["ReservationMessage"]] = relationship(
+        "ReservationMessage",
+        back_populates="reservation",
+        cascade="all, delete-orphan",
+        order_by="ReservationMessage.created_at.asc()",
+    )
+
+
+class ReservationMessage(Base):
+    __tablename__ = "reservation_messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    reservation_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("reservations.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    sender_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    reservation: Mapped["Reservation"] = relationship("Reservation", back_populates="messages")
+    sender: Mapped["User"] = relationship("User")
+
