@@ -10,9 +10,10 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
-from app.models.payment import Payment
+from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation
 from app.schemas.payment import (
+    HostPayoutResponse,
     PaymentInitiateRequest,
     PaymentInitiateResponse,
     PaymentResponse,
@@ -93,7 +94,9 @@ async def verify_payment(
 ) -> PaymentResponse:
     stmt = (
         select(Payment)
-        .options(selectinload(Payment.reservation))
+        .options(
+            selectinload(Payment.reservation).selectinload(Reservation.accommodation)
+        )
         .where(Payment.id == req.payment_id)
         .with_for_update(of=Payment)
     )
@@ -173,6 +176,22 @@ async def verify_payment(
         payment.status = "success"
         payment.paid_at = datetime.now(timezone.utc)
         reservation.status = "confirmed"
+
+        host_id = reservation.accommodation.host_id
+        # ponytail: 10% hardcoded commission; move to system config/per-host tier table when needed
+        COMMISSION_RATE = Decimal("0.10")
+        commission_amount = Decimal(round(reservation.total_price * COMMISSION_RATE))
+        payout_amount = max(Decimal(0), reservation.total_price - commission_amount)
+
+        payout = HostPayout(
+            reservation_id=reservation.id,
+            host_id=host_id,
+            total_booking_amount=reservation.total_price,
+            commission_amount=commission_amount,
+            payout_amount=payout_amount,
+            status="pending",
+        )
+        db.add(payout)
     else:
         payment.status = "failed"
 
@@ -199,6 +218,68 @@ async def list_my_payments(
     result = await db.execute(stmt)
     payments = result.scalars().all()
     return [PaymentResponse.model_validate(p) for p in payments]
+
+
+@router.get("/host/payouts", response_model=list[HostPayoutResponse])
+async def list_host_payouts(
+    current_user: CurrentUserDep,
+    db: SessionDep,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[HostPayoutResponse]:
+    stmt = select(HostPayout)
+    if current_user.role != "admin":
+        stmt = stmt.where(HostPayout.host_id == current_user.id)
+    stmt = (
+        stmt.order_by(HostPayout.created_at.desc(), HostPayout.id.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    payouts = result.scalars().all()
+    return [HostPayoutResponse.model_validate(p) for p in payouts]
+
+
+@router.post("/host/payouts/{id}/settle", response_model=HostPayoutResponse)
+async def settle_host_payout(
+    id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> HostPayoutResponse:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+
+    stmt = (
+        select(HostPayout)
+        .options(selectinload(HostPayout.host))
+        .where(HostPayout.id == id)
+        .with_for_update(of=HostPayout)
+    )
+    result = await db.execute(stmt)
+    payout = result.scalars().first()
+    if not payout:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Payout record not found"
+        )
+    if payout.status == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payout has already been completed",
+        )
+    if not payout.host.shaba_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot settle payout: Host has not registered a Shaba banking number",
+        )
+
+    # ponytail: manual mark-settled; replace with direct Paya/Satna bank transfer call when banking API available
+    payout.status = "completed"
+    payout.paid_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(payout)
+    return HostPayoutResponse.model_validate(payout)
 
 
 @router.get("/{id}", response_model=PaymentResponse)

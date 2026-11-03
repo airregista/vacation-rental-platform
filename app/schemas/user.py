@@ -54,11 +54,23 @@ class UserUpdate(BaseModel):
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
     avatar_url: str | None = None
+    shaba_number: str | None = Field(default=None, pattern=r"^IR\d{24}$")
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: EmailStr | None) -> str | None:
         return v.lower().strip() if v else None
+
+    # ponytail: regex check only; add Iranian IBAN mod-97 check digit verification when direct banking transfers go live
+    @field_validator("shaba_number", mode="before")
+    @classmethod
+    def normalize_shaba(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        clean = re.sub(r"[\s\-]", "", v).upper()
+        if not re.match(r"^IR\d{24}$", clean):
+            raise ValueError("Shaba number must be formatted as IR followed by 24 digits")
+        return clean
 
 
 class UserResponse(BaseModel):
@@ -71,6 +83,7 @@ class UserResponse(BaseModel):
     last_name: str | None = None
     role: str
     avatar_url: str | None = None
+    shaba_number: str | None = Field(default=None, pattern=r"^IR\d{24}$")
     created_at: datetime
 
 

@@ -465,3 +465,162 @@ async def test_pricing_exception_minimum_stay_override(
     )
     assert booking_ok.status_code == 201
 
+
+@pytest.mark.asyncio
+async def test_host_payout_ledger_and_settlement_flow(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    # 1. Register a dedicated host user
+    uid = uuid.uuid4().hex[:6]
+    host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    host_pw = "HostPassword123!"
+    reg_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": host_phone,
+            "email": f"host_{uid}@example.com",
+            "password": host_pw,
+            "first_name": "هاست",
+            "last_name": "نمونه",
+        },
+    )
+    assert reg_res.status_code == 201
+    host_data = reg_res.json()["user"]
+    host_id = host_data["id"]
+    host_token = reg_res.json()["access_token"]
+    assert host_data.get("shaba_number") is None
+
+    # 2. Admin creates an accommodation for this host
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": host_id,
+            "title": f"Host Payout Property {uid}",
+            "address": "مازندران، نوشهر",
+            "base_price": 2000000,
+            "min_nights": 1,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    # 3. Guest books 2 nights and pays
+    ci = (date.today() + timedelta(days=120)).isoformat()
+    co = (date.today() + timedelta(days=122)).isoformat()
+    book_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert book_res.status_code == 201
+    reservation = book_res.json()
+    res_id = reservation["id"]
+    total_price = Decimal(str(reservation["total_price"]))
+
+    # Checkout & verify payment
+    pay_init = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pay_init.status_code == 201
+    payment_id = pay_init.json()["payment_id"]
+    tracking_code = pay_init.json()["tracking_code"]
+
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": payment_id,
+            "tracking_code": tracking_code,
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify_res.status_code == 200
+    assert verify_res.json()["status"] == "success"
+
+    # 4. Host checks payouts ledger: should see pending payout with 10% commission deducted
+    host_payouts_res = await client.get(
+        f"{settings.API_V1_STR}/payments/host/payouts",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_payouts_res.status_code == 200
+    payouts = host_payouts_res.json()
+    assert len(payouts) == 1
+    payout = payouts[0]
+    payout_id = payout["id"]
+    assert payout["reservation_id"] == res_id
+    assert payout["host_id"] == host_id
+    assert payout["status"] == "pending"
+    assert payout["paid_at"] is None
+
+    expected_commission = Decimal(round(total_price * Decimal("0.10")))
+    expected_payout = total_price - expected_commission
+    assert Decimal(str(payout["total_booking_amount"])) == total_price
+    assert Decimal(str(payout["commission_amount"])) == expected_commission
+    assert Decimal(str(payout["payout_amount"])) == expected_payout
+
+    # Guest should NOT see this host's payout
+    guest_payouts_res = await client.get(
+        f"{settings.API_V1_STR}/payments/host/payouts",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert guest_payouts_res.status_code == 200
+    assert len(guest_payouts_res.json()) == 0
+
+    # Non-admin cannot settle
+    forbidden_settle = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert forbidden_settle.status_code == 403
+
+    # 5. Attempting settlement for a host without Shaba returns HTTP 400
+    settle_no_shaba = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert settle_no_shaba.status_code == 400
+    assert "shaba banking number" in settle_no_shaba.json()["detail"].lower()
+
+    # 6. Host registers Shaba IR123456789012345678901234 via PUT /auth/me
+    shaba_val = "IR123456789012345678901234"
+    update_shaba_res = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"shaba_number": shaba_val},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert update_shaba_res.status_code == 200
+    assert update_shaba_res.json()["shaba_number"] == shaba_val
+
+    # 7. Admin settles payout via POST /payments/host/payouts/{id}/settle
+    settle_res = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert settle_res.status_code == 200
+    settle_data = settle_res.json()
+    assert settle_data["status"] == "completed"
+    assert settle_data["paid_at"] is not None
+
+    # 8. Attempting to settle again returns HTTP 400
+    settle_again = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert settle_again.status_code == 400
+    assert "already been completed" in settle_again.json()["detail"].lower()
+

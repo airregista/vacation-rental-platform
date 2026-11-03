@@ -4,7 +4,7 @@ from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
 from app.models.coupon import Coupon
 from app.models.geo import City, Province
-from app.models.payment import Payment
+from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation
 from app.models.review import Review
 from app.models.user import User
@@ -24,6 +24,7 @@ __all__ = [
     "PricingException",
     "Reservation",
     "Payment",
+    "HostPayout",
     "Review",
     "Wishlist",
 ]

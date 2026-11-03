@@ -32,3 +32,17 @@ class PaymentResponse(BaseModel):
     status: str
     paid_at: datetime | None = None
     created_at: datetime
+
+
+class HostPayoutResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reservation_id: int
+    host_id: int
+    total_booking_amount: Decimal
+    commission_amount: Decimal
+    payout_amount: Decimal
+    status: str
+    paid_at: datetime | None = None
+    created_at: datetime

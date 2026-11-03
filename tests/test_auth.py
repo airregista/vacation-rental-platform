@@ -231,3 +231,35 @@ async def test_update_user_profile_email_collision_rejected(client: AsyncClient)
     assert collision_mixed.status_code == 400
     assert "already in use" in collision_mixed.json()["detail"]
 
+
+@pytest.mark.asyncio
+async def test_update_user_shaba_number_normalization_and_validation(client: AsyncClient):
+    uid = uuid.uuid4().hex[:6]
+    reg_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "email": f"shaba_{uid}@example.com",
+            "password": "Password123!",
+        },
+    )
+    assert reg_res.status_code == 201
+    token = reg_res.json()["access_token"]
+
+    # Normalize lowercase and spaces/hyphens
+    res = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"shaba_number": "ir 12-3456-7890-1234-5678-9012-34"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    assert res.json()["shaba_number"] == "IR123456789012345678901234"
+
+    # Invalid format rejection
+    invalid_res = await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"shaba_number": "IR123"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert invalid_res.status_code == 422
+
