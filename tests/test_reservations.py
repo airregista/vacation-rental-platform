@@ -323,3 +323,145 @@ async def test_my_reservations_pagination(client: AsyncClient):
         headers={"Authorization": f"Bearer {user_token}"},
     )
     assert err_res2.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_reservation_minimum_stay_validation_rejection(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    uid = uuid.uuid4().hex[:6]
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": f"Min Nights Property {uid}",
+        "address": "گیلان، رشت، گلسار",
+        "base_price": 1500000,
+        "min_nights": 2,
+    }
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    check_in = (date.today() + timedelta(days=80)).isoformat()
+    check_out_1night = (date.today() + timedelta(days=81)).isoformat()
+    check_out_2nights = (date.today() + timedelta(days=82)).isoformat()
+
+    # 1-night calculation request returns HTTP 400
+    calc_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/calculate-price",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out_1night,
+            "guests_count": 1,
+        },
+    )
+    assert calc_res.status_code == 400
+    assert "minimum stay of 2 nights" in calc_res.json()["detail"].lower()
+
+    # 1-night booking request returns HTTP 400
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out_1night,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 400
+    assert "minimum stay of 2 nights" in booking_res.json()["detail"].lower()
+
+    # 2-night booking succeeds
+    valid_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out_2nights,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert valid_res.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_pricing_exception_minimum_stay_override(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    uid = uuid.uuid4().hex[:6]
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": f"Holiday Override Property {uid}",
+        "address": "مازندران، کلاردشت",
+        "base_price": 2000000,
+        "min_nights": 1,
+    }
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    holiday_date = (date.today() + timedelta(days=95)).isoformat()
+    ex_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions",
+        json={
+            "date": holiday_date,
+            "price": 3500000,
+            "is_blocked": False,
+            "min_nights": 3,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert ex_res.status_code == 200
+    assert ex_res.json()["min_nights"] == 3
+
+    ci = holiday_date
+    co_2nights = (date.today() + timedelta(days=97)).isoformat()
+    co_3nights = (date.today() + timedelta(days=98)).isoformat()
+
+    booking_fail = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co_2nights,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_fail.status_code == 400
+    assert "minimum stay of 3 nights" in booking_fail.json()["detail"].lower()
+
+    booking_ok = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co_3nights,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_ok.status_code == 201
+

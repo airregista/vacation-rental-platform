@@ -320,6 +320,81 @@ async def test_pricing_exception_deletion_and_amenity_updates(
 
 
 @pytest.mark.asyncio
+async def test_filter_accommodations_by_rooms_and_beds(
+    client: AsyncClient, admin_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    uid = uuid.uuid4().hex[:6]
+    acc1_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": f"Rooms Test Acc 1 {uid}",
+        "address": "مازندران، رامسر، بلوار کازینو",
+        "base_price": 2000000,
+        "rooms_count": 2,
+        "beds_count": 3,
+        "min_nights": 1,
+    }
+    acc2_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": f"Rooms Test Acc 2 {uid}",
+        "address": "مازندران، تنکابن، خیابان دریا",
+        "base_price": 3000000,
+        "rooms_count": 4,
+        "beds_count": 6,
+        "min_nights": 2,
+    }
+    r1 = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc1_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r1.status_code == 201
+    id1 = r1.json()["id"]
+
+    r2 = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc2_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r2.status_code == 201
+    id2 = r2.json()["id"]
+
+    # Filter with min_rooms=3 -> only acc2
+    res_rooms = await client.get(f"{settings.API_V1_STR}/accommodations/?min_rooms=3")
+    assert res_rooms.status_code == 200
+    ids_rooms = [a["id"] for a in res_rooms.json()]
+    assert id2 in ids_rooms
+    assert id1 not in ids_rooms
+    for a in res_rooms.json():
+        assert a["rooms_count"] >= 3
+
+    # Filter with min_beds=5 -> only acc2
+    res_beds = await client.get(f"{settings.API_V1_STR}/accommodations/?min_beds=5")
+    assert res_beds.status_code == 200
+    ids_beds = [a["id"] for a in res_beds.json()]
+    assert id2 in ids_beds
+    assert id1 not in ids_beds
+    for a in res_beds.json():
+        assert a["beds_count"] >= 5
+
+    # Filter with min_rooms=2 and min_beds=3 -> both acc1 and acc2
+    res_both = await client.get(f"{settings.API_V1_STR}/accommodations/?min_rooms=2&min_beds=3")
+    assert res_both.status_code == 200
+    ids_both = [a["id"] for a in res_both.json()]
+    assert id1 in ids_both
+    assert id2 in ids_both
+    for a in res_both.json():
+        assert a["rooms_count"] >= 2 and a["beds_count"] >= 3
+
+
+
+@pytest.mark.asyncio
 async def test_filter_by_amenities_and_sorting(client: AsyncClient):
     # 1. Fetch available amenities
     amenities_res = await client.get(f"{settings.API_V1_STR}/amenities/")

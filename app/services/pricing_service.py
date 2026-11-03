@@ -60,6 +60,16 @@ async def calculate_reservation_price(
     nights_total = Decimal(0)
     total_nights = (check_out - check_in).days
 
+    required_min_nights = max(
+        [getattr(accommodation, "min_nights", 1)]
+        + [ex.min_nights for ex in exceptions_by_date.values() if ex.min_nights is not None]
+    )
+    if total_nights < required_min_nights:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Booking duration ({total_nights} nights) is less than the required minimum stay of {required_min_nights} nights",
+        )
+
     while current_date < check_out:
         exception = exceptions_by_date.get(current_date)
         if exception and exception.is_blocked:

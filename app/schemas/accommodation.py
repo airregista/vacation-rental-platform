@@ -29,6 +29,7 @@ class PricingExceptionCreate(BaseModel):
     date: date
     price: Decimal | None = None
     is_blocked: bool = False
+    min_nights: int | None = Field(default=None, ge=1)
 
 
 class PricingExceptionResponse(BaseModel):
@@ -38,6 +39,7 @@ class PricingExceptionResponse(BaseModel):
     date: date
     price: Decimal | None = None
     is_blocked: bool
+    min_nights: int | None = None
 
 
 class PricingExceptionBatchCreate(BaseModel):
@@ -77,6 +79,7 @@ class AccommodationCreate(BaseModel):
     extra_guest_fee: Decimal = Field(default=Decimal(0), ge=0)
     rooms_count: int = Field(default=1, ge=0)
     beds_count: int = Field(default=1, ge=0)
+    min_nights: int = Field(default=1, ge=1)
     check_in_time: time = time(14, 0)
     check_out_time: time = time(12, 0)
     rules: str | None = None
@@ -107,6 +110,7 @@ class AccommodationUpdate(BaseModel):
     extra_guest_fee: Decimal | None = Field(default=None, ge=0)
     rooms_count: int | None = Field(default=None, ge=0)
     beds_count: int | None = Field(default=None, ge=0)
+    min_nights: int | None = Field(default=None, ge=1)
     check_in_time: time | None = None
     check_out_time: time | None = None
     rules: str | None = None
@@ -134,6 +138,7 @@ class AccommodationListItem(BaseModel):
     max_capacity: int
     rooms_count: int
     beds_count: int
+    min_nights: int = 1
     cover_image: str | None = None
     cancellation_policy: str = "flexible"
     average_rating: float | None = None
@@ -160,6 +165,7 @@ class AccommodationDetail(BaseModel):
     extra_guest_fee: Decimal
     rooms_count: int
     beds_count: int
+    min_nights: int = 1
     check_in_time: time
     check_out_time: time
     rules: str | None = None
