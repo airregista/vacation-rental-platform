@@ -56,6 +56,8 @@ async def list_accommodations(
     guests_count: Annotated[
         int | None, Query(ge=1, description="Minimum maximum capacity required")
     ] = None,
+    min_rooms: Annotated[int | None, Query(ge=1, description="Minimum number of rooms")] = None,
+    min_beds: Annotated[int | None, Query(ge=1, description="Minimum number of beds")] = None,
     min_price: Annotated[Decimal | None, Query(ge=0, description="Minimum base price")] = None,
     max_price: Annotated[Decimal | None, Query(ge=0, description="Maximum base price")] = None,
     check_in: Annotated[
@@ -97,6 +99,10 @@ async def list_accommodations(
         stmt = stmt.where(Accommodation.category_id == category_id)
     if guests_count is not None:
         stmt = stmt.where(Accommodation.max_capacity >= guests_count)
+    if min_rooms is not None:
+        stmt = stmt.where(Accommodation.rooms_count >= min_rooms)
+    if min_beds is not None:
+        stmt = stmt.where(Accommodation.beds_count >= min_beds)
     if min_price is not None:
         stmt = stmt.where(Accommodation.base_price >= min_price)
     if max_price is not None:
@@ -252,6 +258,7 @@ async def list_accommodations(
                 max_capacity=acc.max_capacity,
                 rooms_count=acc.rooms_count,
                 beds_count=acc.beds_count,
+                min_nights=acc.min_nights,
                 cover_image=cover,
                 cancellation_policy=acc.cancellation_policy,
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
@@ -334,6 +341,7 @@ async def list_my_accommodations(
                 max_capacity=acc.max_capacity,
                 rooms_count=acc.rooms_count,
                 beds_count=acc.beds_count,
+                min_nights=acc.min_nights,
                 cover_image=cover,
                 cancellation_policy=acc.cancellation_policy,
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
@@ -615,6 +623,7 @@ async def create_accommodation(
         extra_guest_fee=acc_in.extra_guest_fee,
         rooms_count=acc_in.rooms_count,
         beds_count=acc_in.beds_count,
+        min_nights=acc_in.min_nights,
         check_in_time=acc_in.check_in_time,
         check_out_time=acc_in.check_out_time,
         rules=acc_in.rules,
@@ -845,6 +854,7 @@ async def upsert_pricing_exception(
     if existing:
         existing.price = ex_in.price
         existing.is_blocked = ex_in.is_blocked
+        existing.min_nights = ex_in.min_nights
         exception_obj = existing
     else:
         exception_obj = PricingException(
@@ -852,6 +862,7 @@ async def upsert_pricing_exception(
             date=ex_in.date,
             price=ex_in.price,
             is_blocked=ex_in.is_blocked,
+            min_nights=ex_in.min_nights,
         )
         db.add(exception_obj)
 

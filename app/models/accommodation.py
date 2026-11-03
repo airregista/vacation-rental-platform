@@ -42,6 +42,7 @@ class Accommodation(Base):
         CheckConstraint("extra_guest_fee >= 0", name="chk_accommodation_extra_guest_fee"),
         CheckConstraint("capacity > 0", name="chk_accommodation_capacity"),
         CheckConstraint("max_capacity >= capacity", name="chk_accommodation_max_capacity"),
+        CheckConstraint("min_nights >= 1", name="chk_accommodation_min_nights"),
         CheckConstraint(
             "cancellation_policy IN ('flexible', 'moderate', 'strict')",
             name="chk_accommodation_cancellation_policy",
@@ -77,6 +78,7 @@ class Accommodation(Base):
     )
     rooms_count: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
     beds_count: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
+    min_nights: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
     check_in_time: Mapped[time] = mapped_column(Time, server_default="14:00", nullable=False)
     check_out_time: Mapped[time] = mapped_column(Time, server_default="12:00", nullable=False)
     rules: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -134,6 +136,10 @@ class PricingException(Base):
             "accommodation_id", "date", name="uq_pricing_exception_accommodation_date"
         ),
         CheckConstraint("price IS NULL OR price >= 0", name="chk_pricing_exception_price"),
+        CheckConstraint(
+            "min_nights IS NULL OR min_nights >= 1",
+            name="chk_pricing_exception_min_nights",
+        ),
         Index(
             "ix_pricing_exceptions_blocked",
             "accommodation_id",
@@ -149,6 +155,7 @@ class PricingException(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    min_nights: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
     accommodation: Mapped["Accommodation"] = relationship(
         "Accommodation", back_populates="pricing_exceptions"
