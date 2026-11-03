@@ -91,6 +91,10 @@ class Accommodation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    external_calendar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    last_calendar_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     host: Mapped["User"] = relationship("User", back_populates="hosted_accommodations")
     category: Mapped["Category"] = relationship("Category", back_populates="accommodations")

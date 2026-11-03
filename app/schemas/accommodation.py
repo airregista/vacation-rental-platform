@@ -85,6 +85,7 @@ class AccommodationCreate(BaseModel):
     rules: str | None = None
     cancellation_policy: str = Field(default="flexible", pattern="^(flexible|moderate|strict)$")
     is_active: bool = True
+    external_calendar_url: str | None = None
     amenity_ids: list[int] = Field(default_factory=list)
     images: list[AccommodationImageCreate] = Field(default_factory=list)
 
@@ -116,6 +117,7 @@ class AccommodationUpdate(BaseModel):
     rules: str | None = None
     cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
     is_active: bool | None = None
+    external_calendar_url: str | None = None
     amenity_ids: list[int] | None = None
 
     @model_validator(mode="after")
@@ -144,6 +146,7 @@ class AccommodationListItem(BaseModel):
     average_rating: float | None = None
     reviews_count: int = 0
     is_active: bool
+    external_calendar_url: str | None = None
 
 
 class AccommodationDetail(BaseModel):
@@ -172,6 +175,8 @@ class AccommodationDetail(BaseModel):
     cancellation_policy: str = "flexible"
     is_active: bool
     created_at: datetime
+    external_calendar_url: str | None = None
+    last_calendar_sync_at: datetime | None = None
 
     host: UserResponse | None = None
     category: CategoryResponse | None = None
@@ -181,3 +186,9 @@ class AccommodationDetail(BaseModel):
     average_rating: float | None = None
     reviews_count: int = 0
     calendar_ics_token: str | None = None
+
+
+class CalendarSyncResponse(BaseModel):
+    synced_events_count: int
+    blocked_days_count: int
+    last_sync_at: datetime
