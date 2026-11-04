@@ -1,125 +1,236 @@
-# سامانه بک‌اند جامع رزرو اقامتگاه (مشابه جاباما و Airbnb)
+# Vacation Rental & Accommodation Booking Platform (API Backend)
 
-این پروژه، پیاده‌سازی کامل و عملیاتی بک‌اند سامانه رزرواسیون اقامتگاه بر اساس طراحی پایگاه داده (ERD) پروژه قبلی (`PR/4`) با فریم‌ورک **FastAPI** و پایگاه داده رابطه‌ای **PostgreSQL** است.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00.svg?style=flat&logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
+[![Alembic](https://img.shields.io/badge/Alembic-1.14+-black.svg?style=flat)](https://alembic.sqlalchemy.org/)
+[![Tests](https://img.shields.io/badge/Tests-88%20Passed-brightgreen.svg?style=flat)](https://pytest.org)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg?style=flat)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](LICENSE)
 
----
+A production-grade, highly reliable RESTful API backend for a vacation rental and accommodation booking platform (similar to **Jabama** and **Airbnb**), architected with **FastAPI**, **PostgreSQL 16**, **SQLAlchemy 2.0 (Asyncpg)**, and **Alembic**.
 
-## 🎯 دستاوردها و اصلاحات اعمال‌شده روی ERD (با اسکیل improve و postgresql-table-design)
-
-در فاز ارزیابی و ممیزی معماری پایگاه داده، نکات زیر بررسی و در پیاده‌سازی نهایی اعمال گردید:
-1. **ارتقای تایپ‌های زمانی به TIMESTAMPTZ**: در تمام جداول به جای `TIMESTAMP` ساده، از `TIMESTAMPTZ` به همراه مقدار پیش‌فرض `now()` استفاده شد تا ناسازگاری‌های مربوط به منطقه زمانی و UTC از بین برود.
-2. **قید یکتایی در تقویم استثنائات (Pricing Exceptions)**: اضافه شدن قید `UNIQUE (accommodation_id, date)` جهت جلوگیری از تعریف دو نرخ متناقض برای یک شب در یک اقامتگاه.
-3. **ایندکس‌گذاری کلیدهای خارجی (Foreign Keys)**: دیتابیس PostgreSQL به طور پیش‌فرض روی کلیدهای خارجی ایندکس نمی‌سازد. بنابراین برای تمام FKها ایندکس‌های B-Tree تعریف شدند تا عملیات‌های `JOIN` و حذف رکوردهای وابسته به صورت بهینه انجام شوند.
-4. **چرخه حیات جامع وضعیت رزرو (Reservation Status)**: گسترش وضعیت‌ها به ۴ حالت استاندارد: `pending` (در انتظار پرداخت)، `confirmed` (پرداخت‌شده و قطعی)، `cancelled` (لغو شده) و `completed` (پایان‌یافته).
-5. **جلوگیری قطعی از تداخل زمانی رزرو (Double-Booking Prevention)**: اعمال شرط هم‌پوشانی تاریخ‌ها در کوئری رزرو و بررسی روزهای مسدودشده در تقویم.
-6. **مکانیزم نظرات واقعی مسافران (Proof of Stay)**: تعریف `reservation_id` به عنوان کلید کاندید یکتا (`UNIQUE`) در جدول `reviews` تا هر سفر حداکثر یک نظر داشته باشد و مسافر فقط برای سفرهای قطعی خود بتواند دیدگاه ثبت کند.
-7. **معماری چندمیزبانی (Multi-Host Architecture)**: تفکیک اقامتگاه‌ها با کلید خارجی `host_id` متصل به جدول کاربران و اعمال قوانین اعتبارسنجی مالکیت (Host Scoping). میزبانان می‌توانند اقامتگاه‌های خود را مدیریت کنند (`GET /accommodations/my`) و رزروهای مرتبط با اقامتگاه‌های تحت مالکیت خود را پیگیری نمایند (`GET /reservations/host`). اعمال هرگونه تغییر یا حذف اقامتگاه صرفاً برای میزبان مالک یا ادمین سامانه مجاز است.
+Designed for enterprise workloads with a fully normalized 3NF relational schema, multi-host access scoping, row-level concurrency locking against double-booking, transparent price breakdowns, dynamic pricing calendar, two-way iCal sync, host payout ledgers, and verified proof-of-stay guest reviews.
 
 ---
 
-## 🏗 ساختار جداول دیتابیس (۱۳ جدول)
+## Key Architectural Highlights
 
-1. `users`: کاربران سامانه اعم از مدیران، میزبانان و مسافران (`phone` یکتا به عنوان شناسه اصلی، رمز عبور هش‌شده، نقش `admin` یا `guest`).
-2. `provinces`: استان‌های کشور (فرم نرمال ۳NF).
-3. `cities`: شهرهای زیرمجموعه هر استان (با قید یکتایی `(province_id, name)`).
-4. `categories`: دسته‌بندی اقامتگاه‌ها (کلبه، ویلا استخردار، بوم‌گردی و...) با اسلاگ سئو یکتا.
-5. `amenities`: لیست امکانات رفاهی (استخر، جکوزی، باربیکیو، وای‌فای و...).
-6. `accommodation_amenities`: واسط چندبه‌چند (N:M) با کلید اصلی ترکیبی `(accommodation_id, amenity_id)`.
-7. `accommodations`: جدول مرکزی اقامتگاه (قیمت پایه، هزینه نظافت، سقف ظرفیت، هزینه نفر اضافه، مختصات جغرافیایی و قوانین).
-8. `accommodation_images`: گالری تصاویر به همراه تصویر شاخص (کاور) و ترتیب نمایش.
-9. `pricing_exceptions`: تقویم نرخ‌های شناور روزهای خاص و تعطیلات و علامت‌گذاری روزهای مسدودشده (Blocked).
-10. `reservations`: سفارشات و فاکتور رزرو با قیود اعتبارسنجی تاریخ `check_out > check_in` و محاسبه قیمت دقیق.
-11. `payments`: تراکنش‌های بانکی درگاه شاپرک با کد رهگیری و ثبت زمان تراکنش.
-12. `reviews`: نظرات و امتیازات مهمانان بر پایه تکنیک Proof of Stay.
-13. `wishlists`: نشان‌شده‌ها و علاقه‌مندی‌های مسافر با کلید اصلی ترکیبی `(user_id, accommodation_id)`.
+### 1. Multi-Host Scoping & Role-Based Access Control (RBAC)
+- **Role Hierarchy**: System users are partitioned into `admin`, `host`, and `guest` roles.
+- **Host Ownership Isolation**: Hosts exclusively manage and inspect their own listings (`GET /accommodations/my`) and incoming reservations (`GET /reservations/host`).
+- **Strict Ownership Guards**: Modifying or deleting an accommodation is authorized strictly for system administrators or the property's owner (`host_id == current_user.id`).
+
+### 2. Concurrency Safety & Double-Booking Prevention
+- **Database Row Locks (`SELECT ... FOR UPDATE`)**: High-concurrency booking and calendar synchronization employ pessimistic row-level locking to eliminate race conditions and guarantee zero double-bookings.
+- **Overlapping Range Verification**: Active reservation dates and host-blocked calendar entries are evaluated atomically before creating bookings or confirming checkout sessions.
+
+### 3. Transparent Price Engine & Cancellation Policies
+- **Itemized Price Calculation**: Computes nightly base rates with holiday/weekend exceptions, cleaning fees, additional guest surcharges, and promotional coupon discounts before checkout.
+- **Flexible / Moderate / Strict Policies**: Smart reservation cancellation previews calculate penalty deductions and host payouts depending on the accommodation's cancellation rules and notice window.
+
+### 4. Dynamic Pricing Calendar & Two-Way iCal Sync
+- **Seasonal & Holiday Overrides**: Hosts can set custom nightly rates and minimum stay requirements on specific calendar dates.
+- **Bulk Date Blocking**: Allows hosts to block single or bulk date ranges for maintenance or offline bookings.
+- **Standard iCal Export & Import**: Generates compliant RFC 5545 `.ics` feeds (`GET /accommodations/{id}/calendar.ics`) and imports external calendar feeds to synchronize availability across OTAs with SSRF protection and DNS resolution safeguards.
+
+### 5. Financial Operations & Host Payout Ledger
+- **Checkout Lifecycle & 30-Minute TTL**: Pending bookings expire automatically if payment is not initiated within 30 minutes, freeing reserved dates back into the search pool.
+- **Simulated Shaparak Banking Gateway**: Idempotent payment verification with unique transaction tracking codes.
+- **Host Payout Accounting**: Tracks gross earnings, automatically deducts the platform's 10% commission fee, and records transparent payout ledger entries ready for settlement.
+
+### 6. Fraud-Proof Reviews (Proof of Stay)
+- Review and rating submissions are strictly gated behind verified, completed reservations (`status == "completed"`).
+- Uses a unique candidate key `UNIQUE (reservation_id)` to enforce that each completed trip can receive at most one review.
 
 ---
 
-## 🚀 راهنمای نصب و راه‌اندازی با Conda
+## Database Architecture (Normalized 3NF)
 
-### ۱. فعال‌سازی محیط مجازی `ai_bootcamp`
-محیط مجازی کُندا به نام `ai_bootcamp` با پایتون ۳.۱۲ و سرور PostgreSQL ایجاد شده است:
-```bash
-conda activate ai_bootcamp
+The PostgreSQL schema consists of normalized relational tables with comprehensive foreign key B-Tree indexing, `TIMESTAMPTZ` audit timestamps, and integrity constraints:
+
+```text
+├── users (mobile-first canonical normalization, bcrypt password hash, roles)
+├── provinces & cities (3NF geographic hierarchy)
+├── categories & amenities (SEO slugs, relational mapping via accommodation_amenities)
+├── accommodations (pricing, cleaning fees, capacities, coordinates, min stay, rules)
+├── accommodation_images (multi-image gallery, primary cover flag, display order)
+├── pricing_exceptions (seasonal rates, bulk blocking, UNIQUE(accommodation_id, date))
+├── reservations (state machine: pending -> confirmed -> completed / cancelled)
+├── payments (Shaparak gateway simulation, tracking code, idempotency, TTL)
+├── coupons & coupon_redemptions (percentage / fixed discounts, max cap, validation)
+├── host_payouts (platform commission accounting, pending/settled/cancelled ledger)
+├── reservation_messages (direct in-stay guest-host communication)
+├── external_calendars (iCal feeds, last synced timestamp, sync status)
+├── reviews (proof-of-stay verified reviews, rating scale 1-5)
+└── wishlists (composite primary key bookmarking)
 ```
 
-### ۲. بررسی اتصال دیتابیس و اجرای سرور
-تنظیمات اتصال در فایل `.env` موجود است. برای اجرای وب‌سرور FastAPI:
+---
+
+## Technology Stack
+
+- **Framework**: FastAPI (Async ASGI)
+- **Database Engine**: PostgreSQL 16
+- **ORM & Driver**: SQLAlchemy 2.0 with `asyncpg` async driver
+- **Connection Pooling**: `AsyncAdaptedQueuePool`
+- **Schema Migrations**: Alembic
+- **Authentication**: JWT Bearer Tokens (`python-jose`) with `passlib[bcrypt]`
+- **Data Validation & Settings**: Pydantic v2 & Pydantic Settings
+- **Testing**: `pytest`, `pytest-asyncio`, `httpx` (88 comprehensive automated tests)
+- **Code Quality**: `ruff` (linter & formatter), `mypy` (static type analysis)
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Python 3.12+ (or Conda environment `ai_bootcamp`)
+- PostgreSQL 14+ running locally or in Docker on port `5432`
+
+### 1. Clone the Repository
 ```bash
-uvicorn app.main:app --reload --port 8000
+git clone https://github.com/airregista/vacation-rental-platform.git
+cd vacation-rental-platform
 ```
 
-مستندات تعاملی Swagger و OpenAPI در آدرس‌های زیر در دسترس هستند:
+### 2. Environment Setup
+Create and configure your local `.env` file from `.env.example`:
+```bash
+cp .env.example .env
+```
+
+Ensure your PostgreSQL database connection string is properly configured:
+```ini
+PROJECT_NAME="Accommodation Booking API (Similar to Jabama & Airbnb)"
+API_V1_STR="/api/v1"
+SECRET_KEY="your-secure-random-secret-key-for-development"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=jabama_db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/jabama_db
+
+ENABLE_STARTUP_SEED=True
+```
+
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run Migrations & Seed Database
+```bash
+# Apply Alembic schema migrations
+alembic upgrade head
+
+# Seed initial test data (categories, amenities, provinces, test accommodations, admin)
+python -m app.seeds.seed_data
+```
+
+### 5. Launch the Server
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+---
+
+## Interactive Documentation
+
+Once the server is running, explore and test all 54 endpoints using interactive API documentation:
+
 - **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- **OpenAPI Schema**: [http://127.0.0.1:8000/openapi.json](http://127.0.0.1:8000/openapi.json)
 
 ---
 
-## 🧪 تست‌های خودکار (Automated Test Suite)
+## Default Seed Credentials
 
-پروژه دارای تست‌های جامع `pytest` با کلاینت آسنکرون و بدون ماک ناقص است که تمام سناریوهای کلیدی زیر را پوشش می‌دهند:
-- ثبت‌نام کاربر جدید و عدم امکان ثبت شماره تکراری
-- ورود با تلفن یا ایمیل و دریافت توکن JWT Bearer
-- فیلتر و جستجوی پیشرفته اقامتگاه‌ها بر اساس شهر، قیمت و ظرفیت
-- تقویم اقامتگاه و نرخ‌های شناور
-- مدیریت اقامتگاه‌ها توسط میزبانان و بررسی مجوزهای ویرایش و حذف بر اساس مالکیت (Host Scoping: تنها ادمین یا خود میزبان)
-- دسترسی میزبان به لیست اقامتگاه‌های خود (`GET /accommodations/my`) و رزروهای دریافتی (`GET /reservations/host`)
-- محاسبه هزینه شب‌های اقامت با لحاظ نرخ تعطیلات، هزینه نفرات اضافه و نظافت
-- شبیه‌سازی چرخه پرداخت بانکی شاپرک و تایید وضعیت رزرو
-- جلوگیری از رزرو مجدد تاریخ‌های هم‌پوشان (Double-Booking Prevention با کد 409 Conflict)
-- راستی‌آزمایی ثبت نظر ضد تقلب (Proof of Stay) و جلوگیری از ثبت نظر تکراری
-- افزودن و حذف اقامتگاه از لیست علاقه‌مندی‌ها (Wishlist Toggle)
+For quick local evaluation, the database seed initializes default accounts:
 
-برای اجرای تمامی تست‌ها:
+| Role | Mobile / Login | Password | Capabilities |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `09120000000` | `admin123` | Full access across all hosts, listings, coupons, and payouts |
+| **Host / Guest User** | `09121111111` | `guest123` | Manage owned listings, view host reservations, make bookings |
+
+---
+
+## API Overview (54 Verified Endpoints)
+
+The API is organized into 12 core resource routers:
+
+| Module | Endpoints | Key Operations |
+| :--- | :--- | :--- |
+| **Auth** | 4 | Mobile registration, JWT Bearer login, profile retrieval & update |
+| **Users** | 2 | Directory listing, user detail inspection (RBAC admin only) |
+| **Geography** | 4 | 3NF provinces and tourist cities retrieval and creation |
+| **Categories & Amenities** | 4 | SEO categories (Villas, Cottages, Eco-Lodges) and amenities registry |
+| **Accommodations** | 10 | Bounding-box map search, CRUD, host-scoped listings (`/my`) |
+| **Calendar & Pricing** | 5 | Date exceptions, bulk blocks, iCal RFC 5545 `.ics` export & sync |
+| **Reservations** | 8 | Pre-calculation engine, row-locked booking, host/guest views, cancellation |
+| **Messages** | 2 | In-stay direct messaging between host and traveler |
+| **Payments & Payouts** | 5 | Gateway checkout, verification, guest invoices, host payout ledger & settlement |
+| **Coupons** | 4 | Coupon validation, percentage/fixed discounts with caps |
+| **Reviews** | 3 | Proof-of-stay verified review submission and ratings retrieval |
+| **Wishlist & Health** | 3 | Accommodation bookmarks toggle and live database health monitoring |
+
+---
+
+## Automated Test Suite
+
+The test suite contains 88 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
+
 ```bash
+# Run the complete test suite
 pytest -v
+
+# Run with coverage report
+pytest --cov=app --cov-report=term-missing
+```
+
+### Static Analysis & Code Formatting
+```bash
+# Run Ruff linting
+ruff check app/
+
+# Run static type checking
+mypy app/
 ```
 
 ---
 
-## 🗄️ مایگریشن‌های دیتابیس با Alembic (Database Migrations)
+## Project Structure
 
-مایگریشن‌های دیتابیس به صورت کاملاً آسنکرون با استفاده از `Alembic` و درایور `asyncpg` مدیریت می‌شوند:
-
-- **مشاهده وضعیت کنونی مایگریشن**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic current
-  ```
-- **ایجاد مایگریشن جدید به صورت خودکار (Autogenerate)**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic revision --autogenerate -m "migration_description"
-  ```
-- **اعمال تغییرات روی دیتابیس (Upgrade to Head)**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic upgrade head
-  ```
-- **برچسب‌گذاری وضعیت دیتابیس (Stamp)**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic stamp head
-  ```
-
----
-
-## 🛠 ابزارهای بررسی کیفیت کد و لینتینگ (DX & Linting)
-
-- **لینت کد با Ruff**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m ruff check app/
-  ```
-- **بررسی استاتیک تایپ‌ها با Mypy**:
-  ```powershell
-  & "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m mypy app/
-  ```
+```text
+├── app/
+│   ├── api/
+│   │   └── v1/
+│   │       ├── endpoints/        # 12 Modular FastAPI endpoint routers
+│   │       └── router.py         # Central API v1 router registry
+│   ├── core/
+│   │   ├── config.py             # Pydantic v2 application settings
+│   │   ├── database.py           # Async SQLAlchemy engine & session maker
+│   │   └── security.py           # JWT tokens, password hashing, RBAC dependencies
+│   ├── models/                   # 14 SQLAlchemy 2.0 ORM database models
+│   ├── schemas/                  # Pydantic request & response validation schemas
+│   ├── seeds/                    # Deterministic database seeding scripts
+│   └── main.py                   # FastAPI application initialization & middleware
+├── migrations/                   # Alembic environment and migration versions
+├── tests/                        # 88 Pytest integration and concurrency test cases
+├── .env.example                  # Environment configuration template
+├── alembic.ini                   # Alembic configuration
+├── pyproject.toml                # Project metadata, Ruff, and Mypy configuration
+└── requirements.txt              # Production and development dependencies
+```
 
 ---
 
-## 👤 اطلاعات ورود به حساب‌های اولیه تست (Seed Data)
+## License
 
-- **کاربر مدیر (Admin)**:
-  - تلفن: `09120000000`
-  - رمز عبور: `admin123`
-  - نقش: `admin`
-- **کاربر نمونه (میزبان / مسافر)**:
-  - تلفن: `09121111111`
-  - رمز عبور: `guest123`
-  - نقش: `guest`
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
