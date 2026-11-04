@@ -23,18 +23,20 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
-# سامانه جامع رزرو اقامتگاه (مشابه جاباما و Airbnb)
+# Vacation Rental & Accommodation Booking Platform (Similar to Jabama & Airbnb)
 
-این سامانه به عنوان بک‌اند پلتفرم رزرو اقامتگاه با رعایت کامل استانداردها و بر اساس ERD اصلاح‌شده طراحی و پیاده‌سازی شده است:
-- **احراز هویت و مدیریت کاربران**: ثبت‌نام با شماره همراه و احراز هویت با JWT Token و هش رمز عبور با الگوریتم امن Bcrypt.
-- **معماری چندمیزبانی (Multi-Host Architecture)**: مدیریت مجزای اقامتگاه‌ها توسط میزبانان (`GET /accommodations/my`)، تفکیک رزروهای هر میزبان (`GET /reservations/host`)، و کنترل دسترسی دقیق بر اساس مالکیت (Host Scoping: تنها ادمین یا میزبان مالک اقامتگاه).
-- **دسته‌بندی و موقعیت جغرافیایی 3NF**: نرمال‌سازی کامل استان‌ها، شهرها، دسته‌بندی‌ها با اسلاگ‌های سئو.
-- **جستجو و فیلتر پیشرفته اقامتگاه‌ها**: فیلتر بر اساس شهر، تاریخ‌های رفت و برگشت (تطبیق بلادرنگ با رزروهای قطعی و تقویم مسدودی)، سقف نفرات، بازه قیمتی، و لیست امکانات.
-- **تقویم نرخ شناور و روزهای بلاک**: امکان تعریف نرخ‌های ویژه تعطیلات (Pricing Exceptions) و مسدودسازی تاریخ‌های خاص به صورت تکی و دسته‌ای توسط میزبان یا ادمین.
-- **موتور محاسبه قیمت و رزرو هوشمند**: تفکیک هزینه نظافت، هزینه نفر اضافه، و جلوگیری قطعی از تداخل زمانی (Double-Booking Prevention) برای رزرو مهمانان.
-- **درگاه پرداخت شاپرک (شبیه‌ساز بانکی)**: چرخه کامل پرداخت سفارش، صدور کد رهگیری و تغییر وضعیت به Confirmed با کنترل انقضای ۳۰ دقیقه‌ای (TTL).
-- **نظرات واقعی ضد تقلب (Proof of Stay)**: ثبت نظر و امتیاز صرفاً برای مسافرانی که سفر قطعی داشته‌اند، همراه با کلید نامزد یکتا.
-- **علاقه‌مندی‌ها (Wishlist)**: ذخیره اقامتگاه‌های محبوب توسط مسافر.
+Production-grade RESTful API backend for an accommodation and vacation rental booking platform (similar to Jabama & Airbnb), built with FastAPI, PostgreSQL, and SQLAlchemy 2.0 based on a fully normalized 3NF schema:
+
+- **Authentication & User Management**: Mobile phone registration, secure JWT Bearer token authentication, and Bcrypt password hashing.
+- **Multi-Host Architecture & Host Scoping**: Isolated accommodation management per host (`GET /accommodations/my`), host-scoped reservation tracking (`GET /reservations/host`), and strict ownership-based access control (Host Scoping: accessible strictly by admins or the property owner).
+- **3NF Geographic Hierarchy & Categories**: Fully normalized relational schema for provinces, cities, property categories with SEO slugs, and amenities.
+- **Advanced Search & Map Bounding-Box Filtering**: Real-time availability filtering matching confirmed bookings and blocked calendars, geographic bounding box coordinates, guest capacity, price range, and amenities.
+- **Dynamic Pricing Calendar & Date Blocking**: Holiday/weekend seasonal pricing overrides (Pricing Exceptions), single and bulk calendar date blocking by hosts or admins, and standard iCal (.ics) calendar sync.
+- **Transparent Price Calculation Engine**: Itemized breakdown of nightly base rates, cleaning fees, extra guest charges, and automated coupon discounts before checkout.
+- **Row-Locked Booking & Double-Booking Prevention**: Database-level row locking (`SELECT ... FOR UPDATE`) preventing race conditions and double bookings during concurrent guest reservations.
+- **Payment Gateway & Checkout Lifecycle**: 30-minute reservation TTL expiration, simulated Shaparak banking gateway, tracking code issuance, and automated status transitions to Confirmed.
+- **Proof-of-Stay Verified Reviews**: Fraud-proof review and rating submissions restricted strictly to guests with completed stays via unique booking candidate keys.
+- **Guest Wishlists & In-Stay Messaging**: Bookmarking favorite accommodations and direct in-stay communication between guests and hosts.
     """,
     version="1.0.0",
     lifespan=lifespan,

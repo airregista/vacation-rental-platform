@@ -42,3 +42,9 @@ plans/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Media & dependencies
+node_modules/
+.remotion/
+video/
+.playwright-cli/
