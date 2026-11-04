@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAdminDep, SessionDep
 from app.models.coupon import Coupon
@@ -27,7 +28,11 @@ async def create_coupon(
     coupon = Coupon(**coupon_in.model_dump())
     coupon.code = clean_code
     db.add(coupon)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Coupon code already exists")
     await db.refresh(coupon)
     return CouponResponse.model_validate(coupon)
 
@@ -39,7 +44,12 @@ async def list_coupons(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[CouponResponse]:
-    stmt = select(Coupon).order_by(Coupon.created_at.desc()).offset(skip).limit(limit)
+    stmt = (
+        select(Coupon)
+        .order_by(Coupon.created_at.desc(), Coupon.id.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     coupons = (await db.execute(stmt)).scalars().all()
     return [CouponResponse.model_validate(c) for c in coupons]
 

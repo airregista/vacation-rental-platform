@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import delete, distinct, exists, func, not_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, OptionalCurrentUserDep, SessionDep
@@ -396,9 +397,25 @@ async def get_accommodation(
             detail="Accommodation not found",
         )
 
-    if not acc.is_active and (
-        not current_user or (current_user.role != "admin" and acc.host_id != current_user.id)
-    ):
+    is_owner_or_admin = bool(
+        current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
+    )
+
+    has_confirmed_booking = False
+    if current_user and not is_owner_or_admin:
+        has_confirmed_booking = bool(
+            await db.scalar(
+                select(
+                    exists().where(
+                        Reservation.accommodation_id == id,
+                        Reservation.user_id == current_user.id,
+                        Reservation.status.in_(("confirmed", "completed")),
+                    )
+                )
+            )
+        )
+
+    if not acc.is_active and not (is_owner_or_admin or has_confirmed_booking):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Accommodation not found or is currently inactive",
@@ -415,9 +432,6 @@ async def get_accommodation(
     detail = AccommodationDetail.model_validate(acc)
     detail.average_rating = round(float(avg_r), 1) if avg_r is not None else None
     detail.reviews_count = int(count_r)
-    is_owner_or_admin = bool(
-        current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
-    )
     if is_owner_or_admin:
         detail.calendar_ics_token = generate_calendar_feed_token(acc.id)
     else:
@@ -569,12 +583,14 @@ async def export_accommodation_calendar_ics(
         )
 
     for b in blocked:
-        dt = b.date.strftime("%Y%m%d")
+        dt_start = b.date.strftime("%Y%m%d")
+        dt_end = (b.date + timedelta(days=1)).strftime("%Y%m%d")
         lines.extend(
             [
                 "BEGIN:VEVENT",
                 f"UID:block-{b.id}@jabama.local",
-                f"DTSTART;VALUE=DATE:{dt}",
+                f"DTSTART;VALUE=DATE:{dt_start}",
+                f"DTEND;VALUE=DATE:{dt_end}",
                 "SUMMARY:Blocked - Not Available",
                 "END:VEVENT",
             ]
@@ -823,11 +839,13 @@ async def create_accommodation(
     await db.flush()
 
     # Add images
+    has_explicit_cover = any(img.is_cover for img in acc_in.images)
     for idx, img in enumerate(acc_in.images):
+        is_cover = img.is_cover if has_explicit_cover else (idx == 0)
         image = AccommodationImage(
             accommodation_id=accommodation.id,
             image_url=img.image_url,
-            is_cover=img.is_cover or (idx == 0),
+            is_cover=is_cover,
             sort_order=img.sort_order or idx,
         )
         db.add(image)
@@ -1055,7 +1073,14 @@ async def upsert_pricing_exception(
         )
         db.add(exception_obj)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pricing exception for this date already exists or conflicts with concurrent update",
+        )
     await db.refresh(exception_obj)
     return PricingExceptionResponse.model_validate(exception_obj)
 
@@ -1105,7 +1130,14 @@ async def batch_pricing_exceptions(
         count += 1
         curr += timedelta(days=1)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Batch pricing exception conflicts with concurrent updates",
+        )
     return PricingExceptionBatchResponse(
         updated_count=count,
         start_date=batch_in.start_date,

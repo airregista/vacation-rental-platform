@@ -54,10 +54,10 @@ async def calculate_price(
     stmt = select(Accommodation).where(Accommodation.id == req.accommodation_id)
     res = await db.execute(stmt)
     acc = res.scalars().first()
-    if not acc:
+    if not acc or not acc.is_active:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Accommodation not found",
+            detail="Accommodation not found or is currently inactive",
         )
     return await calculate_reservation_price(
         db=db,
@@ -390,6 +390,14 @@ async def preview_cancellation(
             detail=f"Reservation cannot be cancelled from status: {reservation.status}",
         )
 
+    payout_stmt = select(HostPayout).where(HostPayout.reservation_id == reservation.id)
+    payout = (await db.execute(payout_stmt)).scalars().first()
+    if payout and payout.status == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot cancel reservation: Host payout has already been settled and disbursed",
+        )
+
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation, reservation.accommodation
     )
@@ -518,15 +526,14 @@ async def list_all_reservations(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[ReservationResponse]:
+    stmt = select(Reservation).options(selectinload(Reservation.accommodation))
+    if status_filter:
+        stmt = stmt.where(Reservation.status == status_filter)
     stmt = (
-        select(Reservation)
-        .options(selectinload(Reservation.accommodation))
-        .order_by(Reservation.created_at.desc())
+        stmt.order_by(Reservation.created_at.desc(), Reservation.id.desc())
         .offset(skip)
         .limit(limit)
     )
-    if status_filter:
-        stmt = stmt.where(Reservation.status == status_filter)
 
     result = await db.execute(stmt)
     reservations = result.scalars().all()

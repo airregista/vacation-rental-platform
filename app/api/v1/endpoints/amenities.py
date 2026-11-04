@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAdminDep, SessionDep
 from app.models.amenity import Amenity
@@ -32,6 +33,13 @@ async def create_amenity(
 
     amenity = Amenity(name=amenity_in.name, icon=amenity_in.icon)
     db.add(amenity)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Amenity with this name already exists",
+        )
     await db.refresh(amenity)
     return AmenityResponse.model_validate(amenity)

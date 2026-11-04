@@ -641,7 +641,14 @@ async def test_host_payout_ledger_and_settlement_flow(
     assert settle_again.status_code == 400
     assert "already been completed" in settle_again.json()["detail"].lower()
 
-    # 9. Guest cannot cancel reservation once host payout has been settled
+    # 9. Guest cannot cancel or preview cancellation once host payout has been settled
+    preview_after_settle = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel-preview",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert preview_after_settle.status_code == 400
+    assert "settled" in preview_after_settle.json()["detail"].lower()
+
     cancel_after_settle = await client.post(
         f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
         headers={"Authorization": f"Bearer {guest_token}"},

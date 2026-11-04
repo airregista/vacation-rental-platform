@@ -914,3 +914,197 @@ async def test_spatial_bounding_box_filtering(client: AsyncClient, admin_token: 
     assert pole_res.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculate_price_rejected(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": 2,
+            "title": f"اقامتگاه دسترسی مسافر {uuid.uuid4().hex[:6]}",
+            "address": "آدرس تست مهمان",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+
+    # Guest books and pays
+    ci = (date.today() + timedelta(days=25)).isoformat()
+    co = (date.today() + timedelta(days=27)).isoformat()
+    book_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co,
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert book_res.status_code == 201
+    res_id = book_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout_res.status_code == 201
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": checkout_res.json()["payment_id"],
+            "tracking_code": checkout_res.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Host deactivates accommodation
+    deactivate_res = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert deactivate_res.status_code == 204
+
+    # Anonymous user -> 404
+    anon_get = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert anon_get.status_code == 404
+
+    # Other guest (not booked) -> 404
+    other_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "password": "Password123!",
+        },
+    )
+    other_token = other_reg.json()["access_token"]
+    other_get = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert other_get.status_code == 404
+
+    # Confirmed booked guest -> 200
+    booked_guest_get = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booked_guest_get.status_code == 200
+    assert booked_guest_get.json()["id"] == acc_id
+
+    # calculate-price on inactive accommodation -> 404
+    calc_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/calculate-price",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=40)).isoformat(),
+            "check_out": (date.today() + timedelta(days=42)).isoformat(),
+            "guests_count": 2,
+        },
+    )
+    assert calc_res.status_code == 404
+    assert "inactive" in calc_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_ical_export_blocked_dates_include_dtend(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": 2,
+            "title": f"اقامتگاه تست DTEND {uuid.uuid4().hex[:6]}",
+            "address": "آدرس تقویم",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    acc_id = create_res.json()["id"]
+
+    block_d = date.today() + timedelta(days=30)
+    await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions",
+        json={
+            "date": block_d.isoformat(),
+            "is_blocked": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    ical_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert ical_res.status_code == 200
+    start_str = block_d.strftime("%Y%m%d")
+    end_str = (block_d + timedelta(days=1)).strftime("%Y%m%d")
+    assert f"DTSTART;VALUE=DATE:{start_str}" in ical_res.text
+    assert f"DTEND;VALUE=DATE:{end_str}" in ical_res.text
+
+
+@pytest.mark.asyncio
+async def test_create_accommodation_cover_image_assignment(
+    client: AsyncClient,
+    admin_token: str,
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"اقامتگاه تست کاور {uuid.uuid4().hex[:6]}",
+            "address": "آدرس کاور",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": True,
+            "images": [
+                {"image_url": "https://example.com/img1.jpg", "is_cover": False, "sort_order": 0},
+                {"image_url": "https://example.com/img2.jpg", "is_cover": True, "sort_order": 1},
+            ],
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    images = create_res.json()["images"]
+    assert len(images) == 2
+    assert images[0]["is_cover"] is False
+    assert images[1]["is_cover"] is True
+
+
+

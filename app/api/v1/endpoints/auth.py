@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.security import create_access_token, get_password_hash, verify_password
@@ -39,7 +40,14 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
         role="guest",
     )
     db.add(new_user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this phone number or email address already exists",
+        )
     await db.refresh(new_user)
 
     token = create_access_token(subject=new_user.id)
@@ -103,6 +111,13 @@ async def update_me(
     if user_update.shaba_number is not None:
         current_user.shaba_number = user_update.shaba_number
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This email address is already in use by another account",
+        )
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)

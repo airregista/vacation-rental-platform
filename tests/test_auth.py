@@ -1,7 +1,9 @@
 import uuid
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 
@@ -262,4 +264,24 @@ async def test_update_user_shaba_number_normalization_and_validation(client: Asy
         headers={"Authorization": f"Bearer {token}"},
     )
     assert invalid_res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_integrity_error_handled_as_400(client: AsyncClient):
+    phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    payload = {
+        "phone": phone,
+        "email": f"integ_{uuid.uuid4().hex[:6]}@example.com",
+        "password": "Password123!",
+    }
+
+    # Simulate race condition raising IntegrityError on commit
+    with patch(
+        "sqlalchemy.ext.asyncio.AsyncSession.commit",
+        side_effect=IntegrityError("stmt", {}, Exception("orig")),
+    ):
+        res = await client.post(f"{settings.API_V1_STR}/auth/register", json=payload)
+        assert res.status_code == 400
+        assert "already exists" in res.json()["detail"].lower()
+
 

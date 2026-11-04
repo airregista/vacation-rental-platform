@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAdminDep, SessionDep
 from app.models.category import Category
@@ -36,6 +37,13 @@ async def create_category(
         icon_url=cat_in.icon_url,
     )
     db.add(category)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category title or slug already exists",
+        )
     await db.refresh(category)
     return CategoryResponse.model_validate(category)

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentAdminDep, SessionDep
@@ -34,7 +35,14 @@ async def create_province(
         )
     province = Province(name=province_in.name)
     db.add(province)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A province with this name already exists",
+        )
     await db.refresh(province)
     return ProvinceResponse.model_validate(province)
 
@@ -46,15 +54,10 @@ async def list_cities(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[CityResponse]:
-    stmt = (
-        select(City)
-        .options(selectinload(City.province))
-        .order_by(City.name, City.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    stmt = select(City).options(selectinload(City.province))
     if province_id is not None:
         stmt = stmt.where(City.province_id == province_id)
+    stmt = stmt.order_by(City.name, City.id.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     cities = result.scalars().all()
     return [CityResponse.model_validate(c) for c in cities]
@@ -90,7 +93,14 @@ async def create_city(
 
     city = City(province_id=city_in.province_id, name=city_in.name)
     db.add(city)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="City with this name already exists in this province",
+        )
     await db.refresh(city)
     city.province = province
     return CityResponse.model_validate(city)

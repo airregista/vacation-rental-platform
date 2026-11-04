@@ -27,7 +27,7 @@ async def list_accommodation_reviews(
         select(Review)
         .options(selectinload(Review.user))
         .where(Review.accommodation_id == accommodation_id)
-        .order_by(Review.created_at.desc())
+        .order_by(Review.created_at.desc(), Review.id.desc())
         .offset(skip)
         .limit(limit)
     )
