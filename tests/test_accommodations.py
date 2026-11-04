@@ -393,6 +393,71 @@ async def test_filter_accommodations_by_rooms_and_beds(
         assert a["rooms_count"] >= 2 and a["beds_count"] >= 3
 
 
+@pytest.mark.asyncio
+async def test_filter_accommodations_by_stay_dates_enforces_min_nights(
+    client: AsyncClient, admin_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    uid = uuid.uuid4().hex[:6]
+    # Acc 1: min_nights = 1
+    acc1_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"Stay Filter 1 Night {uid}",
+            "address": "گیلان، فومن",
+            "base_price": 1000000,
+            "min_nights": 1,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    id1 = acc1_res.json()["id"]
+
+    # Acc 2: min_nights = 3
+    acc2_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"Stay Filter 3 Nights {uid}",
+            "address": "گیلان، ماسال",
+            "base_price": 2000000,
+            "min_nights": 3,
+            "is_active": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    id2 = acc2_res.json()["id"]
+
+    ci_1 = (date.today() + timedelta(days=60)).isoformat()
+    co_1 = (date.today() + timedelta(days=61)).isoformat()  # 1 night
+    co_3 = (date.today() + timedelta(days=63)).isoformat()  # 3 nights
+
+    # Search for 1 night -> Acc 1 is returned, Acc 2 is filtered out
+    search_1n = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?check_in={ci_1}&check_out={co_1}"
+    )
+    assert search_1n.status_code == 200
+    search_1n_ids = [a["id"] for a in search_1n.json()]
+    assert id1 in search_1n_ids
+    assert id2 not in search_1n_ids
+
+    # Search for 3 nights -> both Acc 1 and Acc 2 are returned
+    search_3n = await client.get(
+        f"{settings.API_V1_STR}/accommodations/?check_in={ci_1}&check_out={co_3}"
+    )
+    assert search_3n.status_code == 200
+    search_3n_ids = [a["id"] for a in search_3n.json()]
+    assert id1 in search_3n_ids
+    assert id2 in search_3n_ids
+
+
 
 @pytest.mark.asyncio
 async def test_filter_by_amenities_and_sorting(client: AsyncClient):

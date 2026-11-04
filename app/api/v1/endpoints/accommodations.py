@@ -4,6 +4,7 @@ import ipaddress
 import math
 import re
 import secrets
+import socket
 import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -128,7 +129,19 @@ async def list_accommodations(
                 detail="Check-out date must be strictly after check-in date",
             )
 
+        stay_nights = (check_out - check_in).days
         stmt = stmt.where(
+            Accommodation.min_nights <= stay_nights,
+            not_(
+                exists(
+                    select(PricingException.id).where(
+                        PricingException.accommodation_id == Accommodation.id,
+                        PricingException.min_nights > stay_nights,
+                        PricingException.date >= check_in,
+                        PricingException.date < check_out,
+                    )
+                )
+            ),
             not_(
                 exists(
                     select(Reservation.id).where(
@@ -585,7 +598,16 @@ def validate_external_feed_url(url_str: str) -> None:
                 detail="Private network calendar URLs are forbidden",
             )
     except ValueError:
-        pass
+        try:
+            resolved_ip = socket.gethostbyname(hostname)
+            ip = ipaddress.ip_address(resolved_ip)
+            if ip.is_private or ip.is_loopback:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Private network calendar URLs are forbidden",
+                )
+        except socket.gaierror:
+            pass
 
 
 def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
@@ -633,7 +655,7 @@ async def sync_external_calendar(
     validate_external_feed_url(acc.external_calendar_url)
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             resp = await client.get(acc.external_calendar_url)
             resp.raise_for_status()
             ics_text = resp.text

@@ -253,7 +253,7 @@ async def settle_host_payout(
 
     stmt = (
         select(HostPayout)
-        .options(selectinload(HostPayout.host))
+        .options(selectinload(HostPayout.host), selectinload(HostPayout.reservation))
         .where(HostPayout.id == id)
         .with_for_update(of=HostPayout)
     )
@@ -267,6 +267,11 @@ async def settle_host_payout(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payout has already been completed",
+        )
+    if payout.reservation and payout.reservation.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot settle payout: Associated reservation has been cancelled",
         )
     if not payout.host.shaba_number:
         raise HTTPException(

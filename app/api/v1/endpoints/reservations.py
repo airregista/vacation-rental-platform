@@ -279,7 +279,7 @@ async def list_reservation_messages(
         select(ReservationMessage)
         .options(joinedload(ReservationMessage.sender))
         .where(ReservationMessage.reservation_id == id)
-        .order_by(ReservationMessage.created_at.asc())
+        .order_by(ReservationMessage.created_at.asc(), ReservationMessage.id.asc())
         .offset(skip)
         .limit(limit)
     )

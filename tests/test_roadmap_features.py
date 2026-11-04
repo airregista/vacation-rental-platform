@@ -373,7 +373,9 @@ END:VCALENDAR"""
     mock_resp.text = ics_text
     mock_resp.raise_for_status = MagicMock()
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get, patch(
+        "socket.gethostbyname", return_value="93.184.215.14"
+    ):
         mock_get.return_value = mock_resp
 
         # Host sends POST /accommodations/{id}/calendar/sync
@@ -496,3 +498,17 @@ async def test_external_calendar_sync_ssrf_rejection(
     )
     assert sync_res.status_code == 400
     assert "Loopback" in sync_res.json()["detail"] or "forbidden" in sync_res.json()["detail"].lower()
+
+    # Domain resolving to 127.0.0.1 is also rejected by DNS check
+    with patch("socket.gethostbyname", return_value="127.0.0.1"):
+        await client.put(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}",
+            json={"external_calendar_url": "http://evil-dns.example.com/calendar.ics"},
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        dns_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert dns_res.status_code == 400
+        assert "forbidden" in dns_res.json()["detail"].lower()

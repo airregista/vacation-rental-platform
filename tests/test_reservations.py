@@ -626,6 +626,110 @@ async def test_host_payout_ledger_and_settlement_flow(
 
 
 @pytest.mark.asyncio
+async def test_host_payout_settlement_rejected_for_cancelled_reservation(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    uid = uuid.uuid4().hex[:6]
+    host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": host_phone,
+            "email": f"host_cancel_{uid}@example.com",
+            "password": "Password123!",
+            "first_name": "میزبان",
+            "last_name": "کنسلی",
+        },
+    )
+    assert reg_res.status_code == 201
+    host_data = reg_res.json()["user"]
+    host_id = host_data["id"]
+    host_token = reg_res.json()["access_token"]
+
+    # Register host Shaba number
+    await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"shaba_number": "IR123456789012345678901234"},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": host_id,
+            "title": f"Payout Cancel Property {uid}",
+            "address": "مازندران، متل قو",
+            "base_price": 2000000,
+            "min_nights": 1,
+            "cancellation_policy": "flexible",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    ci = (date.today() + timedelta(days=130)).isoformat()
+    co = (date.today() + timedelta(days=132)).isoformat()
+    book_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert book_res.status_code == 201
+    res_id = book_res.json()["id"]
+
+    pay_init = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": pay_init.json()["payment_id"],
+            "tracking_code": pay_init.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Fetch payout ID
+    payouts_res = await client.get(
+        f"{settings.API_V1_STR}/payments/host/payouts",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    payout_id = payouts_res.json()[0]["id"]
+
+    # Guest cancels reservation
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "انصراف از سفر"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 200
+
+    # Admin attempts to settle payout for cancelled reservation -> HTTP 400
+    settle_res = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert settle_res.status_code == 400
+    assert "cancelled" in settle_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_reservation_messaging_flow(
     client: AsyncClient, admin_token: str, guest_token: str
 ):
