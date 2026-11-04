@@ -4,10 +4,11 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
+from app.core.config import settings
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
 from app.models.payment import HostPayout, Payment
@@ -275,6 +276,19 @@ async def list_reservation_messages(
     if not (is_guest or is_host or is_admin):
         raise HTTPException(status_code=403, detail="Access forbidden")
 
+    if not is_admin:
+        unread_stmt = (
+            update(ReservationMessage)
+            .where(
+                ReservationMessage.reservation_id == id,
+                ReservationMessage.sender_id != current_user.id,
+                ReservationMessage.read_at.is_(None),
+            )
+            .values(read_at=datetime.now(timezone.utc))
+        )
+        await db.execute(unread_stmt)
+        await db.commit()
+
     msg_stmt = (
         select(ReservationMessage)
         .options(joinedload(ReservationMessage.sender))
@@ -425,6 +439,18 @@ async def cancel_reservation(
             detail=f"Reservation cannot be cancelled from status: {reservation.status}",
         )
 
+    payout_stmt = (
+        select(HostPayout)
+        .where(HostPayout.reservation_id == reservation.id)
+        .with_for_update()
+    )
+    payout = (await db.execute(payout_stmt)).scalars().first()
+    if payout and payout.status == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot cancel reservation: Host payout has already been settled and disbursed",
+        )
+
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation, reservation.accommodation
     )
@@ -444,15 +470,9 @@ async def cancel_reservation(
         if p.status == "pending":
             p.status = "failed"
 
-    payout_stmt = (
-        select(HostPayout)
-        .where(HostPayout.reservation_id == reservation.id)
-        .with_for_update()
-    )
-    payout = (await db.execute(payout_stmt)).scalars().first()
     if payout and payout.status == "pending":
         if penalty > 0:
-            comm = Decimal(round(penalty * Decimal("0.10")))
+            comm = Decimal(round(penalty * settings.PLATFORM_COMMISSION_RATE))
             payout.total_booking_amount = penalty
             payout.commission_amount = comm
             payout.payout_amount = max(Decimal(0), penalty - comm)

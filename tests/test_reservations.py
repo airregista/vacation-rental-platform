@@ -6,6 +6,8 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.reservation import Reservation
 
 
 @pytest.mark.asyncio
@@ -606,7 +608,22 @@ async def test_host_payout_ledger_and_settlement_flow(
     assert update_shaba_res.status_code == 200
     assert update_shaba_res.json()["shaba_number"] == shaba_val
 
-    # 7. Admin settles payout via POST /payments/host/payouts/{id}/settle
+    # 7. Admin attempts settlement before check-in date arrives -> HTTP 400
+    premature_settle = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert premature_settle.status_code == 400
+    assert "check-in date" in premature_settle.json()["detail"].lower()
+
+    # Fast-forward reservation check_in date to today
+    async with AsyncSessionLocal() as session:
+        db_res = await session.get(Reservation, res_id)
+        assert db_res is not None
+        db_res.check_in = date.today()
+        await session.commit()
+
+    # Admin settles payout via POST /payments/host/payouts/{id}/settle
     settle_res = await client.post(
         f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -623,6 +640,14 @@ async def test_host_payout_ledger_and_settlement_flow(
     )
     assert settle_again.status_code == 400
     assert "already been completed" in settle_again.json()["detail"].lower()
+
+    # 9. Guest cannot cancel reservation once host payout has been settled
+    cancel_after_settle = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_after_settle.status_code == 400
+    assert "settled" in cancel_after_settle.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -831,6 +856,7 @@ async def test_reservation_messaging_flow(
     assert guest_msg["message"] == guest_msg_payload["message"]
     assert guest_msg["sender_name"] is not None and len(guest_msg["sender_name"]) > 0
     assert guest_msg["created_at"] is not None
+    assert guest_msg["read_at"] is None
 
     # 5. Host retrieves message list and posts a reply
     host_list_res = await client.get(
@@ -841,6 +867,7 @@ async def test_reservation_messaging_flow(
     host_msgs = host_list_res.json()
     assert len(host_msgs) == 1
     assert host_msgs[0]["id"] == guest_msg["id"]
+    assert host_msgs[0]["read_at"] is not None
 
     host_reply_payload = {"message": "سلام، از ساعت ۱۴ در خدمتتون هستیم."}
     host_reply_res = await client.post(
@@ -870,6 +897,7 @@ async def test_reservation_messaging_flow(
     assert all_msgs[0]["sender_name"] == guest_msg["sender_name"]
     assert all_msgs[1]["sender_name"] == "علی میزبان"
     assert all_msgs[0]["created_at"] <= all_msgs[1]["created_at"]
+    assert all_msgs[1]["read_at"] is not None
 
     # Admin can also read messages
     admin_list_res = await client.get(

@@ -1,3 +1,4 @@
+import socket
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
@@ -513,6 +514,15 @@ async def test_external_calendar_sync_ssrf_rejection(
         )
         assert dns_res.status_code == 400
         assert "forbidden" in dns_res.json()["detail"].lower()
+
+    # Domain failing DNS resolution returns HTTP 400
+    with patch("socket.gethostbyname", side_effect=socket.gaierror):
+        gaierror_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert gaierror_res.status_code == 400
+        assert "cannot resolve" in gaierror_res.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

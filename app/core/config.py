@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Self
 
 from pydantic import model_validator
@@ -10,6 +11,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkeyforjavabamaccommodationapppleasedonotuseinprod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    PLATFORM_COMMISSION_RATE: Decimal = Decimal("0.10")
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

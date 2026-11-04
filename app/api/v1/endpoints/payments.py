@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
+from app.core.config import settings
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
 from app.models.payment import HostPayout, Payment
@@ -178,9 +179,7 @@ async def verify_payment(
         reservation.status = "confirmed"
 
         host_id = reservation.accommodation.host_id
-        # ponytail: 10% hardcoded commission; move to system config/per-host tier table when needed
-        COMMISSION_RATE = Decimal("0.10")
-        commission_amount = Decimal(round(reservation.total_price * COMMISSION_RATE))
+        commission_amount = Decimal(round(reservation.total_price * settings.PLATFORM_COMMISSION_RATE))
         payout_amount = max(Decimal(0), reservation.total_price - commission_amount)
 
         payout = HostPayout(
@@ -277,6 +276,15 @@ async def settle_host_payout(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot settle payout: Host has not registered a Shaba banking number",
+        )
+    if (
+        payout.reservation
+        and payout.reservation.status == "confirmed"
+        and payout.reservation.check_in > date.today()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot settle payout: Reservation check-in date has not yet arrived",
         )
 
     # ponytail: manual mark-settled; replace with direct Paya/Satna bank transfer call when banking API available
