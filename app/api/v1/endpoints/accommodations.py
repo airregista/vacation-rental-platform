@@ -657,7 +657,12 @@ async def sync_external_calendar(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> CalendarSyncResponse:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    stmt = (
+        select(Accommodation)
+        .where(Accommodation.id == id)
+        .with_for_update(of=Accommodation)
+    )
+    acc = (await db.execute(stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
     if current_user.role != "admin" and acc.host_id != current_user.id:
@@ -718,7 +723,7 @@ async def sync_external_calendar(
             {"accommodation_id": acc.id, "date": d, "is_blocked": True}
             for d in sorted(dates_to_block)
         ]
-        stmt = (
+        insert_stmt = (
             pg_insert(PricingException)
             .values(values)
             .on_conflict_do_update(
@@ -726,7 +731,7 @@ async def sync_external_calendar(
                 set_={"is_blocked": True},
             )
         )
-        await db.execute(stmt)
+        await db.execute(insert_stmt)
 
     now_utc = datetime.now(timezone.utc)
     acc.last_calendar_sync_at = now_utc

@@ -85,7 +85,7 @@ async def list_my_wishlist(
             selectinload(Wishlist.accommodation).selectinload(Accommodation.images),
         )
         .where(Wishlist.user_id == current_user.id)
-        .order_by(Wishlist.created_at.desc())
+        .order_by(Wishlist.created_at.desc(), Wishlist.accommodation_id.desc())
         .offset(skip)
         .limit(limit)
     )

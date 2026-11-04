@@ -162,21 +162,37 @@ async def test_wishlist_pagination(
     guest_token: str,
 ):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
-    acc_id = acc_res.json()[0]["id"]
+    accs = acc_res.json()
+    assert len(accs) >= 2
+    id1 = accs[0]["id"]
+    id2 = accs[1]["id"]
 
-    # Toggle to add
+    # Toggle to add both
     await client.post(
-        f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+        f"{settings.API_V1_STR}/wishlists/{id1}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/wishlists/{id2}/toggle",
         headers={"Authorization": f"Bearer {guest_token}"},
     )
 
-    # Test pagination parameters
-    paged = await client.get(
+    # Test pagination parameters and deterministic ordering
+    p1 = await client.get(
         f"{settings.API_V1_STR}/wishlists/?skip=0&limit=1",
         headers={"Authorization": f"Bearer {guest_token}"},
     )
-    assert paged.status_code == 200
-    assert len(paged.json()) <= 1
+    assert p1.status_code == 200
+    assert len(p1.json()) == 1
+
+    p2 = await client.get(
+        f"{settings.API_V1_STR}/wishlists/?skip=1&limit=1",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert p2.status_code == 200
+    assert len(p2.json()) == 1
+
+    assert p1.json()[0]["accommodation"]["id"] != p2.json()[0]["accommodation"]["id"]
 
 
 @pytest.mark.asyncio
