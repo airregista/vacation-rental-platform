@@ -283,7 +283,6 @@ async def list_accommodations(
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
                 reviews_count=count_rat,
                 is_active=acc.is_active,
-                external_calendar_url=acc.external_calendar_url,
             )
         )
     return items
@@ -367,7 +366,6 @@ async def list_my_accommodations(
                 average_rating=round(avg_rat, 1) if avg_rat is not None else None,
                 reviews_count=count_rat,
                 is_active=acc.is_active,
-                external_calendar_url=acc.external_calendar_url,
             )
         )
     return items
@@ -417,8 +415,14 @@ async def get_accommodation(
     detail = AccommodationDetail.model_validate(acc)
     detail.average_rating = round(float(avg_r), 1) if avg_r is not None else None
     detail.reviews_count = int(count_r)
-    if current_user and (current_user.role == "admin" or acc.host_id == current_user.id):
+    is_owner_or_admin = bool(
+        current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
+    )
+    if is_owner_or_admin:
         detail.calendar_ics_token = generate_calendar_feed_token(acc.id)
+    else:
+        detail.external_calendar_url = None
+        detail.last_calendar_sync_at = None
     return detail
 
 
@@ -484,6 +488,9 @@ async def get_accommodation_calendar(
         is_blocked = (exception.is_blocked if exception else False) or (not acc.is_active)
 
         is_available = not is_booked and not is_blocked
+        day_min_nights = (
+            exception.min_nights if (exception and exception.min_nights is not None) else acc.min_nights
+        )
 
         calendar_days.append(
             CalendarDayInfo(
@@ -491,6 +498,7 @@ async def get_accommodation_calendar(
                 price=day_price,
                 is_available=is_available,
                 is_exception=is_exception,
+                min_nights=day_min_nights,
             )
         )
         curr += timedelta(days=1)
@@ -652,13 +660,33 @@ async def sync_external_calendar(
             detail="No external calendar URL configured for this accommodation",
         )
 
-    validate_external_feed_url(acc.external_calendar_url)
-
+    target_url = acc.external_calendar_url
+    max_redirects = 5
+    ics_text = ""
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(acc.external_calendar_url)
-            resp.raise_for_status()
-            ics_text = resp.text
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            for _ in range(max_redirects):
+                validate_external_feed_url(target_url)
+                resp = await client.get(target_url)
+                if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
+                    target_url = urllib.parse.urljoin(target_url, resp.headers.get("location", ""))
+                    continue
+                resp.raise_for_status()
+                content_bytes = resp.content if isinstance(resp.content, (bytes, bytearray)) else resp.text.encode()
+                if len(content_bytes) > 2 * 1024 * 1024:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Calendar feed content exceeds maximum permitted size (2MB)",
+                    )
+                ics_text = resp.text
+                break
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Too many redirects fetching external calendar feed",
+                )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -666,24 +694,31 @@ async def sync_external_calendar(
         )
 
     event_ranges = parse_ical_blocked_ranges(ics_text)
-    total_blocked_days = 0
     today = date.today()
     max_future = today + timedelta(days=180)
 
+    dates_to_block: set[date] = set()
     for s_date, e_date in event_ranges:
         curr = max(today, s_date)
-        while curr < min(max_future, e_date):
-            stmt = (
-                pg_insert(PricingException)
-                .values(accommodation_id=acc.id, date=curr, is_blocked=True)
-                .on_conflict_do_update(
-                    constraint="uq_pricing_exception_accommodation_date",
-                    set_={"is_blocked": True},
-                )
-            )
-            await db.execute(stmt)
-            total_blocked_days += 1
+        end_d = min(max_future, e_date)
+        while curr < end_d:
+            dates_to_block.add(curr)
             curr += timedelta(days=1)
+
+    if dates_to_block:
+        values = [
+            {"accommodation_id": acc.id, "date": d, "is_blocked": True}
+            for d in sorted(dates_to_block)
+        ]
+        stmt = (
+            pg_insert(PricingException)
+            .values(values)
+            .on_conflict_do_update(
+                constraint="uq_pricing_exception_accommodation_date",
+                set_={"is_blocked": True},
+            )
+        )
+        await db.execute(stmt)
 
     now_utc = datetime.now(timezone.utc)
     acc.last_calendar_sync_at = now_utc
@@ -691,7 +726,7 @@ async def sync_external_calendar(
 
     return CalendarSyncResponse(
         synced_events_count=len(event_ranges),
-        blocked_days_count=total_blocked_days,
+        blocked_days_count=len(dates_to_block),
         last_sync_at=now_utc,
     )
 
@@ -1044,12 +1079,14 @@ async def batch_pricing_exceptions(
             obj = existing_map[curr]
             obj.price = batch_in.price
             obj.is_blocked = batch_in.is_blocked
+            obj.min_nights = batch_in.min_nights
         else:
             obj = PricingException(
                 accommodation_id=id,
                 date=curr,
                 price=batch_in.price,
                 is_blocked=batch_in.is_blocked,
+                min_nights=batch_in.min_nights,
             )
             db.add(obj)
         count += 1

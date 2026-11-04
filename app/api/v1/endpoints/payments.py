@@ -268,10 +268,10 @@ async def settle_host_payout(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payout has already been completed",
         )
-    if payout.reservation and payout.reservation.status == "cancelled":
+    if payout.status == "cancelled" or payout.payout_amount == Decimal(0):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot settle payout: Associated reservation has been cancelled",
+            detail="Cannot settle payout: Associated reservation has been cancelled with no payout balance",
         )
     if not payout.host.shaba_number:
         raise HTTPException(

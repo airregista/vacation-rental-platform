@@ -53,7 +53,7 @@ class HostPayout(Base):
     __table_args__ = (
         CheckConstraint("payout_amount >= 0", name="chk_payout_amount"),
         CheckConstraint("commission_amount >= 0", name="chk_payout_commission"),
-        CheckConstraint("status IN ('pending', 'completed')", name="chk_payout_status"),
+        CheckConstraint("status IN ('pending', 'completed', 'cancelled')", name="chk_payout_status"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)

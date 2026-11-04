@@ -47,6 +47,7 @@ class PricingExceptionBatchCreate(BaseModel):
     end_date: date
     price: Decimal | None = Field(default=None, ge=0)
     is_blocked: bool = True
+    min_nights: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def validate_date_range(self) -> Self:
@@ -85,7 +86,7 @@ class AccommodationCreate(BaseModel):
     rules: str | None = None
     cancellation_policy: str = Field(default="flexible", pattern="^(flexible|moderate|strict)$")
     is_active: bool = True
-    external_calendar_url: str | None = None
+    external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] = Field(default_factory=list)
     images: list[AccommodationImageCreate] = Field(default_factory=list)
 
@@ -117,7 +118,7 @@ class AccommodationUpdate(BaseModel):
     rules: str | None = None
     cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
     is_active: bool | None = None
-    external_calendar_url: str | None = None
+    external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] | None = None
 
     @model_validator(mode="after")
@@ -146,7 +147,6 @@ class AccommodationListItem(BaseModel):
     average_rating: float | None = None
     reviews_count: int = 0
     is_active: bool
-    external_calendar_url: str | None = None
 
 
 class AccommodationDetail(BaseModel):

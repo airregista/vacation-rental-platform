@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, timedelta
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -512,3 +513,163 @@ async def test_external_calendar_sync_ssrf_rejection(
         )
         assert dns_res.status_code == 400
         assert "forbidden" in dns_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_external_calendar_sync_redirect_ssrf_rejection(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست ریدایرکت اس‌اس‌آراف-{uuid.uuid4().hex[:6]}",
+            "address": "مازندران، چالوس",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 950000,
+            "host_id": 2,
+            "external_calendar_url": "https://calendar.example.com/redirect.ics",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    acc_id = acc_res.json()["id"]
+
+    mock_redirect_resp = MagicMock()
+    mock_redirect_resp.status_code = 302
+    mock_redirect_resp.headers = {"location": "http://127.0.0.1/admin.ics"}
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get, patch(
+        "socket.gethostbyname", return_value="93.184.215.14"
+    ):
+        mock_get.return_value = mock_redirect_resp
+        sync_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert sync_res.status_code == 400
+        assert "forbidden" in sync_res.json()["detail"].lower() or "loopback" in sync_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_external_calendar_url_hidden_from_public_and_guests(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    secret_feed = "https://calendar.example.com/secret-token-12345.ics"
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست حریم خصوصی فید-{uuid.uuid4().hex[:6]}",
+            "address": "گیلان، ماسال",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 1200000,
+            "host_id": 2,
+            "external_calendar_url": secret_feed,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    acc_id = acc_res.json()["id"]
+
+    # 1. Anonymous list query: external_calendar_url field is not exposed in list items
+    list_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    assert list_res.status_code == 200
+    for item in list_res.json():
+        assert "external_calendar_url" not in item
+
+    # 2. Anonymous detail query: external_calendar_url is None
+    anon_detail = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert anon_detail.status_code == 200
+    assert anon_detail.json()["external_calendar_url"] is None
+
+    # 3. Third-party guest detail query: external_calendar_url is None
+    other_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg_other = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": other_phone,
+            "password": "Password123!",
+            "first_name": "ناشناس",
+            "last_name": "مسافر",
+        },
+    )
+    other_token = reg_other.json()["access_token"]
+    guest_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert guest_detail.status_code == 200
+    assert guest_detail.json()["external_calendar_url"] is None
+
+    # 4. Property host (user_id=2): external_calendar_url is visible
+    host_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert host_detail.status_code == 200
+    assert host_detail.json()["external_calendar_url"] == secret_feed
+
+    # 5. Admin: external_calendar_url is visible
+    admin_detail = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_detail.status_code == 200
+    assert admin_detail.json()["external_calendar_url"] == secret_feed
+
+
+@pytest.mark.asyncio
+async def test_batch_pricing_exceptions_with_min_nights(
+    client: AsyncClient,
+    admin_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست حداقل اقامت دسته‌ای-{uuid.uuid4().hex[:6]}",
+            "address": "مازندران، کلاردشت",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 800000,
+            "min_nights": 1,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    acc_id = acc_res.json()["id"]
+
+    start = (date.today() + timedelta(days=70)).isoformat()
+    end = (date.today() + timedelta(days=73)).isoformat()
+
+    batch_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions/batch",
+        json={
+            "start_date": start,
+            "end_date": end,
+            "price": 1500000,
+            "is_blocked": False,
+            "min_nights": 4,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert batch_res.status_code == 200
+    assert batch_res.json()["updated_count"] == 4
+
+    # Verify calendar reflects updated min_nights
+    cal_res = await client.get(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar?start_date={start}&days=4"
+    )
+    assert cal_res.status_code == 200
+    days = cal_res.json()
+    assert len(days) == 4
+    for d in days:
+        assert d["min_nights"] == 4
+        assert Decimal(str(d["price"])) == 1500000

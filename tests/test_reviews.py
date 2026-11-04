@@ -1,9 +1,11 @@
 import asyncio
 import uuid
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
@@ -298,4 +300,78 @@ async def test_concurrent_wishlist_toggle_no_500(
             app.dependency_overrides[get_db] = original_override
         else:
             app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.mark.asyncio
+async def test_review_integrity_error_mapped_to_400(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست خطای تکراری نظر {uuid.uuid4().hex[:6]}",
+            "address": "مازندران، نوشهر",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+            "check_out_time": "12:00:00",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    acc_id = acc_res.json()["id"]
+
+    res_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=20)).isoformat(),
+            "check_out": (date.today() + timedelta(days=22)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    res_id = res_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": checkout_res.json()["payment_id"],
+            "tracking_code": checkout_res.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Set check_out to past date
+    async with AsyncSessionLocal() as session:
+        db_res = await session.get(Reservation, res_id)
+        assert db_res is not None
+        db_res.check_in = date.today() - timedelta(days=5)
+        db_res.check_out = date.today() - timedelta(days=2)
+        await session.commit()
+
+    with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=IntegrityError("statement", {}, Exception())):
+        review_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
+            json={
+                "reservation_id": res_id,
+                "rating": 5,
+                "cleanliness_rating": 5,
+                "accuracy_rating": 5,
+                "comment": "تست همزمانی نظر",
+            },
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert review_res.status_code == 400
+        assert "already been submitted" in review_res.json()["detail"].lower()
+
 

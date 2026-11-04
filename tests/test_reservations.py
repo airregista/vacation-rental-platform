@@ -798,6 +798,15 @@ async def test_reservation_messaging_flow(
     payment_id = pay_init.json()["payment_id"]
     tracking_code = pay_init.json()["tracking_code"]
 
+    # Guest cannot message on pending (unpaid) reservation
+    pending_msg = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        json={"message": "سلام روی رزرو پرداخت‌نشده"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pending_msg.status_code == 400
+    assert "confirmed or completed" in pending_msg.json()["detail"].lower()
+
     verify_res = await client.post(
         f"{settings.API_V1_STR}/payments/verify",
         json={
@@ -920,5 +929,120 @@ async def test_reservation_messaging_flow(
     )
     assert cancelled_write.status_code == 400
     assert "cancelled" in cancelled_write.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_host_payout_settlement_retained_on_penalty_cancellation(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    uid = uuid.uuid4().hex[:6]
+    host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": host_phone,
+            "email": f"host_penalty_{uid}@example.com",
+            "password": "Password123!",
+            "first_name": "میزبان",
+            "last_name": "جریمه‌دار",
+        },
+    )
+    assert reg_res.status_code == 201
+    host_data = reg_res.json()["user"]
+    host_id = host_data["id"]
+    host_token = reg_res.json()["access_token"]
+
+    # Register host Shaba number
+    await client.put(
+        f"{settings.API_V1_STR}/auth/me",
+        json={"shaba_number": "IR987654321098765432109876"},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    # Strict cancellation policy: cancelling < 7 days before check-in retains 50% penalty
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": host_id,
+            "title": f"Payout Strict Penalty Property {uid}",
+            "address": "مازندران، نمک‌آبرود",
+            "base_price": 2000000,
+            "min_nights": 1,
+            "cancellation_policy": "strict",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    ci = (date.today() + timedelta(days=3)).isoformat()
+    co = (date.today() + timedelta(days=5)).isoformat()
+    book_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": ci,
+            "check_out": co,
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert book_res.status_code == 201
+    res_id = book_res.json()["id"]
+
+    pay_init = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": pay_init.json()["payment_id"],
+            "tracking_code": pay_init.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+
+    # Guest cancels reservation: strict policy with < 7 days checkin applies 50% penalty
+    cancel_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "انصراف دیرهنگام"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel_res.status_code == 200
+    penalty = Decimal(str(cancel_res.json()["penalty_amount"]))
+    assert penalty > 0
+
+    # Host checks payouts ledger: payout remains pending with amounts updated to host portion of penalty
+    payouts_res = await client.get(
+        f"{settings.API_V1_STR}/payments/host/payouts",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert payouts_res.status_code == 200
+    payout = payouts_res.json()[0]
+    assert payout["status"] == "pending"
+    expected_commission = Decimal(round(penalty * Decimal("0.10")))
+    expected_payout = penalty - expected_commission
+    assert Decimal(str(payout["total_booking_amount"])) == penalty
+    assert Decimal(str(payout["commission_amount"])) == expected_commission
+    assert Decimal(str(payout["payout_amount"])) == expected_payout
+
+    # Admin settles payout for the penalty
+    payout_id = payout["id"]
+    settle_res = await client.post(
+        f"{settings.API_V1_STR}/payments/host/payouts/{payout_id}/settle",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert settle_res.status_code == 200
+    assert settle_res.json()["status"] == "completed"
 
 

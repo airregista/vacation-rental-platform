@@ -87,6 +87,7 @@ class CalendarDayInfo(BaseModel):
     price: Decimal
     is_available: bool
     is_exception: bool
+    min_nights: int | None = None
 
 
 class CancellationResponse(BaseModel):

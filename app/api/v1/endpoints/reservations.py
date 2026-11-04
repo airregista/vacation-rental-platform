@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
-from app.models.payment import Payment
+from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation, ReservationMessage
 from app.schemas.reservation import (
     CancellationPreviewResponse,
@@ -328,6 +328,11 @@ async def send_reservation_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot send messages on cancelled bookings",
         )
+    if reservation.status not in ("confirmed", "completed"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Messages can only be exchanged for confirmed or completed bookings",
+        )
 
     new_msg = ReservationMessage(
         reservation_id=id,
@@ -438,6 +443,24 @@ async def cancel_reservation(
     for p in reservation.payments:
         if p.status == "pending":
             p.status = "failed"
+
+    payout_stmt = (
+        select(HostPayout)
+        .where(HostPayout.reservation_id == reservation.id)
+        .with_for_update()
+    )
+    payout = (await db.execute(payout_stmt)).scalars().first()
+    if payout and payout.status == "pending":
+        if penalty > 0:
+            comm = Decimal(round(penalty * Decimal("0.10")))
+            payout.total_booking_amount = penalty
+            payout.commission_amount = comm
+            payout.payout_amount = max(Decimal(0), penalty - comm)
+        else:
+            payout.status = "cancelled"
+            payout.total_booking_amount = Decimal(0)
+            payout.commission_amount = Decimal(0)
+            payout.payout_amount = Decimal(0)
 
     if refundable > 0:
         refund_record = Payment(
