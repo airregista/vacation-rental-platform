@@ -1,10 +1,11 @@
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ponytail: simple regex + maketrans normalizer; upgrade to phonenumbers if international support needed
 PERSIAN_ARABIC_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s\.]+(?:\.[^@\s\.]+)+$")
 
 
 def normalize_iranian_phone(phone_str: str) -> str:
@@ -17,7 +18,7 @@ def normalize_iranian_phone(phone_str: str) -> str:
 
 class UserRegister(BaseModel):
     phone: str = Field(min_length=11, max_length=11, pattern=r"^09\d{9}$")
-    email: EmailStr | None = None
+    email: str | None = None
     password: str = Field(min_length=6, max_length=100)
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
@@ -29,8 +30,13 @@ class UserRegister(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, v: EmailStr | None) -> str | None:
-        return v.lower().strip() if v else None
+    def normalize_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.lower().strip()
+        if not clean or not EMAIL_REGEX.match(clean):
+            raise ValueError("Invalid email address format")
+        return clean
 
 
 class UserLogin(BaseModel):
@@ -50,7 +56,7 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    email: EmailStr | None = None
+    email: str | None = None
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
     avatar_url: str | None = None
@@ -58,8 +64,13 @@ class UserUpdate(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, v: EmailStr | None) -> str | None:
-        return v.lower().strip() if v else None
+    def normalize_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.lower().strip()
+        if not clean or not EMAIL_REGEX.match(clean):
+            raise ValueError("Invalid email address format")
+        return clean
 
     # ponytail: regex check only; add Iranian IBAN mod-97 check digit verification when direct banking transfers go live
     @field_validator("shaba_number", mode="before")

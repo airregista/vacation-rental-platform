@@ -285,3 +285,15 @@ async def test_register_duplicate_integrity_error_handled_as_400(client: AsyncCl
         assert "already exists" in res.json()["detail"].lower()
 
 
+@pytest.mark.asyncio
+async def test_invalid_email_format_rejected(client: AsyncClient):
+    for invalid_email in ["notanemail", "user@", "@domain.com", "user@domain..com", ""]:
+        res = await client.post(
+            f"{settings.API_V1_STR}/auth/register",
+            json={
+                "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+                "email": invalid_email,
+                "password": "Password123!",
+            },
+        )
+        assert res.status_code == 422
