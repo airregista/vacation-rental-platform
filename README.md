@@ -9,7 +9,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg?style=flat)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](LICENSE)
 
-A production-grade, highly reliable RESTful API backend for a vacation rental and accommodation booking platform (similar to **Jabama** and **Airbnb**), architected with **FastAPI**, **PostgreSQL 16**, **SQLAlchemy 2.0 (Asyncpg)**, and **Alembic**.
+A production-grade, highly reliable RESTful API backend for a vacation rental and accommodation booking platform (similar to **Airbnb** and **Jajiga**), architected with **FastAPI**, **PostgreSQL 16**, **SQLAlchemy 2.0 (Asyncpg)**, and **Alembic**.
 
 Designed for enterprise workloads with a fully normalized 3NF relational schema, multi-host access scoping, row-level concurrency locking against double-booking, transparent price breakdowns, dynamic pricing calendar, two-way iCal sync, host payout ledgers, and verified proof-of-stay guest reviews.
 
@@ -103,7 +103,7 @@ cp .env.example .env
 
 Ensure your PostgreSQL database connection string is properly configured:
 ```ini
-PROJECT_NAME="Accommodation Booking API (Similar to Jabama & Airbnb)"
+PROJECT_NAME="Ashianak — Accommodation Booking API"
 API_V1_STR="/api/v1"
 SECRET_KEY="your-secure-random-secret-key-for-development"
 ALGORITHM="HS256"

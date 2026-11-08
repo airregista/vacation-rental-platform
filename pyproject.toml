@@ -1,7 +1,7 @@
 [project]
-name = "jabama-backend"
+name = "ashianak-backend"
 version = "0.1.0"
-description = "FastAPI & PostgreSQL backend for Accommodation Booking Platform (Jabama / Airbnb clone)"
+description = "FastAPI & PostgreSQL backend for Ashianak — a vacation rental & accommodation booking platform"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

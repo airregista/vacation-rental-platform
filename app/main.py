@@ -23,9 +23,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
-# Vacation Rental & Accommodation Booking Platform (Similar to Jabama & Airbnb)
+# Ashianak — Vacation Rental & Accommodation Booking Platform
 
-Production-grade RESTful API backend for an accommodation and vacation rental booking platform (similar to Jabama & Airbnb), built with FastAPI, PostgreSQL, and SQLAlchemy 2.0 based on a fully normalized 3NF schema:
+Production-grade RESTful API backend for an accommodation and vacation rental booking platform (similar to Airbnb & Jajiga), built with FastAPI, PostgreSQL, and SQLAlchemy 2.0 based on a fully normalized 3NF schema:
 
 - **Authentication & User Management**: Mobile phone registration, secure JWT Bearer token authentication, and Bcrypt password hashing.
 - **Multi-Host Architecture & Host Scoping**: Isolated accommodation management per host (`GET /accommodations/my`), host-scoped reservation tracking (`GET /reservations/host`), and strict ownership-based access control (Host Scoping: accessible strictly by admins or the property owner).

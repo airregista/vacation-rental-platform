@@ -563,7 +563,7 @@ async def export_accommodation_calendar_ics(
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Jabama Accommodation//Calendar Sync//EN",
+        "PRODID:-//Ashianak Accommodation//Calendar Sync//EN",
         "CALSCALE:GREGORIAN",
     ]
 
@@ -574,7 +574,7 @@ async def export_accommodation_calendar_ics(
         lines.extend(
             [
                 "BEGIN:VEVENT",
-                f"UID:booking-{opaque_id}@jabama.local",
+                f"UID:booking-{opaque_id}@ashianak.local",
                 f"DTSTART;VALUE=DATE:{dtstart}",
                 f"DTEND;VALUE=DATE:{dtend}",
                 "SUMMARY:Reserved / Unavailable",
@@ -588,7 +588,7 @@ async def export_accommodation_calendar_ics(
         lines.extend(
             [
                 "BEGIN:VEVENT",
-                f"UID:block-{b.id}@jabama.local",
+                f"UID:block-{b.id}@ashianak.local",
                 f"DTSTART;VALUE=DATE:{dt_start}",
                 f"DTEND;VALUE=DATE:{dt_end}",
                 "SUMMARY:Blocked - Not Available",
