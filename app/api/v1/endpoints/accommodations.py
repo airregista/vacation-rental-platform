@@ -1179,35 +1179,31 @@ async def batch_pricing_exceptions(
             detail="The requested calendar mutation exceeds the maximum allowed size",
         )
 
-    # Pre-fetch existing exceptions in range
-    stmt = select(PricingException).where(
-        PricingException.accommodation_id == id,
-        PricingException.date >= batch_in.start_date,
-        PricingException.date <= batch_in.end_date,
+    values = [
+        {
+            "accommodation_id": id,
+            "date": batch_in.start_date + timedelta(days=i),
+            "price": batch_in.price,
+            "is_blocked": batch_in.is_blocked,
+            "min_nights": batch_in.min_nights,
+        }
+        for i in range(requested_count)
+    ]
+
+    insert_stmt = (
+        pg_insert(PricingException)
+        .values(values)
+        .on_conflict_do_update(
+            constraint="uq_pricing_exception_accommodation_date",
+            set_={
+                "price": batch_in.price,
+                "is_blocked": batch_in.is_blocked,
+                "min_nights": batch_in.min_nights,
+            },
+        )
     )
-    existing_map = {e.date: e for e in (await db.execute(stmt)).scalars().all()}
-
-    curr = batch_in.start_date
-    count = 0
-    while curr <= batch_in.end_date:
-        if curr in existing_map:
-            obj = existing_map[curr]
-            obj.price = batch_in.price
-            obj.is_blocked = batch_in.is_blocked
-            obj.min_nights = batch_in.min_nights
-        else:
-            obj = PricingException(
-                accommodation_id=id,
-                date=curr,
-                price=batch_in.price,
-                is_blocked=batch_in.is_blocked,
-                min_nights=batch_in.min_nights,
-            )
-            db.add(obj)
-        count += 1
-        curr += timedelta(days=1)
-
     try:
+        await db.execute(insert_stmt)
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -1215,8 +1211,9 @@ async def batch_pricing_exceptions(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Batch pricing exception conflicts with concurrent updates",
         )
+
     return PricingExceptionBatchResponse(
-        updated_count=count,
+        updated_count=requested_count,
         start_date=batch_in.start_date,
         end_date=batch_in.end_date,
     )

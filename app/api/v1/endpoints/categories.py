@@ -23,14 +23,6 @@ async def create_category(
     admin: CurrentAdminDep,
     db: SessionDep,
 ) -> CategoryResponse:
-    stmt = select(Category).where((Category.title == cat_in.title) | (Category.slug == cat_in.slug))
-    result = await db.execute(stmt)
-    if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category title or slug already exists",
-        )
-
     category = Category(
         title=cat_in.title,
         slug=cat_in.slug,

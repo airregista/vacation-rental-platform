@@ -26,13 +26,6 @@ async def create_province(
     admin: CurrentAdminDep,
     db: SessionDep,
 ) -> ProvinceResponse:
-    stmt = select(Province).where(Province.name == province_in.name)
-    result = await db.execute(stmt)
-    if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A province with this name already exists",
-        )
     province = Province(name=province_in.name)
     db.add(province)
     try:
@@ -77,18 +70,6 @@ async def create_city(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Province with specified ID not found",
-        )
-
-    # Check unique city within province
-    stmt = select(City).where(
-        City.province_id == city_in.province_id,
-        City.name == city_in.name,
-    )
-    result = await db.execute(stmt)
-    if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="City with this name already exists in this province",
         )
 
     city = City(province_id=city_in.province_id, name=city_in.name)

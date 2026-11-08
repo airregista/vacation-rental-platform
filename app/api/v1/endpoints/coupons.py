@@ -22,11 +22,9 @@ async def create_coupon(
     coupon_in: CouponCreate, admin: CurrentAdminDep, db: SessionDep
 ) -> CouponResponse:
     clean_code = coupon_in.code.strip().upper()
-    existing = (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Coupon code already exists")
-    coupon = Coupon(**coupon_in.model_dump())
-    coupon.code = clean_code
+    coupon_data = coupon_in.model_dump()
+    coupon_data["code"] = clean_code
+    coupon = Coupon(**coupon_data)
     db.add(coupon)
     try:
         await db.commit()

@@ -23,14 +23,6 @@ async def create_amenity(
     admin: CurrentAdminDep,
     db: SessionDep,
 ) -> AmenityResponse:
-    stmt = select(Amenity).where(Amenity.name == amenity_in.name)
-    result = await db.execute(stmt)
-    if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Amenity with this name already exists",
-        )
-
     amenity = Amenity(name=amenity_in.name, icon=amenity_in.icon)
     db.add(amenity)
     try:
