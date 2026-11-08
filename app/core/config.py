@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkeyforjavabamaccommodationapppleasedonotuseinprod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
     PLATFORM_COMMISSION_RATE: Decimal = Decimal("0.10")
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",

@@ -188,6 +188,12 @@ class AccommodationDetail(BaseModel):
     calendar_ics_token: str | None = None
 
 
+class CalendarFeedTokenResponse(BaseModel):
+    token: str
+    expires_at: datetime
+    feed_url: str
+
+
 class CalendarSyncResponse(BaseModel):
     synced_events_count: int
     blocked_days_count: int
