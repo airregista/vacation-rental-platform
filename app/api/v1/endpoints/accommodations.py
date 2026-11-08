@@ -574,6 +574,11 @@ async def export_accommodation_calendar_ics(
         current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
     )
     if not (is_authorized_user or is_token_valid):
+        if not acc.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Accommodation not found or is currently inactive",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Accommodation not found or calendar feed access is invalid or expired",

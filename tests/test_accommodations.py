@@ -732,16 +732,16 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
         headers={"Authorization": f"Bearer {guest_token}"},
     )
 
-    # 1. Unauthenticated request without token returns 403
+    # 1. Unauthenticated request without token returns 404
     unauth_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics")
-    assert unauth_res.status_code == 403
-    assert "Access denied" in unauth_res.json()["detail"]
+    assert unauth_res.status_code == 404
+    assert "Accommodation not found" in unauth_res.json()["detail"]
 
-    # 2. Invalid token returns 403
+    # 2. Invalid token returns 404
     invalid_res = await client.get(
         f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar.ics?token=badtoken"
     )
-    assert invalid_res.status_code == 403
+    assert invalid_res.status_code == 404
 
     # 3. Host detail exposes calendar_ics_token
     host_detail = await client.get(
