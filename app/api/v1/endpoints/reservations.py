@@ -166,6 +166,12 @@ async def create_reservation(
     return resp
 
 
+def _serialize_reservation(r: Reservation) -> ReservationResponse:
+    item = ReservationResponse.model_validate(r)
+    item.accommodation_title = r.accommodation.title if r.accommodation else None
+    return item
+
+
 @router.get("/my", response_model=list[ReservationResponse])
 async def list_my_reservations(
     current_user: CurrentUserDep,
@@ -184,12 +190,7 @@ async def list_my_reservations(
     result = await db.execute(stmt)
     reservations = result.scalars().all()
 
-    items: list[ReservationResponse] = []
-    for r in reservations:
-        item = ReservationResponse.model_validate(r)
-        item.accommodation_title = r.accommodation.title if r.accommodation else None
-        items.append(item)
-    return items
+    return [_serialize_reservation(r) for r in reservations]
 
 
 @router.get("/host", response_model=list[ReservationResponse])
@@ -211,12 +212,7 @@ async def list_host_reservations(
     result = await db.execute(stmt)
     reservations = result.scalars().all()
 
-    items: list[ReservationResponse] = []
-    for r in reservations:
-        item = ReservationResponse.model_validate(r)
-        item.accommodation_title = r.accommodation.title if r.accommodation else None
-        items.append(item)
-    return items
+    return [_serialize_reservation(r) for r in reservations]
 
 
 @router.get("/{id}", response_model=ReservationResponse)
@@ -247,11 +243,7 @@ async def get_reservation(
             detail="Access forbidden: you do not have permission to view this reservation",
         )
 
-    item = ReservationResponse.model_validate(reservation)
-    item.accommodation_title = (
-        reservation.accommodation.title if reservation.accommodation else None
-    )
-    return item
+    return _serialize_reservation(reservation)
 
 
 @router.get("/{id}/messages", response_model=list[ReservationMessageResponse])
@@ -541,9 +533,4 @@ async def list_all_reservations(
     result = await db.execute(stmt)
     reservations = result.scalars().all()
 
-    items: list[ReservationResponse] = []
-    for r in reservations:
-        item = ReservationResponse.model_validate(r)
-        item.accommodation_title = r.accommodation.title if r.accommodation else None
-        items.append(item)
-    return items
+    return [_serialize_reservation(r) for r in reservations]

@@ -1,6 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -9,8 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.accommodation import Accommodation, PricingException
 from app.models.coupon import Coupon
 from app.schemas.reservation import PriceBreakdownItem, PriceCalculationResponse
-
-TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
 async def calculate_reservation_price(
@@ -21,19 +18,6 @@ async def calculate_reservation_price(
     guests_count: int,
     coupon_code: str | None = None,
 ) -> PriceCalculationResponse:
-    iran_today = datetime.now(TEHRAN_TZ).date()
-    if check_in < iran_today:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Check-in date cannot be in the past",
-        )
-
-    if check_out <= check_in:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Check-out date must be strictly after check-in date",
-        )
-
     from app.services.reservation_service import validate_reservation_horizon
 
     validate_reservation_horizon(check_in, check_out)

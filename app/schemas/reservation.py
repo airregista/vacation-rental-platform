@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class PriceCalculationRequest(BaseModel):
+class BaseReservationRequest(BaseModel):
     accommodation_id: int
     check_in: date
     check_out: date
@@ -21,6 +21,10 @@ class PriceCalculationRequest(BaseModel):
         if self.check_out <= self.check_in:
             raise ValueError("Check-out date must be strictly after check-in date")
         return self
+
+
+class PriceCalculationRequest(BaseReservationRequest):
+    pass
 
 
 class PriceBreakdownItem(BaseModel):
@@ -43,21 +47,8 @@ class PriceCalculationResponse(BaseModel):
     breakdown: list[PriceBreakdownItem]
 
 
-class ReservationCreate(BaseModel):
-    accommodation_id: int
-    check_in: date
-    check_out: date
-    guests_count: int = Field(default=1, gt=0)
-    coupon_code: str | None = None
-
-    @model_validator(mode="after")
-    def validate_reservation_dates(self) -> Self:
-        iran_today = datetime.now(ZoneInfo("Asia/Tehran")).date()
-        if self.check_in < iran_today:
-            raise ValueError("Check-in date cannot be in the past")
-        if self.check_out <= self.check_in:
-            raise ValueError("Check-out date must be strictly after check-in date")
-        return self
+class ReservationCreate(BaseReservationRequest):
+    pass
 
 
 class ReservationResponse(BaseModel):
