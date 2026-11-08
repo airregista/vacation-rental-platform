@@ -29,6 +29,7 @@ from app.services.pricing_service import calculate_reservation_price
 from app.services.reservation_service import (
     check_booking_overlap,
     expire_stale_pending_reservations,
+    validate_reservation_horizon,
 )
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
@@ -83,6 +84,8 @@ async def create_reservation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Accommodation not found or is currently inactive",
         )
+
+    validate_reservation_horizon(res_in.check_in, res_in.check_out)
 
     # Overlap check
     is_overlapping = await check_booking_overlap(

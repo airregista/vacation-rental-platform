@@ -54,7 +54,9 @@ def generate_calendar_feed_token(accommodation_id: int, expires_at: datetime | N
     Signature covers f'calendar:{accommodation_id}:{ts}' using SECRET_KEY.
     """
     if expires_at is None:
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.CALENDAR_FEED_TTL_MINUTES)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.CALENDAR_FEED_TTL_MINUTES
+        )
     elif expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
@@ -540,7 +542,9 @@ async def get_accommodation_calendar(
 
         is_available = not is_booked and not is_blocked
         day_min_nights = (
-            exception.min_nights if (exception and exception.min_nights is not None) else acc.min_nights
+            exception.min_nights
+            if (exception and exception.min_nights is not None)
+            else acc.min_nights
         )
 
         calendar_days.append(
@@ -738,11 +742,7 @@ async def sync_external_calendar(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> CalendarSyncResponse:
-    stmt = (
-        select(Accommodation)
-        .where(Accommodation.id == id)
-        .with_for_update(of=Accommodation)
-    )
+    stmt = select(Accommodation).where(Accommodation.id == id).with_for_update(of=Accommodation)
     acc = (await db.execute(stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
@@ -766,7 +766,11 @@ async def sync_external_calendar(
                     target_url = urllib.parse.urljoin(target_url, resp.headers.get("location", ""))
                     continue
                 resp.raise_for_status()
-                content_bytes = resp.content if isinstance(resp.content, (bytes, bytearray)) else resp.text.encode()
+                content_bytes = (
+                    resp.content
+                    if isinstance(resp.content, (bytes, bytearray))
+                    else resp.text.encode()
+                )
                 if len(content_bytes) > 2 * 1024 * 1024:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -1174,6 +1178,13 @@ async def batch_pricing_exceptions(
         PricingException.date <= batch_in.end_date,
     )
     existing_map = {e.date: e for e in (await db.execute(stmt)).scalars().all()}
+
+    requested_count = (batch_in.end_date - batch_in.start_date).days + 1
+    if requested_count > settings.CALENDAR_MAX_BLOCKED_DATES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The requested calendar mutation exceeds the maximum allowed size",
+        )
 
     curr = batch_in.start_date
     count = 0

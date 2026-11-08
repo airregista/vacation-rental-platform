@@ -1,12 +1,39 @@
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.models.coupon import Coupon
 from app.models.payment import Payment
 from app.models.reservation import Reservation
+
+TEHRAN_TZ = ZoneInfo("Asia/Tehran")
+
+
+def validate_reservation_horizon(check_in: date, check_out: date) -> None:
+    """Reject reservation dates extending beyond the configured booking horizon.
+
+    Horizon is calculated as today + (RESERVATION_MAX_CHECKIN_MONTHS * 30 days) in Asia/Tehran.
+    Both check_in and check_out must not exceed this boundary.
+    """
+    today = datetime.now(TEHRAN_TZ).date()
+    horizon_days = settings.RESERVATION_MAX_CHECKIN_MONTHS * 30
+    horizon = today + timedelta(days=horizon_days)
+
+    if check_in > horizon:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Check-in date exceeds the maximum booking horizon ({horizon_days} days ahead)",
+        )
+    if check_out > horizon:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Check-out date exceeds the maximum booking horizon ({horizon_days} days ahead)",
+        )
 
 
 async def check_booking_overlap(

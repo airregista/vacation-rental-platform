@@ -4,6 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.config import settings
 from app.schemas.amenity import AmenityResponse
 from app.schemas.category import CategoryResponse
 from app.schemas.geo import CityResponse
@@ -53,8 +54,10 @@ class PricingExceptionBatchCreate(BaseModel):
     def validate_date_range(self) -> Self:
         if self.end_date < self.start_date:
             raise ValueError("end_date must be on or after start_date")
-        if (self.end_date - self.start_date).days > 365:
-            raise ValueError("Date range cannot exceed 365 days")
+        days = (self.end_date - self.start_date).days
+        if days > settings.CALENDAR_MAX_BLOCK_DAYS:
+            raise ValueError(f"Date range cannot exceed {settings.CALENDAR_MAX_BLOCK_DAYS} days")
+
         return self
 
 
