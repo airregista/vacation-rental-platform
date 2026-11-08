@@ -17,7 +17,7 @@ async def test_full_booking_and_payment_flow(client: AsyncClient, guest_token: s
     accommodation = acc_res.json()[0]
     acc_id = accommodation["id"]
 
-    day_offset = 20 + (uuid.uuid4().int % 20000)
+    day_offset = 20 + (uuid.uuid4().int % 200)
     check_in = date.today() + timedelta(days=day_offset)
     check_out = date.today() + timedelta(days=day_offset + 3)  # 3 nights
 
@@ -270,7 +270,7 @@ async def test_my_reservations_pagination(client: AsyncClient):
     acc_id = acc_res.json()[0]["id"]
 
     res_ids = []
-    base_offset = 300 + (uuid.uuid4().int % 10000)
+    base_offset = 300 + (uuid.uuid4().int % 100)
     for i in range(3):
         ci = (date.today() + timedelta(days=base_offset + i * 5)).isoformat()
         co = (date.today() + timedelta(days=base_offset + i * 5 + 2)).isoformat()
