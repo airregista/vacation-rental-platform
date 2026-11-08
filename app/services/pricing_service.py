@@ -22,6 +22,12 @@ async def calculate_reservation_price(
 
     validate_reservation_horizon(check_in, check_out)
 
+    if check_out <= check_in:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Check-out date must be strictly after check-in date",
+        )
+
     if guests_count > accommodation.max_capacity:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
