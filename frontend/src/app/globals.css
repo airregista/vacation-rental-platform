@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #FAFAF9; /* Warm Stone White */
+    --foreground: #111C2D; /* Deep Slate */
+    --card: #FFFFFF; /* Pure Crisp White */
+    --card-foreground: #111C2D;
+    --popover: #FFFFFF;
+    --popover-foreground: #111C2D;
+    --primary: #F05A28; /* Terracotta Coral */
+    --primary-foreground: #FFFFFF;
+    --secondary: #D97706; /* Warm Amber */
+    --secondary-foreground: #FFFFFF;
+    --muted: #F5F5F4; /* Soft Alabaster */
+    --muted-foreground: #64748B; /* Secondary Slate */
+    --accent: #0D9488; /* Persian Teal */
+    --accent-foreground: #FFFFFF;
+    --destructive: #DC2626;
+    --destructive-foreground: #FFFFFF;
+    --border: #E7E5E4; /* Muted Warm Gray */
+    --input: #E7E5E4;
+    --ring: #F05A28;
+    --radius: 1rem;
+    --font-vazirmatn: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .dark {
+    --background: #0F172A;
+    --foreground: #F8FAFC;
+    --card: #1E293B;
+    --card-foreground: #F8FAFC;
+    --popover: #1E293B;
+    --popover-foreground: #F8FAFC;
+    --primary: #F05A28;
+    --primary-foreground: #FFFFFF;
+    --secondary: #D97706;
+    --secondary-foreground: #FFFFFF;
+    --muted: #334155;
+    --muted-foreground: #94A3B8;
+    --accent: #0D9488;
+    --accent-foreground: #FFFFFF;
+    --destructive: #7F1D1D;
+    --destructive-foreground: #F8FAFC;
+    --border: #334155;
+    --input: #334155;
+    --ring: #F05A28;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-vazirmatn);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  font-family: var(--font-vazirmatn);
+}
+
+/* Mobile Safe Area utilities */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
