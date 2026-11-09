@@ -129,7 +129,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
               <option value="">همه شهرها (کجا می‌روید؟)</option>
               {cities.map((city) => (
                 <option key={city.id} value={city.id} className="text-foreground">
-                  {city.name} ({city.province?.name || ""})
+                  {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
                 </option>
               ))}
             </select>
@@ -300,7 +300,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
                 <option value="">همه شهرها</option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
-                    {city.name} ({city.province?.name || ""})
+                    {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
                   </option>
                 ))}
               </select>

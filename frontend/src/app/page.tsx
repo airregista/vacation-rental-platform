@@ -23,10 +23,17 @@ export default function Home() {
   const [searchKey, setSearchKey] = React.useState<number>(0)
   const [accommodations, setAccommodations] = React.useState<AccommodationListItem[]>([])
   const [wishlistIds, setWishlistIds] = React.useState<Set<number>>(new Set())
+  const [pendingWishlistIds, setPendingWishlistIds] = React.useState<Set<number>>(new Set())
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [isFilterOpen, setIsFilterOpen] = React.useState<boolean>(false)
   const [reloadTrigger, setReloadTrigger] = React.useState<number>(0)
+
+  // Derive active wishlist IDs ensuring logged-out sessions immediately clear cached favorites
+  const activeWishlistIds = React.useMemo(
+    () => (token ? wishlistIds : new Set<number>()),
+    [token, wishlistIds]
+  )
 
   // Load wishlists if user is logged in
   React.useEffect(() => {
@@ -62,6 +69,7 @@ export default function Home() {
       .then((data) => {
         if (isMounted) {
           setAccommodations(data || [])
+          setFetchError(null)
           setIsLoading(false)
         }
       })
@@ -124,6 +132,13 @@ export default function Home() {
       return
     }
 
+    // Prevent duplicate in-flight requests for the same accommodation
+    if (pendingWishlistIds.has(id)) {
+      return
+    }
+
+    setPendingWishlistIds((prev) => new Set(prev).add(id))
+
     // Optimistic toggle
     setWishlistIds((prev) => {
       const next = new Set(prev)
@@ -147,6 +162,12 @@ export default function Home() {
         } else {
           next.add(id)
         }
+        return next
+      })
+    } finally {
+      setPendingWishlistIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
         return next
       })
     }
@@ -204,7 +225,8 @@ export default function Home() {
           <AccommodationGrid
             items={accommodations}
             isLoading={isLoading}
-            wishlistIds={wishlistIds}
+            wishlistIds={activeWishlistIds}
+            pendingWishlistIds={pendingWishlistIds}
             onToggleWishlist={handleToggleWishlist}
             onClearFilters={handleClearFilters}
           />

@@ -334,7 +334,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 
 ### Step 3: Build Search Pill Component (`frontend/src/components/explore/search-pill.tsx`)
 
-1. Load tourist cities from `apiClient.get<City[]>("/geo/cities?limit=50")`.
+1. Load tourist cities from `apiClient.get<City[]>("/geo/cities?limit=50")`. Format city options conditionally (`city.province?.name ? `${city.name} (${city.province.name})` : city.name`) to avoid rendering empty parentheses for cities without province assignments.
 2. **Desktop View (`>= md`)**: Segmented horizontal pill with Level 3 shadow (`rounded-full border border-border shadow-md bg-card p-2 flex items-center justify-between`):
    - Segment 1: مقصد (Destination selector with city dropdown/select).
    - Segment 2: تاریخ (Check-in and Check-out date pickers `<input type="date">`). Enforces both dates selected together.
@@ -389,17 +389,18 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
      export interface AccommodationCardProps {
        item: AccommodationListItem
        isWishlisted?: boolean
+       isWishlistLoading?: boolean
        onToggleWishlist?: (id: number) => void
      }
      ```
    - 4:3 Aspect Ratio Cover Photo Container (`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted`):
-     - If `item.cover_image` is present: renders `<img>` with `object-cover w-full h-full group-hover:scale-105 transition-transform duration-300`.
+     - If `item.cover_image` is present: renders Next.js `<Image fill unoptimized />` with `object-cover transition-transform duration-300 group-hover:scale-105`.
      - If `item.cover_image` is null: renders graceful fallback placeholder with `Home` icon and "بدون تصویر".
    - Floating Wishlist Heart Button:
      - Placed at top-left/top-right of image.
-     - `Button variant="ghost" size="icon" className="rounded-full bg-background/80 backdrop-blur-sm shadow-sm"` with `aria-label="نشان کردن اقامتگاه"`.
+     - `Button variant="ghost" size="icon" disabled={isWishlistLoading} className="absolute top-2.5 left-2.5 size-8 rounded-full bg-background/80 backdrop-blur-sm shadow-xs hover:bg-background transition-colors text-foreground z-10 disabled:opacity-50"` with `aria-label="نشان کردن اقامتگاه"`.
      - Heart icon filled with terracotta `text-primary fill-primary` when `isWishlisted` is true.
-     - On click: Calls `onToggleWishlist?.(item.id)`. (Parent manages optimistic state update, auth checks via `openOtpModal()`, and API synchronization).
+     - On click: Calls `onToggleWishlist?.(item.id)`. (Parent manages optimistic state update, auth checks via `openOtpModal()`, in-flight request debouncing, and API synchronization).
    - Card Content:
      - Title: `font-bold text-base truncate text-foreground`.
      - Location: `{item.city?.name}، {item.city?.province?.name || ""}` in `text-sm text-muted-foreground flex items-center gap-1`.
@@ -412,6 +413,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
        items: AccommodationListItem[]
        isLoading: boolean
        wishlistIds: Set<number>
+       pendingWishlistIds?: Set<number>
        onToggleWishlist: (id: number) => void
        onClearFilters?: () => void
      }
@@ -421,7 +423,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
      - Tablet (`640px - 1023px`): `grid-cols-2 gap-5 px-6`
      - Desktop (`1024px - 1439px`): `grid-cols-3 gap-6 px-8`
      - Wide Desktop (`>= 1440px`): `grid-cols-4 gap-6 max-w-[1360px] mx-auto px-8`
-   - Maps each item to `<AccommodationCard key={item.id} item={item} isWishlisted={wishlistIds.has(item.id)} onToggleWishlist={onToggleWishlist} />`.
+   - Maps each item to `<AccommodationCard key={item.id} item={item} isWishlisted={wishlistIds.has(item.id)} isWishlistLoading={pendingWishlistIds?.has(item.id)} onToggleWishlist={onToggleWishlist} />`.
    - Loading State: Renders 8 canonical `Skeleton` cards (4:3 skeleton rectangle + text line skeletons).
    - Empty State: When items list is empty, renders friendly Persian notice ("اقامتگاهی با فیلترهای انتخابی شما یافت نشد") with a "پاک کردن فیلترها" button.
 
@@ -443,7 +445,9 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 2. State Management:
    - `searchParams`: Stores current `AccommodationSearchParams`.
    - `accommodations`: `AccommodationListItem[]`.
-   - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/` (`const wishlistItems = await apiClient.get<Array<{ accommodation_id: number }>>("/wishlists/"); setWishlistIds(new Set(wishlistItems.map(w => w.accommodation_id)))`).
+   - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/`.
+   - `activeWishlistIds`: Derived via `React.useMemo(() => (token ? wishlistIds : new Set<number>()), [token, wishlistIds])` ensuring logged-out sessions immediately clear cached favorites without stale state leakage.
+   - `pendingWishlistIds`: `Set<number>` tracking in-flight toggle requests to prevent rapid multi-click concurrency and state inversion.
    - Wishlist Toggle Handler:
      ```typescript
      const handleToggleWishlist = async (id: number) => {
@@ -451,6 +455,9 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
          openOtpModal()
          return
        }
+       if (pendingWishlistIds.has(id)) return
+       setPendingWishlistIds((prev) => new Set(prev).add(id))
+
        // Optimistic toggle
        setWishlistIds((prev) => {
          const next = new Set(prev)
@@ -468,12 +475,18 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
            else next.add(id)
            return next
          })
+       } finally {
+         setPendingWishlistIds((prev) => {
+           const next = new Set(prev)
+           next.delete(id)
+           return next
+         })
        }
      }
      ```
    - `isLoading`: Boolean state showing skeletons during fetch.
-   - `fetchError`: String state with retry button if network fails.
-3. Fetch accommodations from `GET /accommodations/` via `apiClient.get<AccommodationListItem[]>("/accommodations/" + buildAccommodationQuery(searchParams))` whenever filters change.
+   - `fetchError`: String state with retry button if network fails. Reset to `null` on every successful fetch in `.then(...)`.
+3. Fetch accommodations from `GET /accommodations/` via `apiClient.get<AccommodationListItem[]>("/accommodations/" + buildAccommodationQuery(searchParams))` whenever filters change, clearing `fetchError` on success.
 
 **Verify**:
 ```powershell

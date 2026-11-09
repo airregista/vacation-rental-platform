@@ -12,12 +12,14 @@ import { Heart, Home, Star, MapPin } from "lucide-react"
 export interface AccommodationCardProps {
   item: AccommodationListItem
   isWishlisted?: boolean
+  isWishlistLoading?: boolean
   onToggleWishlist?: (id: number) => void
 }
 
 export function AccommodationCard({
   item,
   isWishlisted = false,
+  isWishlistLoading = false,
   onToggleWishlist,
 }: AccommodationCardProps) {
   const formattedPrice = React.useMemo(() => {
@@ -65,13 +67,14 @@ export function AccommodationCard({
           type="button"
           variant="ghost"
           size="icon"
+          disabled={isWishlistLoading}
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             onToggleWishlist?.(item.id)
           }}
           aria-label={isWishlisted ? "حذف از نشان‌شده‌ها" : "نشان کردن اقامتگاه"}
-          className="absolute top-2.5 left-2.5 size-8 rounded-full bg-background/80 backdrop-blur-sm shadow-xs hover:bg-background transition-colors text-foreground z-10"
+          className="absolute top-2.5 left-2.5 size-8 rounded-full bg-background/80 backdrop-blur-sm shadow-xs hover:bg-background transition-colors text-foreground z-10 disabled:opacity-50"
         >
           <Heart
             className={cn(

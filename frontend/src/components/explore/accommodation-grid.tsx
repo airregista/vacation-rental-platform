@@ -11,6 +11,7 @@ export interface AccommodationGridProps {
   items: AccommodationListItem[]
   isLoading: boolean
   wishlistIds: Set<number>
+  pendingWishlistIds?: Set<number>
   onToggleWishlist: (id: number) => void
   onClearFilters?: () => void
 }
@@ -19,6 +20,7 @@ export function AccommodationGrid({
   items,
   isLoading,
   wishlistIds,
+  pendingWishlistIds,
   onToggleWishlist,
   onClearFilters,
 }: AccommodationGridProps) {
@@ -82,6 +84,7 @@ export function AccommodationGrid({
           key={item.id}
           item={item}
           isWishlisted={wishlistIds.has(item.id)}
+          isWishlistLoading={pendingWishlistIds?.has(item.id)}
           onToggleWishlist={onToggleWishlist}
         />
       ))}
