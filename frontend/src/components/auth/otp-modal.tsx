@@ -109,19 +109,18 @@ export function OtpModal() {
 
   // 120-Second Resend Timer
   useEffect(() => {
-    if (!isOtpModalOpen || step !== 2) return
-    const interval = setInterval(() => {
+    if (!isOtpModalOpen || step !== 2 || timer <= 0) return
+    const timeout = setTimeout(() => {
       setTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(interval)
           setCanResend(true)
           return 0
         }
         return prev - 1
       })
     }, 1000)
-    return () => clearInterval(interval)
-  }, [isOtpModalOpen, step])
+    return () => clearTimeout(timeout)
+  }, [isOtpModalOpen, step, timer])
 
   const handleModalClose = useCallback(() => {
     setStep(1)
@@ -135,7 +134,12 @@ export function OtpModal() {
   const handlePhoneSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setError(null)
-    const normalizedPhone = toEnglishDigits(phone.trim())
+    let normalizedPhone = toEnglishDigits(phone.trim()).replace(/[\s\-_]/g, "")
+    if (normalizedPhone.startsWith("+98")) normalizedPhone = "0" + normalizedPhone.slice(3)
+    else if (normalizedPhone.startsWith("0098")) normalizedPhone = "0" + normalizedPhone.slice(4)
+    else if (normalizedPhone.startsWith("98") && normalizedPhone.length > 10) normalizedPhone = "0" + normalizedPhone.slice(2)
+    else if (normalizedPhone.startsWith("9") && normalizedPhone.length === 10) normalizedPhone = "0" + normalizedPhone
+
     if (!/^09\d{9}$/.test(normalizedPhone)) {
       setError("شماره موبایل وارد شده باید ۱۱ رقمی بوده و با ۰۹ آغاز شود.")
       return
@@ -193,10 +197,11 @@ export function OtpModal() {
   )
 
   const handleDigitChange = (index: number, val: string) => {
-    const englishVal = toEnglishDigits(val)
+    const digitsOnly = toEnglishDigits(val).replace(/\D/g, "")
+
     // Handle multi-character paste or fast input
-    if (englishVal.length > 1) {
-      const chars = englishVal.slice(0, 4).split("")
+    if (digitsOnly.length > 1) {
+      const chars = digitsOnly.slice(0, 4).split("")
       const nextDigits = [...otpDigits]
       chars.forEach((c, i) => {
         if (index + i < 4) nextDigits[index + i] = c
@@ -210,12 +215,23 @@ export function OtpModal() {
       return
     }
 
-    const singleDigit = englishVal.slice(-1)
+    // Handle backspace / clear
+    if (!digitsOnly && val === "") {
+      const nextDigits = [...otpDigits]
+      nextDigits[index] = ""
+      setOtpDigits(nextDigits)
+      return
+    }
+
+    // Ignore non-digit characters
+    const singleDigit = digitsOnly.slice(-1)
+    if (!singleDigit) return
+
     const nextDigits = [...otpDigits]
     nextDigits[index] = singleDigit
     setOtpDigits(nextDigits)
 
-    if (singleDigit && index < 3) {
+    if (index < 3) {
       otpRefs.current[index + 1]?.focus()
     }
 
@@ -227,6 +243,10 @@ export function OtpModal() {
   const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Backspace") {
       if (!otpDigits[index] && index > 0) {
+        e.preventDefault()
+        const nextDigits = [...otpDigits]
+        nextDigits[index - 1] = ""
+        setOtpDigits(nextDigits)
         otpRefs.current[index - 1]?.focus()
       } else {
         const nextDigits = [...otpDigits]
@@ -337,10 +357,16 @@ export function OtpModal() {
                   type="tel"
                   dir="ltr"
                   inputMode="numeric"
-                  maxLength={11}
+                  maxLength={16}
                   placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    let val = toEnglishDigits(e.target.value).replace(/[\s\-_]/g, "")
+                    if (val.startsWith("+98")) val = "0" + val.slice(3)
+                    else if (val.startsWith("0098")) val = "0" + val.slice(4)
+                    else if (val.startsWith("98") && val.length > 10) val = "0" + val.slice(2)
+                    setPhone(val.replace(/[^\d+]/g, "").slice(0, 11))
+                  }}
                   disabled={isSubmitting}
                   className="h-full border-0 focus-visible:ring-0 focus-visible:ring-offset-0 tracking-widest font-mono text-left px-2 text-sm"
                   required
@@ -386,17 +412,18 @@ export function OtpModal() {
         <>
           {/* Step 2 Header & Edit Phone Button */}
           <div className="space-y-2 text-center sm:text-right">
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => {
                 setStep(1)
                 setError(null)
               }}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="p-0 h-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <ArrowRight className="h-3.5 w-3.5" />
               <span>ویرایش شماره موبایل</span>
-            </button>
+            </Button>
             <h2 className="text-xl font-extrabold text-foreground tracking-tight">
               کد تایید پیامک‌شده را وارد کنید
             </h2>
@@ -438,7 +465,7 @@ export function OtpModal() {
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleDigitKeyDown(idx, e)}
-                    onPaste={idx === 0 ? handlePaste : undefined}
+                    onPaste={handlePaste}
                     disabled={isSubmitting}
                     className="w-12 h-14 text-center text-xl font-bold rounded-xl border border-input focus:border-primary font-mono shadow-sm"
                   />

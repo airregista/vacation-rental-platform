@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-import { apiClient } from "@/lib/api-client"
+import { apiClient, ApiError } from "@/lib/api-client"
 import type {
   UserResponse,
   TokenResponse,
@@ -34,13 +34,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setUser(currentUser)
         }
-      } catch {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token")
-        }
-        if (isMounted) {
-          setToken(null)
-          setUser(null)
+      } catch (err: unknown) {
+        // Only evict token on explicit unauthorized/forbidden authentication failure,
+        // preserving credentials across temporary network dropouts or 5xx server downtime.
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("access_token")
+          }
+          if (isMounted) {
+            setToken(null)
+            setUser(null)
+          }
         }
       } finally {
         if (isMounted) {

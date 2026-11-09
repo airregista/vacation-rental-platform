@@ -83,10 +83,11 @@ export function Header() {
 
         {/* Center: Condensed search pill */}
         <div className="hidden md:flex items-center">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => router.push("/")}
-            className="flex items-center gap-3 px-4 py-2 rounded-full border border-border bg-card/70 hover:bg-card shadow-sm hover:shadow transition-all text-xs font-medium text-foreground cursor-pointer"
+            className="h-auto flex items-center gap-3 px-4 py-1.5 rounded-full border border-border bg-card/70 hover:bg-card shadow-sm hover:shadow transition-all text-xs font-medium text-foreground cursor-pointer"
           >
             <span>هر کجا</span>
             <span className="text-muted-foreground/60">•</span>
@@ -96,7 +97,7 @@ export function Header() {
             <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
               <Search className="size-3.5" />
             </div>
-          </button>
+          </Button>
         </div>
 
         {/* Left side (RTL End): Actions & User menu */}
