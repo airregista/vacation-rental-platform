@@ -57,7 +57,15 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
 
   const totalPayable = Number(payment.amount || reservation.total_price || 0)
   const cleaningFee = accommodation?.cleaning_fee ?? 0
-  const baseTotal = Math.max(0, Number(reservation.total_price || 0) - cleaningFee)
+  const basePrice = accommodation?.base_price ?? 0
+  const baseTotal =
+    basePrice > 0
+      ? basePrice * reservation.total_nights
+      : Math.max(0, totalPayable - cleaningFee)
+
+  const discountAmount = reservation.coupon_code
+    ? Math.max(0, baseTotal + cleaningFee - totalPayable)
+    : 0
 
   const invoiceNumber = data.invoice_number || `INV-1403-${reservation.id.toString().padStart(5, "0")}`
   const reservationCode = `MHM-${reservation.id.toString().padStart(5, "0")}`
@@ -108,6 +116,15 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 display: none !important;
               }
               .printable-invoice-card {
+                --background: #ffffff !important;
+                --foreground: #111c2d !important;
+                --card: #ffffff !important;
+                --card-foreground: #111c2d !important;
+                --muted: #f5f5f4 !important;
+                --muted-foreground: #64748b !important;
+                --border: #e2e8f0 !important;
+                background-color: #ffffff !important;
+                color: #111c2d !important;
                 border: 1.5px solid #d8e3fb !important;
                 padding: 16px !important;
                 width: 100% !important;
@@ -315,7 +332,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 )}
 
                 {/* Row 3: Coupon Discount */}
-                {reservation.coupon_code && (
+                {reservation.coupon_code && discountAmount > 0 && (
                   <tr className="bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300">
                     <td className="p-3 text-center font-mono">{cleaningFee > 0 ? "۳" : "۲"}</td>
                     <td className="p-3">
@@ -326,7 +343,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                     <td className="p-3 text-center font-mono">۱</td>
                     <td className="p-3 text-left font-mono">-</td>
                     <td className="p-3 text-left font-mono font-bold">
-                      - {formatFaNumber(Math.max(0, baseTotal + cleaningFee - totalPayable))}
+                      - {formatFaNumber(discountAmount)}
                     </td>
                   </tr>
                 )}

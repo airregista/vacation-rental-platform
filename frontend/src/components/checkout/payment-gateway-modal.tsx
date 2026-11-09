@@ -38,6 +38,7 @@ export interface PaymentGatewayModalProps {
   reservation: ReservationDetail
   onSuccess: (payment: PaymentResponse) => void
   onOpenInvoice?: (payment: PaymentResponse) => void
+  initialGateway?: string
 }
 
 function formatCardNumber(value: string): string {
@@ -55,6 +56,7 @@ export function PaymentGatewayModal({
   reservation,
   onSuccess,
   onOpenInvoice,
+  initialGateway = "mellat",
 }: PaymentGatewayModalProps) {
   const router = useRouter()
 
@@ -62,7 +64,13 @@ export function PaymentGatewayModal({
   const [isInitiating, setIsInitiating] = React.useState(false)
   const [initiateError, setInitiateError] = React.useState<string | null>(null)
 
-  const [gateway, setGateway] = React.useState<string>("mellat")
+  const [gateway, setGateway] = React.useState<string>(initialGateway || "mellat")
+  const [prevGatewayProp, setPrevGatewayProp] = React.useState(initialGateway)
+
+  if (initialGateway !== prevGatewayProp) {
+    setPrevGatewayProp(initialGateway)
+    setGateway(initialGateway || "mellat")
+  }
   const [cardNumber, setCardNumber] = React.useState("6104 3378 9821 4452")
   const [cvv2, setCvv2] = React.useState("345")
   const [expMonth, setExpMonth] = React.useState("08")
@@ -156,9 +164,13 @@ export function PaymentGatewayModal({
         simulate_success: true,
       })
 
-      setCompletedPayment(response)
-      setIsSuccess(true)
-      onSuccess(response)
+      if (response.status === "success") {
+        setCompletedPayment(response)
+        setIsSuccess(true)
+        onSuccess(response)
+      } else {
+        setVerifyError("تراکنش بانکی تایید نشد یا در وضعیت ناموفق قرار دارد.")
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {

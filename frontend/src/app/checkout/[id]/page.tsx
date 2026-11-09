@@ -101,7 +101,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
   // Fetch reservation and accommodation details
   React.useEffect(() => {
-    if (isAuthLoading || !reservationId || isNaN(reservationId)) return
+    if (isAuthLoading || !isAuthenticated || !reservationId || isNaN(reservationId)) return
 
     let isCancelled = false
     const fetchData = async () => {
@@ -144,7 +144,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     return () => {
       isCancelled = true
     }
-  }, [reservationId, isAuthLoading, reloadTrigger])
+  }, [reservationId, isAuthLoading, isAuthenticated, reloadTrigger])
 
   const handleRetry = () => {
     setIsLoading(true)
@@ -394,11 +394,13 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         </div>
 
         {/* Countdown Timer Banner */}
-        <CountdownTimer
-          createdAt={reservation.created_at}
-          isPending={isPending}
-          onExpired={handleExpired}
-        />
+        {isPending && (
+          <CountdownTimer
+            createdAt={reservation.created_at}
+            isPending={isPending}
+            onExpired={handleExpired}
+          />
+        )}
 
         {/* Confirmed State Hero Banner */}
         {isConfirmed && (
@@ -728,6 +730,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           reservation={reservation}
+          initialGateway={gateway}
           onSuccess={handlePaymentSuccess}
           onOpenInvoice={handleOpenInvoice}
         />

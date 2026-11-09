@@ -78,8 +78,13 @@ export function CountdownTimer({
   const numFormatter = new Intl.NumberFormat("fa-IR", { minimumIntegerDigits: 2 })
   const formattedTime = `${numFormatter.format(minutes)}:${numFormatter.format(seconds)}`
 
-  // Expired state (0s or cancelled/inactive)
-  if (!isPending || currentSeconds === 0) {
+  // Inactive or non-pending state
+  if (!isPending) {
+    return null
+  }
+
+  // Expired state (0s left)
+  if (currentSeconds === 0) {
     return (
       <Alert
         variant="destructive"
