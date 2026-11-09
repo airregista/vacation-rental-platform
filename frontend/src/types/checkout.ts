@@ -88,6 +88,16 @@ export interface InvoiceData {
   guest?: InvoiceGuestInfo | null
 }
 
+export interface PaymentGatewayModalProps {
+  isOpen: boolean
+  onClose: () => void
+  reservation: ReservationDetail
+  onSuccess: (payment: PaymentResponse) => void
+  onOpenInvoice?: (payment: PaymentResponse) => void
+  initialGateway?: string
+  onStatusChange?: (status: "cancelled", reason: string) => void
+}
+
 export interface InvoiceModalProps {
   isOpen: boolean
   onClose: () => void

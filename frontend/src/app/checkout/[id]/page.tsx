@@ -178,12 +178,29 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     setIsInvoiceModalOpen(true)
   }, [])
 
+  // Handle terminal status change from payment gateway (e.g. 409 conflict or expiration)
+  const handleReservationStatusChange = React.useCallback(
+    (status: "cancelled", reason: string) => {
+      setReservation((prev) =>
+        prev
+          ? {
+              ...prev,
+              status,
+              cancellation_reason: reason,
+            }
+          : null
+      )
+    },
+    []
+  )
+
   // Fallback InvoiceData builder
   const invoiceData: InvoiceData | null = React.useMemo(() => {
     if (!reservation) return null
+    const confirmedAt = latestPayment?.paid_at || reservation.updated_at || reservation.created_at
     return {
       invoice_number: `INV-1403-${reservation.id.toString().padStart(5, "0")}`,
-      issuance_date: latestPayment?.paid_at || new Date().toISOString(),
+      issuance_date: confirmedAt,
       reservation,
       accommodation,
       payment: latestPayment || {
@@ -192,7 +209,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         amount: Number(reservation.total_price),
         tracking_code: "SHP-CONFIRMED",
         status: "success",
-        paid_at: new Date().toISOString(),
+        paid_at: confirmedAt,
         created_at: reservation.created_at,
       },
       guest: {
@@ -733,6 +750,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           initialGateway={gateway}
           onSuccess={handlePaymentSuccess}
           onOpenInvoice={handleOpenInvoice}
+          onStatusChange={handleReservationStatusChange}
         />
       )}
 

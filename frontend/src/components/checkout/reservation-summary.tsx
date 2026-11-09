@@ -17,7 +17,10 @@ export interface ReservationSummaryProps {
 function formatPersianDate(dateStr: string): string {
   if (!dateStr) return ""
   try {
-    const d = new Date(dateStr.endsWith("Z") ? dateStr : `${dateStr}T00:00:00Z`)
+    const isoStr = dateStr.includes("T")
+      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
+      : `${dateStr}T00:00:00Z`
+    const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
       month: "long",
       day: "numeric",
@@ -49,10 +52,14 @@ export function ReservationSummary({
   const totalPayable = Number(reservation.total_price || 0)
   const cleaningFee = accommodation?.cleaning_fee ?? 0
   const basePrice = accommodation?.base_price ?? 0
-  const baseTotal =
-    basePrice > 0
-      ? basePrice * reservation.total_nights
-      : Math.max(0, totalPayable - cleaningFee)
+
+  // When no coupon is present, stay total is (totalPayable - cleaningFee) to strictly
+  // reflect extra guest fees, weekend pricing exceptions, and preserve line item sum.
+  const baseTotal = !reservation.coupon_code
+    ? Math.max(0, totalPayable - cleaningFee)
+    : basePrice > 0
+    ? basePrice * reservation.total_nights
+    : Math.max(0, totalPayable - cleaningFee)
 
   const discountAmount = reservation.coupon_code
     ? Math.max(0, baseTotal + cleaningFee - totalPayable)

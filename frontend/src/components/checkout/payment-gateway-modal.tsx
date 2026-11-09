@@ -39,6 +39,7 @@ export interface PaymentGatewayModalProps {
   onSuccess: (payment: PaymentResponse) => void
   onOpenInvoice?: (payment: PaymentResponse) => void
   initialGateway?: string
+  onStatusChange?: (status: "cancelled", reason: string) => void
 }
 
 function formatCardNumber(value: string): string {
@@ -57,6 +58,7 @@ export function PaymentGatewayModal({
   onSuccess,
   onOpenInvoice,
   initialGateway = "mellat",
+  onStatusChange,
 }: PaymentGatewayModalProps) {
   const router = useRouter()
 
@@ -85,6 +87,16 @@ export function PaymentGatewayModal({
   const [completedPayment, setCompletedPayment] = React.useState<PaymentResponse | null>(null)
 
   const hasInitiatedRef = React.useRef<number | null>(null)
+  const otpTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup pending OTP timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      if (otpTimeoutRef.current) {
+        clearTimeout(otpTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Initiate payment session on dialog open
   React.useEffect(() => {
@@ -114,6 +126,11 @@ export function PaymentGatewayModal({
         if (!isCancelled) {
           if (err instanceof ApiError) {
             setInitiateError(err.detail)
+            if (err.status === 409 || (err.status === 400 && err.detail.toLowerCase().includes("expire"))) {
+              hasInitiatedRef.current = null
+              setPaymentData(null)
+              onStatusChange?.("cancelled", err.detail)
+            }
           } else {
             setInitiateError("خطا در برقراری ارتباط با درگاه شاپرک. لطفا مجددا تلاش کنید.")
           }
@@ -130,7 +147,7 @@ export function PaymentGatewayModal({
     return () => {
       isCancelled = true
     }
-  }, [isOpen, reservation.id, paymentData])
+  }, [isOpen, reservation.id, paymentData, onStatusChange])
 
   // OTP cooldown timer
   React.useEffect(() => {
@@ -143,7 +160,10 @@ export function PaymentGatewayModal({
 
   const handleRequestOtp = () => {
     setIsRequestingOtp(true)
-    setTimeout(() => {
+    if (otpTimeoutRef.current) {
+      clearTimeout(otpTimeoutRef.current)
+    }
+    otpTimeoutRef.current = setTimeout(() => {
       setOtp("849201")
       setOtpTimer(120)
       setIsRequestingOtp(false)
@@ -174,7 +194,17 @@ export function PaymentGatewayModal({
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setVerifyError("متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد.")
+          const conflictReason = "متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد."
+          setVerifyError(conflictReason)
+          hasInitiatedRef.current = null
+          setPaymentData(null)
+          onStatusChange?.("cancelled", conflictReason)
+        } else if (err.status === 400 && err.detail.toLowerCase().includes("expire")) {
+          const expiredReason = "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است."
+          setVerifyError(expiredReason)
+          hasInitiatedRef.current = null
+          setPaymentData(null)
+          onStatusChange?.("cancelled", expiredReason)
         } else {
           setVerifyError(err.detail)
         }
