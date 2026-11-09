@@ -43,7 +43,7 @@ export default function Home() {
     }
 
     apiClient
-      .get<Array<{ accommodation_id: number }>>("/wishlists/")
+      .get<Array<{ accommodation_id: number }>>("/wishlists/?limit=100")
       .then((data) => {
         if (isMounted && Array.isArray(data)) {
           setWishlistIds(new Set(data.map((w) => w.accommodation_id)))
@@ -151,7 +151,21 @@ export default function Home() {
     })
 
     try {
-      await apiClient.post(`/wishlists/${id}/toggle`)
+      const res = await apiClient.post<{ accommodation_id: number; is_favorite: boolean }>(
+        `/wishlists/${id}/toggle`
+      )
+      // Reconcile with authoritative server state
+      if (res && typeof res.is_favorite === "boolean") {
+        setWishlistIds((prev) => {
+          const next = new Set(prev)
+          if (res.is_favorite) {
+            next.add(id)
+          } else {
+            next.delete(id)
+          }
+          return next
+        })
+      }
     } catch (err) {
       console.error("Failed to toggle wishlist:", err)
       // Rollback on failure

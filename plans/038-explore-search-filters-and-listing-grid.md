@@ -274,9 +274,9 @@ This view strictly leverages canonical Shadcn UI primitives. Hand-rolled custom 
      if (params.city_id !== undefined) query.set("city_id", String(params.city_id))
      if (params.province_id !== undefined) query.set("province_id", String(params.province_id))
      if (params.category_id !== undefined) query.set("category_id", String(params.category_id))
-     if (params.guests_count !== undefined) query.set("guests_count", String(params.guests_count))
-     if (params.min_rooms !== undefined) query.set("min_rooms", String(params.min_rooms))
-     if (params.min_beds !== undefined) query.set("min_beds", String(params.min_beds))
+     if (params.guests_count !== undefined && params.guests_count > 0) query.set("guests_count", String(params.guests_count))
+     if (params.min_rooms !== undefined && params.min_rooms > 0) query.set("min_rooms", String(params.min_rooms))
+     if (params.min_beds !== undefined && params.min_beds > 0) query.set("min_beds", String(params.min_beds))
      if (params.min_price !== undefined) query.set("min_price", String(params.min_price))
      if (params.max_price !== undefined) query.set("max_price", String(params.max_price))
 
@@ -338,16 +338,17 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 2. **Desktop View (`>= md`)**: Segmented horizontal pill with Level 3 shadow (`rounded-full border border-border shadow-md bg-card p-2 flex items-center justify-between`):
    - Segment 1: مقصد (Destination selector with city dropdown/select).
    - Segment 2: تاریخ (Check-in and Check-out date pickers `<input type="date">`). Enforces both dates selected together.
-   - Segment 3: مهمانان (Guest stepper `-` / `+`, minimum 1 guest, with `aria-label="افزایش مسافران"` / `aria-label="کاهش مسافران"`).
+   - Segment 3: مهمانان (Guest stepper `-` / `+`, minimum 1 guest, maximum 20 guests with `disabled={guests <= 1}` / `disabled={guests >= 20}` and `aria-label="افزایش مسافران"` / `aria-label="کاهش مسافران"`).
    - Filter Trigger: Button opening the advanced filter dialog.
    - Search button: Terracotta rounded button with `Search` icon ("جستجو").
 3. **Mobile View (`< md`)**:
-   - Compact floating pill: "کجا می‌روید؟ • هر زمان • نفرات".
+   - Compact floating pill: Summarizes active committed search from `currentParams` ("کجا می‌روید؟ • هر زمان • نفرات").
    - Tapping opens a **3-Step Mobile Search Drawer** using canonical `Sheet` with `side="bottom"`:
      - Includes `<SheetTitle className="sr-only">جستجوی اقامتگاه</SheetTitle>` and `<SheetDescription className="sr-only">انتخاب مقصد، تاریخ و تعداد مسافران</SheetDescription>`.
+     - Syncs draft states from `currentParams` upon opening so uncommitted dismissed changes do not leak to the home view.
      - Step 1: مقصد (انتخاب شهر).
      - Step 2: تاریخ ورود و خروج.
-     - Step 3: تعداد نفرات.
+     - Step 3: تعداد نفرات (1-20 with boundary guards).
      - Sticky bottom button: "جستجو در آشیانک".
 
 **Verify**:
@@ -445,7 +446,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 2. State Management:
    - `searchParams`: Stores current `AccommodationSearchParams`.
    - `accommodations`: `AccommodationListItem[]`.
-   - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/`.
+   - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/?limit=100` to prevent default 20-item pagination truncation.
    - `activeWishlistIds`: Derived via `React.useMemo(() => (token ? wishlistIds : new Set<number>()), [token, wishlistIds])` ensuring logged-out sessions immediately clear cached favorites without stale state leakage.
    - `pendingWishlistIds`: `Set<number>` tracking in-flight toggle requests to prevent rapid multi-click concurrency and state inversion.
    - Wishlist Toggle Handler:
@@ -466,7 +467,16 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
          return next
        })
        try {
-         await apiClient.post(`/wishlists/${id}/toggle`)
+         const res = await apiClient.post<{ accommodation_id: number; is_favorite: boolean }>(`/wishlists/${id}/toggle`)
+         // Reconcile with authoritative server state
+         if (res && typeof res.is_favorite === "boolean") {
+           setWishlistIds((prev) => {
+             const next = new Set(prev)
+             if (res.is_favorite) next.add(id)
+             else next.delete(id)
+             return next
+           })
+         }
        } catch {
          // Rollback on network failure
          setWishlistIds((prev) => {

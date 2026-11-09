@@ -99,14 +99,27 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
     setIsMobileOpen(false)
   }
 
-  const selectedCityName = React.useMemo(() => {
-    if (!cityId) return null
-    return cities.find((c) => c.id === cityId)?.name || null
-  }, [cityId, cities])
+  const committedCityName = React.useMemo(() => {
+    if (!currentParams.city_id) return null
+    return cities.find((c) => c.id === currentParams.city_id)?.name || null
+  }, [currentParams.city_id, cities])
+
+  const committedGuestsFa = React.useMemo(() => {
+    return new Intl.NumberFormat("fa-IR").format(currentParams.guests_count || 1)
+  }, [currentParams.guests_count])
 
   const persianGuests = React.useMemo(() => {
     return new Intl.NumberFormat("fa-IR").format(guests)
   }, [guests])
+
+  const handleOpenMobile = () => {
+    setCityId(currentParams.city_id)
+    setCheckIn(currentParams.check_in || "")
+    setCheckOut(currentParams.check_out || "")
+    setGuests(currentParams.guests_count || 1)
+    setDateError(null)
+    setIsMobileOpen(true)
+  }
 
   return (
     <div className="w-full">
@@ -198,6 +211,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
               variant="outline"
               size="icon"
               onClick={() => setGuests((g) => Math.min(20, g + 1))}
+              disabled={guests >= 20}
               aria-label="افزایش مسافران"
               className="size-7 rounded-full p-0"
             >
@@ -242,7 +256,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
       <div className="flex md:hidden items-center gap-2">
         <button
           type="button"
-          onClick={() => setIsMobileOpen(true)}
+          onClick={handleOpenMobile}
           className="flex-1 flex items-center justify-between p-3 rounded-full border border-border shadow-sm bg-card text-right hover:border-primary/50 transition-colors"
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -251,10 +265,10 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
             </div>
             <div className="flex flex-col min-w-0 truncate">
               <span className="text-xs font-bold text-foreground truncate">
-                {selectedCityName || "کجا می‌روید؟"}
+                {committedCityName || "کجا می‌روید؟"}
               </span>
               <span className="text-[11px] text-muted-foreground truncate">
-                {checkIn && checkOut ? "تاریخ انتخاب شد" : "هر زمان"} • {persianGuests} مسافر
+                {currentParams.check_in && currentParams.check_out ? "تاریخ انتخاب شد" : "هر زمان"} • {committedGuestsFa} مسافر
               </span>
             </div>
           </div>
@@ -275,7 +289,19 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
       </div>
 
       {/* 3. Mobile 3-Step Search Drawer */}
-      <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+      <Sheet
+        open={isMobileOpen}
+        onOpenChange={(open) => {
+          setIsMobileOpen(open)
+          if (open) {
+            setCityId(currentParams.city_id)
+            setCheckIn(currentParams.check_in || "")
+            setCheckOut(currentParams.check_out || "")
+            setGuests(currentParams.guests_count || 1)
+            setDateError(null)
+          }
+        }}
+      >
         <SheetContent side="bottom" className="p-6">
           <SheetHeader className="text-right pb-4">
             <SheetTitle className="text-base font-bold">جستجوی اقامتگاه</SheetTitle>
@@ -363,6 +389,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
                     variant="outline"
                     size="icon"
                     onClick={() => setGuests((g) => Math.min(20, g + 1))}
+                    disabled={guests >= 20}
                     aria-label="افزایش مسافران"
                     className="size-8 rounded-full"
                   >

@@ -37,7 +37,6 @@ interface FilterFormProps {
   amenities: Amenity[]
   isLoadingAmenities: boolean
   onApply: (filters: Partial<AccommodationSearchParams>) => void
-  onClose: () => void
 }
 
 function FilterForm({
@@ -350,7 +349,6 @@ export function FilterDialog({
               amenities={amenities}
               isLoadingAmenities={isLoadingAmenities}
               onApply={handleApply}
-              onClose={() => onOpenChange(false)}
             />
           )}
         </DialogContent>
@@ -374,7 +372,6 @@ export function FilterDialog({
             amenities={amenities}
             isLoadingAmenities={isLoadingAmenities}
             onApply={handleApply}
-            onClose={() => onOpenChange(false)}
           />
         )}
       </SheetContent>
