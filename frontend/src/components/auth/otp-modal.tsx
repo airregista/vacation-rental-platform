@@ -128,11 +128,14 @@ export function OtpModal() {
     setOtpDigits(["", "", "", ""])
     setError(null)
     setIsSubmitting(false)
+    setTimer(120)
+    setCanResend(false)
     closeOtpModal()
   }, [closeOtpModal])
 
   const handlePhoneSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    if (isSubmitting) return
     setError(null)
     let normalizedPhone = toEnglishDigits(phone.trim()).replace(/[\s\-_]/g, "")
     if (normalizedPhone.startsWith("+98")) normalizedPhone = "0" + normalizedPhone.slice(3)
@@ -147,6 +150,7 @@ export function OtpModal() {
     setIsSubmitting(true)
     try {
       await sendOtp(normalizedPhone)
+      setPhone(normalizedPhone)
       setStep(2)
       setTimer(120)
       setCanResend(false)
@@ -169,6 +173,7 @@ export function OtpModal() {
 
   const handleVerifySubmit = useCallback(
     async (codeToVerify?: string) => {
+      if (isSubmitting) return
       setError(null)
       const rawCode = codeToVerify ?? otpDigits.join("")
       const normalizedCode = toEnglishDigits(rawCode)
@@ -193,13 +198,28 @@ export function OtpModal() {
         setIsSubmitting(false)
       }
     },
-    [otpDigits, phone, verifyOtp, handleModalClose]
+    [isSubmitting, otpDigits, phone, verifyOtp, handleModalClose]
   )
 
   const handleDigitChange = (index: number, val: string) => {
     const digitsOnly = toEnglishDigits(val).replace(/\D/g, "")
 
-    // Handle multi-character paste or fast input
+    // Handle overwriting/editing a digit in an already filled box
+    if (digitsOnly.length === 2 && otpDigits[index]) {
+      const replacement = digitsOnly[0] === otpDigits[index] ? digitsOnly[1] : digitsOnly[0]
+      const nextDigits = [...otpDigits]
+      nextDigits[index] = replacement
+      setOtpDigits(nextDigits)
+      if (index < 3) {
+        otpRefs.current[index + 1]?.focus()
+      }
+      if (nextDigits.every((d) => d.length === 1)) {
+        handleVerifySubmit(nextDigits.join(""))
+      }
+      return
+    }
+
+    // Handle multi-character paste or fast autofill (e.g. 4-digit SMS autofill)
     if (digitsOnly.length > 1) {
       const chars = digitsOnly.slice(0, 4).split("")
       const nextDigits = [...otpDigits]
@@ -460,7 +480,8 @@ export function OtpModal() {
                     }}
                     type="text"
                     inputMode="numeric"
-                    maxLength={1}
+                    autoComplete={idx === 0 ? "one-time-code" : "off"}
+                    maxLength={idx === 0 ? 4 : 1}
                     value={toPersianDigits(digit)}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}

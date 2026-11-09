@@ -130,9 +130,11 @@ export function Header() {
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  className="flex items-center gap-2 p-1.5 rounded-full border border-border hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full p-1.5 h-auto border-border hover:shadow-sm transition-all focus:ring-2 focus:ring-primary/30 cursor-pointer"
                   aria-label="منوی حساب کاربری"
                 >
                   <Avatar className="size-8">
@@ -141,7 +143,7 @@ export function Header() {
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
-                </button>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 mt-2">
                 <DropdownMenuLabel className="font-normal p-2.5">
