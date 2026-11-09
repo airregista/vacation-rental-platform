@@ -25,12 +25,28 @@ import type { AccommodationImage } from "@/types/detail"
 export interface PhotoGalleryProps {
   images: AccommodationImage[]
   title: string
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
 }
 
-export function PhotoGallery({ images, title }: PhotoGalleryProps) {
+export function PhotoGallery({
+  images,
+  title,
+  isFavorite,
+  onToggleFavorite,
+}: PhotoGalleryProps) {
   const [isLightboxOpen, setIsLightboxOpen] = React.useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = React.useState(0)
-  const [isFavorite, setIsFavorite] = React.useState(false)
+  const [internalFavorite, setInternalFavorite] = React.useState(false)
+
+  const favorite = isFavorite !== undefined ? isFavorite : internalFavorite
+  const handleToggleFavorite = () => {
+    if (onToggleFavorite) {
+      onToggleFavorite()
+    } else {
+      setInternalFavorite(!internalFavorite)
+    }
+  }
 
   // Mobile touch swipe tracking
   const [touchStartX, setTouchStartX] = React.useState<number | null>(null)
@@ -134,12 +150,12 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             variant="ghost"
             size="icon"
             aria-label="نشان کردن"
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={handleToggleFavorite}
             className="pointer-events-auto h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm shadow text-foreground hover:bg-background transition"
           >
             <Heart
               className={`h-5 w-5 ${
-                isFavorite ? "fill-destructive text-destructive" : "text-foreground"
+                favorite ? "fill-destructive text-destructive" : "text-foreground"
               }`}
             />
           </Button>

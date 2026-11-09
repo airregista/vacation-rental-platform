@@ -140,6 +140,9 @@ export function BookingWidget({
         } else if (err instanceof ApiError) {
           setSubmitError(err.message)
           setPriceData(null)
+        } else {
+          setSubmitError("خطا در برقراری ارتباط با سرور برای محاسبه قیمت.")
+          setPriceData(null)
         }
         setIsCalculating(false)
       }

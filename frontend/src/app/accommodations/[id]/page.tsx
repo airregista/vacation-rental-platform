@@ -284,7 +284,12 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
       </div>
 
       {/* Photo Gallery Mosaic */}
-      <PhotoGallery images={data.images} title={data.title} />
+      <PhotoGallery
+        images={data.images}
+        title={data.title}
+        isFavorite={isWishlisted}
+        onToggleFavorite={() => setIsWishlisted(!isWishlisted)}
+      />
 
       {/* Two-Column Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2">

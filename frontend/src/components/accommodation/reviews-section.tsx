@@ -201,7 +201,8 @@ export function ReviewsSection({
                   "کاربر مهمان‌شو"
                 : "کاربر مهمان‌شو"
 
-              const authorInitial = review.user?.first_name?.[0] || "ک"
+              const authorInitial =
+                review.user?.first_name?.[0] || review.user?.last_name?.[0] || "ک"
 
               return (
                 <div
