@@ -1,0 +1,549 @@
+# Plan 038: Implement Explore Page with Destination Search Pill, Category Bar, Filter Modal, and Listing Grid
+
+> **Executor instructions**: Follow this plan step by step. Run every
+> verification command and confirm the expected result before moving to the
+> next step. If anything in the "STOP conditions" section occurs, stop and
+> report — do not improvise. When done, update the status row for this plan
+> in `plans/README.md`.
+>
+> **Drift check (run first)**: `git diff --stat 9e03cb5..HEAD -- app/api/v1/endpoints/accommodations.py app/schemas/accommodation.py frontend/src/lib/api-client.ts`
+> If any in-scope file changed since this plan was written, compare the
+> "Current state" excerpts against the live code before proceeding; on a
+> mismatch, treat it as a STOP condition.
+
+## Status
+
+- **Priority**: P1
+- **Effort**: M
+- **Risk**: LOW
+- **Depends on**: plans/036-nextjs-shadcn-scaffold-and-warm-persian-theme.md, plans/037-auth-otp-modal-and-session-state.md
+- **Category**: direction
+- **Planned at**: commit `9e03cb5`, 2026-11-09
+
+## Why this matters
+
+The Explore page (`/`) is the central discovery experience of Ashianak. In Stitch screens `_21` and `_29`, guests search accommodations through a segmented search pill (Destination, Dates, Guests), toggle category chips (Wooden Cottage, Pool Villa, Ecotourism), fine-tune via a filter modal (Price Range, Rooms, Beds, Amenities), and browse accommodation cards with high-resolution 4:3 cover photos, Persian Toman pricing, ratings, and instant wishlist toggling. This plan connects the home page directly to backend endpoints `GET /api/v1/accommodations/`, `/categories/`, `/amenities/`, `/geo/cities`, and `/wishlists/`.
+
+## Current state
+
+The verified files, schemas, and endpoints:
+- `app/api/v1/endpoints/accommodations.py`:
+  - `GET /api/v1/accommodations/` accepts query parameters: `city_id`, `province_id`, `category_id`, `guests_count` (int), `min_rooms` (int), `min_beds` (int), `min_price` (Decimal), `max_price` (Decimal), `check_in` (date YYYY-MM-DD), `check_out` (date YYYY-MM-DD), `amenity_ids` (repeated int: `?amenity_ids=1&amenity_ids=2`), `sort_by` ("newest", "price_asc", "price_desc"), `skip` (int = 0), `limit` (int = 20).
+  - Returns `list[AccommodationListItem]`.
+  - Date availability invariant: `check_in` and `check_out` must be supplied together (`check_out > check_in`), or omitted. Supplying only one returns HTTP 400.
+- `app/schemas/accommodation.py:135-153`:
+  ```python
+  class AccommodationListItem(BaseModel):
+      model_config = ConfigDict(from_attributes=True)
+
+      id: int
+      title: str
+      city: CityResponse | None = None
+      category: CategoryResponse | None = None
+      base_price: Decimal
+      capacity: int
+      max_capacity: int
+      rooms_count: int
+      beds_count: int
+      min_nights: int = 1
+      cover_image: str | None = None
+      cancellation_policy: str = "flexible"
+      average_rating: float | None = None
+      reviews_count: int = 0
+      is_active: bool
+  ```
+- `app/schemas/category.py:10-16`:
+  ```python
+  class CategoryResponse(BaseModel):
+      id: int
+      title: str
+      slug: str
+      icon_url: str | None = None
+  ```
+- `app/schemas/geo.py:20-26`:
+  ```python
+  class CityResponse(BaseModel):
+      id: int
+      province_id: int
+      name: str
+      province: ProvinceResponse | None = None
+  ```
+- `app/schemas/amenity.py:9-14`:
+  ```python
+  class AmenityResponse(BaseModel):
+      id: int
+      name: str
+      icon: str | None = None
+  ```
+- `app/api/v1/endpoints/wishlists.py`:
+  - `POST /api/v1/wishlists/{accommodation_id}/toggle` returns `{ accommodation_id: int, is_favorite: bool, message: str }`.
+  - `GET /api/v1/wishlists/` returns `list[WishlistItemResponse]`.
+- `frontend/src/lib/api-client.ts`:
+  - Base URL is configured as `http://localhost:8000/api/v1`.
+  - All endpoint calls pass relative routes without `/api/v1` prefix (e.g. `apiClient.get("/accommodations/" + qs)`).
+  - Injects JWT `Authorization: Bearer <token>` automatically when logged in.
+- `frontend/src/context/auth-context.tsx`:
+  - Provides `useAuth()` exposing `{ user, token, openOtpModal, isOtpModalOpen }`.
+
+## Commands you will need
+
+| Purpose   | Command | Expected on success |
+|-----------|---------|---------------------|
+| Typecheck | `node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false` | exit 0, no errors |
+| Lint      | `npm --prefix frontend run lint` | exit 0, no errors |
+| Verify Primitives | `Test-Path frontend/src/components/ui/slider.tsx, frontend/src/components/ui/checkbox.tsx` | True, True |
+
+## Strict Shadcn/UI Component Governance
+
+This view strictly leverages canonical Shadcn UI primitives. Hand-rolled custom cards, buttons, badges, or skeletons are prohibited:
+- **Listing Display**: Canonical `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`.
+- **Badges**: Canonical `Badge` (`variant="secondary"` for ratings `★ 4.9`, `variant="outline"` for category chips).
+- **Search & Overlays**: Canonical `Dialog` (for desktop filters), canonical `Sheet` with `side="bottom"` (for mobile search drawer and filter sheet). All dialogs/sheets include explicit `DialogTitle` / `SheetTitle` and `DialogDescription` / `SheetDescription` (using `sr-only` if visually omitted) to satisfy Radix a11y.
+- **Form Controls**: Canonical `Slider` (wrapping `@radix-ui/react-slider`), canonical `Checkbox` (wrapping `@radix-ui/react-checkbox`), canonical `Input`.
+- **Buttons**: Canonical `Button` (`default`, `ghost`, `outline`). Stepper and icon buttons have explicit `aria-label`.
+- **Loading & Fallbacks**: Canonical `Skeleton` component (never raw `animate-pulse` divs).
+- **Dividers**: Canonical `Separator`.
+- **Colors & RTL**: Strictly consumes CSS variables from `globals.css` (`bg-primary`, `text-primary-foreground`, `bg-secondary`, `bg-muted`, `border-border`). Persian numbers formatted via `Intl.NumberFormat('fa-IR')`.
+
+## Scope
+
+**In scope** (the only files you should create or modify):
+- `frontend/src/components/ui/slider.tsx` (create)
+- `frontend/src/components/ui/checkbox.tsx` (create)
+- `frontend/src/types/accommodation.ts` (create)
+- `frontend/src/lib/search-utils.ts` (create query serializer)
+- `frontend/src/components/explore/category-bar.tsx` (create)
+- `frontend/src/components/explore/search-pill.tsx` (create)
+- `frontend/src/components/explore/filter-dialog.tsx` (create)
+- `frontend/src/components/explore/accommodation-card.tsx` (create)
+- `frontend/src/components/explore/accommodation-grid.tsx` (create)
+- `frontend/src/app/page.tsx` (update with full explore search and grid experience)
+
+**Out of scope**:
+- Detail page (Plan 039).
+- Modifying backend search algorithms, router endpoints, or database queries.
+- Installing third-party carousel libraries (`embla-carousel-react`).
+
+## Git workflow
+
+- Branch: `advisor/038-explore-search-filters-and-listing-grid`
+- Commit style: `feat(explore): implement search pill, category filter, and accommodation grid`
+
+---
+
+## Steps
+
+### Step 1: Create UI Primitives (`slider.tsx`, `checkbox.tsx`), Types Contract, & Query Serializer
+
+1. Create `frontend/src/components/ui/slider.tsx` wrapping `@radix-ui/react-slider` with terracotta primary track:
+   ```tsx
+   "use client"
+   import * as React from "react"
+   import * as SliderPrimitive from "@radix-ui/react-slider"
+   import { cn } from "@/lib/utils"
+
+   const Slider = React.forwardRef<
+     React.ElementRef<typeof SliderPrimitive.Root>,
+     React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+   >(({ className, ...props }, ref) => {
+     const value = props.value || props.defaultValue
+     const thumbs = Array.isArray(value) ? value : [value]
+
+     return (
+       <SliderPrimitive.Root
+         ref={ref}
+         dir="rtl"
+         className={cn("relative flex w-full touch-none select-none items-center", className)}
+         {...props}
+       >
+         <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
+           <SliderPrimitive.Range className="absolute h-full bg-primary" />
+         </SliderPrimitive.Track>
+         {thumbs.map((_, i) => (
+           <SliderPrimitive.Thumb
+             key={i}
+             className="block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+           />
+         ))}
+       </SliderPrimitive.Root>
+     )
+   })
+   Slider.displayName = SliderPrimitive.Root.displayName
+   export { Slider }
+   ```
+
+2. Create `frontend/src/components/ui/checkbox.tsx` wrapping `@radix-ui/react-checkbox`:
+   ```tsx
+   "use client"
+   import * as React from "react"
+   import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+   import { Check } from "lucide-react"
+   import { cn } from "@/lib/utils"
+
+   const Checkbox = React.forwardRef<
+     React.ElementRef<typeof CheckboxPrimitive.Root>,
+     React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
+   >(({ className, ...props }, ref) => (
+     <CheckboxPrimitive.Root
+       ref={ref}
+       className={cn(
+         "peer size-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+         className
+       )}
+       {...props}
+     >
+       <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
+         <Check className="size-3.5" />
+       </CheckboxPrimitive.Indicator>
+     </CheckboxPrimitive.Root>
+   ))
+   Checkbox.displayName = CheckboxPrimitive.Root.displayName
+   export { Checkbox }
+   ```
+
+3. Create `frontend/src/types/accommodation.ts` precisely matching backend Pydantic models:
+   ```typescript
+   export interface Province {
+     id: number
+     name: string
+   }
+
+   export interface City {
+     id: number
+     province_id: number
+     name: string
+     province?: Province | null
+   }
+
+   export interface Category {
+     id: number
+     title: string
+     slug: string
+     icon_url?: string | null
+   }
+
+   export interface Amenity {
+     id: number
+     name: string
+     icon?: string | null
+   }
+
+   export interface AccommodationListItem {
+     id: number
+     title: string
+     city: City | null
+     category: Category | null
+     base_price: number
+     capacity: number
+     max_capacity: number
+     rooms_count: number
+     beds_count: number
+     min_nights: number
+     cover_image: string | null
+     cancellation_policy: string
+     average_rating: number | null
+     reviews_count: number
+     is_active: boolean
+   }
+
+   export interface AccommodationSearchParams {
+     city_id?: number
+     province_id?: number
+     category_id?: number
+     guests_count?: number
+     min_rooms?: number
+     min_beds?: number
+     min_price?: number
+     max_price?: number
+     check_in?: string
+     check_out?: string
+     amenity_ids?: number[]
+     sort_by?: "newest" | "price_asc" | "price_desc"
+     skip?: number
+     limit?: number
+   }
+   ```
+
+4. Create `frontend/src/lib/search-utils.ts` to serialize query parameters correctly for FastAPI:
+   ```typescript
+   import type { AccommodationSearchParams } from "@/types/accommodation"
+
+   export function buildAccommodationQuery(params: AccommodationSearchParams): string {
+     const query = new URLSearchParams()
+
+     if (params.city_id !== undefined) query.set("city_id", String(params.city_id))
+     if (params.province_id !== undefined) query.set("province_id", String(params.province_id))
+     if (params.category_id !== undefined) query.set("category_id", String(params.category_id))
+     if (params.guests_count !== undefined) query.set("guests_count", String(params.guests_count))
+     if (params.min_rooms !== undefined) query.set("min_rooms", String(params.min_rooms))
+     if (params.min_beds !== undefined) query.set("min_beds", String(params.min_beds))
+     if (params.min_price !== undefined) query.set("min_price", String(params.min_price))
+     if (params.max_price !== undefined) query.set("max_price", String(params.max_price))
+
+     // Date invariant: Both check_in and check_out must be supplied together
+     if (params.check_in && params.check_out) {
+       query.set("check_in", params.check_in)
+       query.set("check_out", params.check_out)
+     }
+
+     if (params.sort_by) query.set("sort_by", params.sort_by)
+     if (params.skip !== undefined) query.set("skip", String(params.skip))
+     if (params.limit !== undefined) query.set("limit", String(params.limit))
+
+     // FastAPI expects repeated keys for list params: ?amenity_ids=1&amenity_ids=2
+     if (params.amenity_ids && params.amenity_ids.length > 0) {
+       params.amenity_ids.forEach((id) => query.append("amenity_ids", String(id)))
+     }
+
+     const qs = query.toString()
+     return qs ? `?${qs}` : ""
+   }
+   ```
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+```
+→ exit 0
+
+---
+
+### Step 2: Build Category Bar Component (`frontend/src/components/explore/category-bar.tsx`)
+
+1. Fetch categories from `apiClient.get<Category[]>("/categories/")`.
+2. Render horizontal scrollable list with touch momentum (`overflow-x-auto scrollbar-none snap-x flex items-center gap-3 py-3`):
+   - Active category button highlighted with `bg-primary text-primary-foreground`.
+   - Inactive chips styled with `variant="outline"`.
+   - Include an "همه اقامتگاه‌ها" (All Accommodations) chip at index 0 (value `undefined`).
+   - Persian icons mapped by category slug with fallback:
+     - `slug.includes("cottage")` or `slug.includes("choobi")` -> `TreePine`
+     - `slug.includes("villa")` or `slug.includes("pool")` or `slug.includes("estakhr")` -> `Waves`
+     - `slug.includes("ecotourism")` or `slug.includes("boom")` -> `Tent`
+     - `slug.includes("apartment")` -> `Building`
+     - fallback -> `Home` (from `lucide-react`)
+   - Display `category.title` (NOT `name`).
+   - Clicking triggers `onSelectCategory(categoryId?: number)`.
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+```
+→ exit 0
+
+---
+
+### Step 3: Build Search Pill Component (`frontend/src/components/explore/search-pill.tsx`)
+
+1. Load tourist cities from `apiClient.get<City[]>("/geo/cities?limit=50")`.
+2. **Desktop View (`>= md`)**: Segmented horizontal pill with Level 3 shadow (`rounded-full border border-border shadow-md bg-card p-2 flex items-center justify-between`):
+   - Segment 1: مقصد (Destination selector with city dropdown/select).
+   - Segment 2: تاریخ (Check-in and Check-out date pickers `<input type="date">`). Enforces both dates selected together.
+   - Segment 3: مهمانان (Guest stepper `-` / `+`, minimum 1 guest, with `aria-label="افزایش مسافران"` / `aria-label="کاهش مسافران"`).
+   - Filter Trigger: Button opening the advanced filter dialog.
+   - Search button: Terracotta rounded button with `Search` icon ("جستجو").
+3. **Mobile View (`< md`)**:
+   - Compact floating pill: "کجا می‌روید؟ • هر زمان • نفرات".
+   - Tapping opens a **3-Step Mobile Search Drawer** using canonical `Sheet` with `side="bottom"`:
+     - Includes `<SheetTitle className="sr-only">جستجوی اقامتگاه</SheetTitle>` and `<SheetDescription className="sr-only">انتخاب مقصد، تاریخ و تعداد مسافران</SheetDescription>`.
+     - Step 1: مقصد (انتخاب شهر).
+     - Step 2: تاریخ ورود و خروج.
+     - Step 3: تعداد نفرات.
+     - Sticky bottom button: "جستجو در آشیانک".
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+```
+→ exit 0
+
+---
+
+### Step 4: Build Filter Modal (`frontend/src/components/explore/filter-dialog.tsx`)
+
+1. Render via canonical `Dialog` (desktop) and `Sheet` (mobile):
+   - Accessible `<DialogTitle>` / `<SheetTitle>`: "فیلترهای پیشرفته".
+   - Accessible `<DialogDescription>` / `<SheetDescription>`: "تنظیم بازه قیمتی، تعداد اتاق‌ها و امکانات مورد نظر".
+2. Fetch available amenities on mount via `apiClient.get<Amenity[]>("/amenities/")`.
+3. Controls:
+   - Price range: Canonical `Slider` (min 0, max 20,000,000 Tomans, step 100,000) with live Persian formatted Toman indicators (`{Intl.NumberFormat('fa-IR').format(val)} تومان`).
+   - Rooms & Beds: Stepper controls for `min_rooms` and `min_beds`.
+   - Amenities: Grid of canonical `Checkbox` components with amenity names.
+   - Sort Option: Select/Radio for `sort_by` ("newest", "price_asc", "price_desc").
+4. Bottom Action Bar:
+   - "پاک کردن همه" (resets form).
+   - "اعمال فیلترها" (emits `onApplyFilters(filters: AccommodationSearchParams)` and closes modal).
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+```
+→ exit 0
+
+---
+
+### Step 5: Build Accommodation Card & Responsive Grid
+
+1. Create `frontend/src/components/explore/accommodation-card.tsx`:
+   - Component Props:
+     ```typescript
+     export interface AccommodationCardProps {
+       item: AccommodationListItem
+       isWishlisted?: boolean
+       onToggleWishlist?: (id: number) => void
+     }
+     ```
+   - 4:3 Aspect Ratio Cover Photo Container (`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted`):
+     - If `item.cover_image` is present: renders `<img>` with `object-cover w-full h-full group-hover:scale-105 transition-transform duration-300`.
+     - If `item.cover_image` is null: renders graceful fallback placeholder with `Home` icon and "بدون تصویر".
+   - Floating Wishlist Heart Button:
+     - Placed at top-left/top-right of image.
+     - `Button variant="ghost" size="icon" className="rounded-full bg-background/80 backdrop-blur-sm shadow-sm"` with `aria-label="نشان کردن اقامتگاه"`.
+     - Heart icon filled with terracotta `text-primary fill-primary` when `isWishlisted` is true.
+     - On click: Calls `onToggleWishlist?.(item.id)`. (Parent manages optimistic state update, auth checks via `openOtpModal()`, and API synchronization).
+   - Card Content:
+     - Title: `font-bold text-base truncate text-foreground`.
+     - Location: `{item.city?.name}، {item.city?.province?.name || ""}` in `text-sm text-muted-foreground flex items-center gap-1`.
+     - Rating Badge: `★ {item.average_rating ? item.average_rating.toFixed(1) : "جدید"}` using `Badge variant="secondary"`.
+     - Price: `{new Intl.NumberFormat('fa-IR').format(Number(item.base_price) || 0)} تومان / شب` in `text-sm font-semibold text-primary`.
+2. Create `frontend/src/components/explore/accommodation-grid.tsx`:
+   - Component Props:
+     ```typescript
+     export interface AccommodationGridProps {
+       items: AccommodationListItem[]
+       isLoading: boolean
+       wishlistIds: Set<number>
+       onToggleWishlist: (id: number) => void
+       onClearFilters?: () => void
+     }
+     ```
+   - Responsive Grid:
+     - Mobile (`< 640px`): `grid-cols-1 gap-5 px-4`
+     - Tablet (`640px - 1023px`): `grid-cols-2 gap-5 px-6`
+     - Desktop (`1024px - 1439px`): `grid-cols-3 gap-6 px-8`
+     - Wide Desktop (`>= 1440px`): `grid-cols-4 gap-6 max-w-[1360px] mx-auto px-8`
+   - Maps each item to `<AccommodationCard key={item.id} item={item} isWishlisted={wishlistIds.has(item.id)} onToggleWishlist={onToggleWishlist} />`.
+   - Loading State: Renders 8 canonical `Skeleton` cards (4:3 skeleton rectangle + text line skeletons).
+   - Empty State: When items list is empty, renders friendly Persian notice ("اقامتگاهی با فیلترهای انتخابی شما یافت نشد") with a "پاک کردن فیلترها" button.
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+```
+→ exit 0
+
+---
+
+### Step 6: Assemble Explore Experience in `frontend/src/app/page.tsx`
+
+1. Convert `frontend/src/app/page.tsx` into a client component (`"use client"`) composing:
+   - Sticky top bar with `SearchPill`.
+   - `CategoryBar` for quick property type filtering.
+   - `FilterDialog` for advanced price, room, and amenity adjustments.
+   - `AccommodationGrid` displaying fetched accommodations.
+2. State Management:
+   - `searchParams`: Stores current `AccommodationSearchParams`.
+   - `accommodations`: `AccommodationListItem[]`.
+   - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/` (`const wishlistItems = await apiClient.get<Array<{ accommodation_id: number }>>("/wishlists/"); setWishlistIds(new Set(wishlistItems.map(w => w.accommodation_id)))`).
+   - Wishlist Toggle Handler:
+     ```typescript
+     const handleToggleWishlist = async (id: number) => {
+       if (!token) {
+         openOtpModal()
+         return
+       }
+       // Optimistic toggle
+       setWishlistIds((prev) => {
+         const next = new Set(prev)
+         if (next.has(id)) next.delete(id)
+         else next.add(id)
+         return next
+       })
+       try {
+         await apiClient.post(`/wishlists/${id}/toggle`)
+       } catch {
+         // Rollback on network failure
+         setWishlistIds((prev) => {
+           const next = new Set(prev)
+           if (next.has(id)) next.delete(id)
+           else next.add(id)
+           return next
+         })
+       }
+     }
+     ```
+   - `isLoading`: Boolean state showing skeletons during fetch.
+   - `fetchError`: String state with retry button if network fails.
+3. Fetch accommodations from `GET /accommodations/` via `apiClient.get<AccommodationListItem[]>("/accommodations/" + buildAccommodationQuery(searchParams))` whenever filters change.
+
+**Verify**:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+npm --prefix frontend run lint
+```
+→ Both exit 0 with 0 errors.
+
+---
+
+## Test plan
+
+### 1. Automated Typecheck and Lint Gate
+Execute:
+```powershell
+node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false
+npm --prefix frontend run lint
+```
+Expected: All exit 0 with 0 errors.
+
+### 2. Component and Primitives Verification
+Execute:
+```powershell
+Test-Path frontend/src/components/ui/slider.tsx, frontend/src/components/ui/checkbox.tsx, frontend/src/lib/search-utils.ts
+```
+Expected: Returns `True, True, True`.
+
+### 3. Query Serialization Unit Check
+Verify query formatting handles list amenities, dates, and numbers:
+Execute:
+```powershell
+node -e "const { buildAccommodationQuery } = require('./frontend/src/lib/search-utils.ts'); console.log(buildAccommodationQuery({ guests_count: 3, amenity_ids: [1, 2] }))"
+```
+Or verify inside TypeScript compiler context that `buildAccommodationQuery` compiles without type errors.
+
+### 4. Page Assembly Verification
+Execute:
+```powershell
+Select-String -Path "frontend/src/app/page.tsx" -Pattern "SearchPill", "CategoryBar", "AccommodationGrid", "FilterDialog"
+```
+Expected: All 4 components are imported and rendered in `page.tsx`.
+
+---
+
+## Done criteria
+
+Machine-checkable. ALL must hold:
+
+- [ ] `node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false` exits 0
+- [ ] `npm --prefix frontend run lint` exits 0
+- [ ] `Test-Path frontend/src/components/ui/slider.tsx` returns True
+- [ ] `Test-Path frontend/src/components/ui/checkbox.tsx` returns True
+- [ ] `Test-Path frontend/src/lib/search-utils.ts` returns True
+- [ ] `Select-String -Path "frontend/src/app/page.tsx" -Pattern "AccommodationGrid"` returns match
+- [ ] No files outside in-scope list are modified (`git status --porcelain`)
+- [ ] `plans/README.md` status row updated to DONE (when executed)
+
+---
+
+## STOP conditions
+
+Stop and report back (do not improvise) if:
+
+- Backend Pydantic models in `app/schemas/accommodation.py` diverge from the TypeScript types defined in Step 1.
+- Typecheck or linter reports errors that cannot be resolved within the in-scope files.
+- The task requires modifying backend files (which are explicitly out of scope).
+
+---
+
+## Maintenance notes
+
+- Infinite scroll pagination can be introduced in a future optimization using an `IntersectionObserver` hook targeting the `skip` / `limit` query parameters.
+- Search filters can be synchronized with URL query params (`useSearchParams`) to support shareable deep-links.

@@ -45,7 +45,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **035** | `035-backend-otp-and-host-role-extension.md` | P1 | S | — | **DONE** | `main` | `ba4afa7` |
 | **036** | `036-nextjs-shadcn-scaffold-and-warm-persian-theme.md` | P1 | M | 035 | **DONE** | `main` | `ba4afa7` |
 | **037** | `037-auth-otp-modal-and-session-state.md` | P1 | M | 036 | **DONE** | `main` | `ba4afa7` |
-| **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **TODO** | `advisor/038-explore-search-filters-and-listing-grid` | `677a622` |
+| **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **DONE** | `advisor/038-explore-search-filters-and-listing-grid` | `9e03cb5` |
 | **039** | `039-accommodation-detail-and-booking-engine.md` | P1 | L | 036, 037 | **TODO** | `advisor/039-accommodation-detail-and-booking-engine` | `677a622` |
 | **040** | `040-checkout-lifecycle-shaparak-and-invoice.md` | P1 | M | 039 | **TODO** | `advisor/040-checkout-lifecycle-shaparak-and-invoice` | `677a622` |
 | **041** | `041-my-trips-cancellation-preview-and-host-chat.md` | P1 | L | 036, 037 | **TODO** | `advisor/041-my-trips-cancellation-preview-and-host-chat` | `677a622` |
