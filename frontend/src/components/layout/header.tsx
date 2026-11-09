@@ -23,15 +23,20 @@ import {
   Sparkles,
   User,
   Home,
+  AlertCircle,
+  X,
 } from "lucide-react"
 import { ApiError } from "@/lib/api-client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export function Header() {
   const router = useRouter()
   const { user, isAuthenticated, isHost, openOtpModal, becomeHost, logout } = useAuth()
   const [isPromoting, setIsPromoting] = React.useState(false)
+  const [hostError, setHostError] = React.useState<string | null>(null)
 
   const handleHostAction = async () => {
+    setHostError(null)
     if (!isAuthenticated) {
       openOtpModal()
       return
@@ -47,7 +52,7 @@ export function Header() {
     } catch (err: unknown) {
       const message =
         err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
-      alert(message)
+      setHostError(message)
     } finally {
       setIsPromoting(false)
     }
@@ -65,6 +70,26 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      {hostError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 animate-in fade-in duration-200">
+          <Alert variant="destructive" className="py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0" />
+              <AlertDescription className="text-xs font-semibold">{hostError}</AlertDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setHostError(null)}
+              className="h-6 w-6 p-0 hover:bg-destructive/20 text-destructive rounded-full"
+              aria-label="بستن پیام خطا"
+            >
+              <X className="size-3.5" />
+            </Button>
+          </Alert>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Right side (RTL Start): Logo */}
         <Link href="/" className="flex items-center gap-2 group select-none">

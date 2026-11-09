@@ -11,6 +11,7 @@ import {
   Home,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 interface FooterSection {
   title: string
@@ -109,10 +110,11 @@ export function Footer() {
             return (
               <div key={section.title} className="border-b md:border-b-0 border-border/50 pb-4 md:pb-0">
                 {/* Mobile Accordion Header */}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => toggleSection(section.title)}
-                  className="flex items-center justify-between w-full md:cursor-default py-2 md:py-0 text-right font-bold text-sm text-foreground focus:outline-none"
+                  className="flex items-center justify-between w-full md:cursor-default p-0 h-auto hover:bg-transparent text-right font-bold text-sm text-foreground focus-visible:ring-0 rounded-none cursor-pointer"
                 >
                   <span>{section.title}</span>
                   <ChevronDown
@@ -121,7 +123,7 @@ export function Footer() {
                       isOpen && "rotate-180"
                     )}
                   />
-                </button>
+                </Button>
 
                 {/* Links list */}
                 <ul

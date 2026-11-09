@@ -261,7 +261,12 @@ export function OtpModal() {
   }
 
   const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace") {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      if (!isSubmitting && otpDigits.every((d) => d.length === 1)) {
+        handleVerifySubmit(otpDigits.join(""))
+      }
+    } else if (e.key === "Backspace") {
       if (!otpDigits[index] && index > 0) {
         e.preventDefault()
         const nextDigits = [...otpDigits]
@@ -487,7 +492,7 @@ export function OtpModal() {
                     type="text"
                     inputMode="numeric"
                     autoComplete={idx === 0 ? "one-time-code" : "off"}
-                    maxLength={idx === 0 ? 4 : 1}
+                    maxLength={idx === 0 ? 4 : 2}
                     value={toPersianDigits(digit)}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}

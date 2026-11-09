@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
-import { Compass, Heart, Luggage, User, Building2, LogOut, Sparkles } from "lucide-react"
+import { Compass, Heart, Luggage, User, Building2, LogOut, Sparkles, AlertCircle } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Sheet,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api-client"
 
@@ -24,8 +25,10 @@ export function BottomNav() {
   const { user, isAuthenticated, isHost, openOtpModal, becomeHost, logout } = useAuth()
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false)
   const [isPromoting, setIsPromoting] = React.useState(false)
+  const [hostError, setHostError] = React.useState<string | null>(null)
 
   const handleProfileClick = () => {
+    setHostError(null)
     if (!isAuthenticated) {
       openOtpModal()
     } else {
@@ -34,6 +37,7 @@ export function BottomNav() {
   }
 
   const handleHostAction = async () => {
+    setHostError(null)
     if (isHost) {
       setIsProfileDrawerOpen(false)
       router.push("/host")
@@ -47,7 +51,7 @@ export function BottomNav() {
     } catch (err: unknown) {
       const message =
         err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
-      alert(message)
+      setHostError(message)
     } finally {
       setIsPromoting(false)
     }
@@ -113,11 +117,12 @@ export function BottomNav() {
           </Link>
 
           {/* Profile / Login */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={handleProfileClick}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 min-h-[48px] h-full text-xs font-medium transition-colors cursor-pointer",
+              "flex flex-col items-center justify-center gap-1 min-h-[48px] h-full text-xs font-medium transition-colors cursor-pointer rounded-none hover:bg-transparent p-0",
               isAuthenticated && isProfileDrawerOpen
                 ? "text-primary font-bold"
                 : "text-muted-foreground hover:text-foreground"
@@ -134,7 +139,7 @@ export function BottomNav() {
               <User className="size-5" />
             )}
             <span>{isAuthenticated ? "پروفایل" : "ورود"}</span>
-          </button>
+          </Button>
         </div>
       </nav>
 
@@ -167,6 +172,13 @@ export function BottomNav() {
               </p>
             </div>
           </div>
+
+          {hostError && (
+            <Alert variant="destructive" className="py-2.5">
+              <AlertCircle className="size-4" />
+              <AlertDescription className="text-xs">{hostError}</AlertDescription>
+            </Alert>
+          )}
 
           {/* Actions */}
           <div className="space-y-2">
