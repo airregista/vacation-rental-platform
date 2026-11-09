@@ -47,7 +47,8 @@ export function AccommodationCard({
         <Link
           href={`/accommodations/${item.id}`}
           className="block w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
-          tabIndex={0}
+          tabIndex={-1}
+          aria-hidden="true"
         >
           {item.cover_image ? (
             <Image

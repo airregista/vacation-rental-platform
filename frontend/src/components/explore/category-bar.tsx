@@ -105,7 +105,7 @@ export function CategoryBar({ selectedCategoryId, onSelectCategory }: CategoryBa
               type="button"
               variant={isSelected ? "default" : "outline"}
               size="sm"
-              onClick={() => onSelectCategory(cat.id)}
+              onClick={() => onSelectCategory(isSelected ? undefined : cat.id)}
               aria-pressed={isSelected}
               className="shrink-0 snap-start rounded-full gap-2 px-4 h-9 font-medium shadow-xs transition-colors"
             >

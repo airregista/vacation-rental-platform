@@ -322,7 +322,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
      - `slug.includes("apartment")` -> `Building`
      - fallback -> `Home` (from `lucide-react`)
    - Display `category.title` (NOT `name`).
-   - Clicking triggers `onSelectCategory(categoryId?: number)`.
+   - Clicking triggers `onSelectCategory(isSelected ? undefined : cat.id)`, allowing clicking an active category to toggle it off to `undefined` ("همه اقامتگاه‌ها") without requiring scrolling back to the first chip.
 
 **Verify**:
 ```powershell
@@ -334,14 +334,17 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 
 ### Step 3: Build Search Pill Component (`frontend/src/components/explore/search-pill.tsx`)
 
-1. Load tourist cities from `apiClient.get<City[]>("/geo/cities?limit=50")`. Format city options conditionally (`city.province?.name ? `${city.name} (${city.province.name})` : city.name`) to avoid rendering empty parentheses for cities without province assignments.
-2. **Desktop View (`>= md`)**: Segmented horizontal pill with Level 3 shadow (`rounded-full border border-border shadow-md bg-card p-2 flex items-center justify-between`):
+1. Load tourist cities from `apiClient.get<City[]>("/geo/cities?limit=50")`. Format city options conditionally (`city.province?.name ? `${city.name} (${city.province.name})` : city.name`) to avoid rendering empty parentheses for cities without province assignments. Explicitly style `<option>` tags with `className="text-foreground bg-background"` to prevent contrast/theme inversion on system dropdown menus in dark mode.
+2. Calendar & Date Validation:
+   - Calculate `todayStr` using local system date parts (`getFullYear()`, `getMonth() + 1`, `getDate()`) rather than UTC `.toISOString()` to prevent midnight and international timezone skew.
+   - Enforce check-out minimum boundary `minCheckOutStr`: when `checkIn` is selected, `min` strictly starts on the day after check-in (`d + 1`), preventing invalid same-day check-outs directly inside the browser date picker.
+3. **Desktop View (`>= md`)**: Segmented horizontal pill with Level 3 shadow (`rounded-full border border-border shadow-md bg-card p-2 flex items-center justify-between`):
    - Segment 1: مقصد (Destination selector with city dropdown/select).
    - Segment 2: تاریخ (Check-in and Check-out date pickers `<input type="date">`). Enforces both dates selected together.
    - Segment 3: مهمانان (Guest stepper `-` / `+`, minimum 1 guest, maximum 20 guests with `disabled={guests <= 1}` / `disabled={guests >= 20}` and `aria-label="افزایش مسافران"` / `aria-label="کاهش مسافران"`).
    - Filter Trigger: Button opening the advanced filter dialog.
    - Search button: Terracotta rounded button with `Search` icon ("جستجو").
-3. **Mobile View (`< md`)**:
+4. **Mobile View (`< md`)**:
    - Compact floating pill: Summarizes active committed search from `currentParams` ("کجا می‌روید؟ • هر زمان • نفرات").
    - Tapping opens a **3-Step Mobile Search Drawer** using canonical `Sheet` with `side="bottom"`:
      - Includes `<SheetTitle className="sr-only">جستجوی اقامتگاه</SheetTitle>` and `<SheetDescription className="sr-only">انتخاب مقصد، تاریخ و تعداد مسافران</SheetDescription>`.
@@ -395,6 +398,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
      }
      ```
    - 4:3 Aspect Ratio Cover Photo Container (`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted`):
+     - Wrapped in `<Link href={`/accommodations/${item.id}`} tabIndex={-1} aria-hidden="true">` to preserve click navigation while preventing redundant dual tab stops for keyboard and screen-reader accessibility.
      - If `item.cover_image` is present: renders Next.js `<Image fill unoptimized />` with `object-cover transition-transform duration-300 group-hover:scale-105`.
      - If `item.cover_image` is null: renders graceful fallback placeholder with `Home` icon and "بدون تصویر".
    - Floating Wishlist Heart Button:

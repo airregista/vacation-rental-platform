@@ -59,7 +59,24 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
     }
   }, [])
 
-  const todayStr = React.useMemo(() => new Date().toISOString().split("T")[0], [])
+  const todayStr = React.useMemo(() => {
+    const d = new Date()
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, "0")
+    const dd = String(d.getDate()).padStart(2, "0")
+    return `${yyyy}-${mm}-${dd}`
+  }, [])
+
+  const minCheckOutStr = React.useMemo(() => {
+    if (!checkIn) return todayStr
+    const [y, m, d] = checkIn.split("-").map(Number)
+    if (!y || !m || !d) return todayStr
+    const next = new Date(y, m - 1, d + 1)
+    const yyyy = next.getFullYear()
+    const mm = String(next.getMonth() + 1).padStart(2, "0")
+    const dd = String(next.getDate()).padStart(2, "0")
+    return `${yyyy}-${mm}-${dd}`
+  }, [checkIn, todayStr])
 
   const handleCheckInChange = (val: string) => {
     setCheckIn(val)
@@ -139,9 +156,9 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
               aria-label="انتخاب شهر مقصد"
               className="bg-transparent text-xs font-medium text-muted-foreground focus:outline-none cursor-pointer w-full truncate border-none p-0"
             >
-              <option value="">همه شهرها (کجا می‌روید؟)</option>
+              <option value="" className="text-foreground bg-background">همه شهرها (کجا می‌روید؟)</option>
               {cities.map((city) => (
-                <option key={city.id} value={city.id} className="text-foreground">
+                <option key={city.id} value={city.id} className="text-foreground bg-background">
                   {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
                 </option>
               ))}
@@ -171,7 +188,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
               <span className="text-[11px] font-bold text-foreground">خروج</span>
               <Input
                 type="date"
-                min={checkIn || todayStr}
+                min={minCheckOutStr}
                 value={checkOut}
                 onChange={(e) => handleCheckOutChange(e.target.value)}
                 aria-label="تاریخ خروج"
@@ -323,9 +340,9 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
                 aria-label="انتخاب شهر مقصد"
                 className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="">همه شهرها</option>
+                <option value="" className="text-foreground bg-background">همه شهرها</option>
                 {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
+                  <option key={city.id} value={city.id} className="text-foreground bg-background">
                     {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
                   </option>
                 ))}
@@ -354,7 +371,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
                   <span className="text-[11px] text-muted-foreground">تاریخ خروج</span>
                   <Input
                     type="date"
-                    min={checkIn || todayStr}
+                    min={minCheckOutStr}
                     value={checkOut}
                     onChange={(e) => handleCheckOutChange(e.target.value)}
                     aria-label="تاریخ خروج"
