@@ -376,12 +376,13 @@ Build the financial breakdown and order summary card based on `template/_3/code.
 1. **Property & Stay Presentation**:
    - Thumbnail image (from `accommodation.images[0].image_url` or fallback placeholder).
    - Property title and location (`city.name` • `province.name`).
-   - Check-in and check-out dates formatted with `new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "long", day: "numeric", timeZone: "UTC" })` on `new Date(dateStr.endsWith("Z") ? dateStr : `${dateStr}T00:00:00Z`)`, with standard check-in (ساعت ۱۴:۰۰) and check-out (ساعت ۱۲:۰۰) times.
+   - Check-in and check-out dates formatted with `new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "long", day: "numeric", timeZone: "UTC" })` on `isoStr` (defensively checking `dateStr.includes("T") ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z``), with standard check-in (ساعت ۱۴:۰۰) and check-out (ساعت ۱۲:۰۰) times.
    - Total nights (`X شب اقامت`) and guests count (`X نفر`).
 2. **Itemized Financial Ledger & Safe Derivation**:
    - `totalPayable = Number(reservation.total_price || 0)`
    - `cleaningFee = accommodation?.cleaning_fee ?? 0`
-   - `baseTotal = (accommodation?.base_price ?? 0) > 0 ? (accommodation?.base_price ?? 0) * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)`
+   - `basePrice = accommodation?.base_price ?? 0`
+   - `baseTotal = !reservation.coupon_code ? Math.max(0, totalPayable - cleaningFee) : basePrice > 0 ? basePrice * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)` (ensures line items strictly sum to total payable when extra guests or pricing exceptions exist).
    - `discountAmount = reservation.coupon_code ? Math.max(0, (baseTotal + cleaningFee) - totalPayable) : 0`
    - Displays nights stay amount: `new Intl.NumberFormat("fa-IR").format(baseTotal) + " تومان"`
    - Displays cleaning fee: `new Intl.NumberFormat("fa-IR").format(cleaningFee) + " تومان"` (only if `cleaningFee > 0`)
@@ -417,6 +418,7 @@ Implement the payment gateway modal with adaptive responsive design:
 1. **Payment Initiation & Duplicate Guard**:
    - When opened (`isOpen === true`), calls `POST /api/v1/payments/checkout` with `{ reservation_id: reservation.id }`.
    - Uses an initiation ref guard (`hasInitiatedRef`) or checks if `paymentData` is already initialized for this reservation to prevent duplicate POST requests under React 19 `StrictMode` double-mounting.
+   - Cleans up OTP `setTimeout` timers on modal unmount.
    - Stores returned `payment_id`, `tracking_code`, and `amount`.
 2. **Shaparak Gateway Form Simulation**:
    - Accepts optional `initialGateway?: string` (defaults to `"mellat"`), synchronizing selection from parent checkout page.
@@ -428,7 +430,7 @@ Implement the payment gateway modal with adaptive responsive design:
      - 16-digit Card Number input: formatted in 4-digit blocks (`XXXX - XXXX - XXXX - XXXX`) with `inputMode="numeric"`.
      - CVV2 input: 3 or 4 digits.
      - Expiry Month & Year inputs (`ماه / سال`).
-     - Dynamic Password (رمز پویا) input with simulated "دریافت رمز پویا" button (clicking populates a valid mock code e.g. `123456` and starts a 120s cooldown timer simulation).
+     - Dynamic Password (رمز پویا) input with simulated "دریافت رمز پویا" button (clicking populates a valid mock code e.g. `849201` and starts a 120s cooldown timer simulation with timeout cleanup ref).
 3. **Payment Verification & Confirmation**:
    - CTA button: "پرداخت و تایید نهایی (مبلغ: X تومان)".
    - Clicking triggers `POST /api/v1/payments/verify` with `{ payment_id, tracking_code, simulate_success: true }`.
@@ -442,7 +444,7 @@ Implement the payment gateway modal with adaptive responsive design:
        - Fires `onSuccess(paymentResponse)` callback to update reservation status in parent view.
    - On failure:
      - Shows error alert with server error details (`err.message`).
-     - If HTTP 409 Conflict occurs (overlapping booking confirmed concurrently), notifies the user that dates are no longer available and updates parent reservation status.
+     - If HTTP 409 Conflict occurs (overlapping booking confirmed concurrently) or session expired (HTTP 400), notifies the parent view via `onStatusChange?.("cancelled", reason)` and resets cached session refs so stale failed transactions are not retried.
      - Cancel button allows closing modal.
 
 ```typescript
@@ -453,6 +455,7 @@ export interface PaymentGatewayModalProps {
   onSuccess: (payment: PaymentResponse) => void
   onOpenInvoice?: (payment: PaymentResponse) => void
   initialGateway?: string
+  onStatusChange?: (status: "cancelled", reason: string) => void
 }
 ```
 
@@ -474,12 +477,13 @@ Build the official printable tax invoice modal matching `template/pdf/code.html`
      - **فروشنده (ارائه‌دهنده خدمت و کارمزد)**: شرکت توسعه فناوری گردشگری آشیانک (سهامی خاص), National Registration No., Postal Code, Address.
      - **خریدار (مهمان)**: Full guest name (`data.guest?.full_name || "مهمان آشیانک"`), contact phone number (`data.guest?.phone || "-"`), national code (`data.guest?.national_code || "-"`), email (`data.guest?.email || "-"`).
    - Itemized Accounting Table:
-     - Row 1: Stay description (`اقامت X شب در <عنوان اقامتگاه>`), dates, nights count, base total (`baseTotal = (accommodation?.base_price ?? 0) > 0 ? (accommodation?.base_price ?? 0) * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)`).
+     - Row 1: Stay description (`اقامت X شب در <عنوان اقامتگاه>`), dates, nights count, base total (`baseTotal = !reservation.coupon_code ? Math.max(0, totalPayable - cleaningFee) : basePrice > 0 ? basePrice * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)`).
      - Row 2: Cleaning and hospitality services fee (`data.accommodation?.cleaning_fee ?? 0`).
      - Row 3: Promotional discount coupon (if `data.reservation.coupon_code` is present and `discountAmount = Math.max(0, baseTotal + cleaningFee - totalPayable) > 0`).
      - Row 4: Platform commission & VAT tax notice.
      - Total: Net paid amount in Toman (`new Intl.NumberFormat("fa-IR").format(Number(data.payment.amount || data.reservation.total_price))`) and Persian words description.
    - Digital Seal Badge: "تاییدشده در سامانه مودیان مالیاتی / معتبر با امضای دیجیتال".
+   - Safe Date Formatting: uses `isoStr` defensive check (`dateStr.includes("T") ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z``) to avoid double-appending `T`.
 2. **Print Handling (`@media print`)**:
    - Top action bar includes: "چاپ فاکتور رسمی" (`window.print()`) and "بستن" (`onClose`).
    - Encapsulated `@media print` CSS ensures clean A4 portrait printing by suppressing dialog backdrops, resetting color variables for dark-mode compatibility, and body overflow locks:
@@ -510,6 +514,16 @@ Build the official printable tax invoice modal matching `template/pdf/code.html`
      ```
 
 ```typescript
+export interface PaymentGatewayModalProps {
+  isOpen: boolean
+  onClose: () => void
+  reservation: ReservationDetail
+  onSuccess: (payment: PaymentResponse) => void
+  onOpenInvoice?: (payment: PaymentResponse) => void
+  initialGateway?: string
+  onStatusChange?: (status: "cancelled", reason: string) => void
+}
+
 export interface InvoiceModalProps {
   isOpen: boolean
   onClose: () => void
@@ -551,14 +565,14 @@ Assemble the complete responsive checkout page:
      - 3-Step Checkout Stepper at top.
      - Countdown Timer banner (rendered strictly when `isPending` is true: `{isPending && <CountdownTimer ... />}`).
      - Guest contact details card with editable fields.
-     - Payment Gateway selector card (composed with canonical `RadioGroup` and `RadioGroupItem`). Passes selected gateway to modal via `initialGateway={gateway}`.
+     - Payment Gateway selector card (composed with canonical `RadioGroup` and `RadioGroupItem`). Passes selected gateway to modal via `initialGateway={gateway}` and synchronization via `onStatusChange={handleReservationStatusChange}`.
      - Cancellation policy explanation and terms agreement checkbox (`قوانین و مقررات را خوانده‌ام و موافقم`).
      - "انتقال به درگاه امن بانکی و پرداخت" button (disabled if terms unchecked, inputs invalid, or timer expired).
      - Right sidebar on desktop: Reservation Order Summary card.
      - Mobile: Sticky bottom bar with total price and "پرداخت امن" CTA opening payment modal.
    - **Confirmed State**:
      - Success banner with booking confirmation code.
-     - Buttons to open Invoice Modal (passing assembled `guest` info) or navigate to `/trips`.
+     - Buttons to open Invoice Modal (passing assembled `guest` info and preserving actual historical timestamp from `latestPayment?.paid_at || reservation.updated_at || reservation.created_at`) or navigate to `/trips`.
    - **Expired / Cancelled State**:
      - Friendly alert informing guest that the booking hold has expired.
      - Button to browse other listings (`/`) or return to property (`/accommodations/${reservation.accommodation_id}`).
