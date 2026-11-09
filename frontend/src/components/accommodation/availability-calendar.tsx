@@ -1,0 +1,396 @@
+"use client"
+
+import * as React from "react"
+import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, AlertCircle, RotateCcw } from "lucide-react"
+import { apiClient } from "@/lib/api-client"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import type { CalendarDayInfo } from "@/types/detail"
+
+export interface AvailabilityCalendarProps {
+  accommodationId: number
+  minNights: number
+  basePrice: number
+  checkIn: string | null
+  checkOut: string | null
+  onDateRangeChange: (checkIn: string | null, checkOut: string | null) => void
+}
+
+interface CalendarMonthGroup {
+  key: string // e.g. "1405-8"
+  title: string // e.g. "آبان ۱۴۰۵"
+  leadingBlanks: number
+  days: {
+    isoDate: string
+    persianDay: number
+    dayInfo: CalendarDayInfo
+  }[]
+}
+
+const WEEK_DAYS = ["ش", "ی", "د", "س", "چ", "پ", "ج"]
+
+const emptySubscribe = () => () => {}
+
+export function AvailabilityCalendar({
+  accommodationId,
+  minNights,
+  basePrice,
+  checkIn,
+  checkOut,
+  onDateRangeChange,
+}: AvailabilityCalendarProps) {
+  const [calendarDays, setCalendarDays] = React.useState<CalendarDayInfo[]>([])
+  const [isLoading, setIsLoading] = React.useState<boolean>(true)
+  const [errorNotice, setErrorNotice] = React.useState<string | null>(null)
+  const [mobileMonthIndex, setMobileMonthIndex] = React.useState(0)
+
+  const isClient = React.useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  )
+
+  // Fetch 60-day calendar availability
+  React.useEffect(() => {
+    let isCurrent = true
+
+    const fetchCalendar = async () => {
+      try {
+        const data = await apiClient.get<CalendarDayInfo[]>(
+          `/accommodations/${accommodationId}/calendar?days=60`
+        )
+        if (isCurrent) {
+          setCalendarDays(data || [])
+          setIsLoading(false)
+        }
+      } catch {
+        if (isCurrent) {
+          setCalendarDays([])
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchCalendar()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [accommodationId])
+
+  // Fast map lookup for date availability and price
+  const daysMap = React.useMemo(() => {
+    const map = new Map<string, CalendarDayInfo>()
+    for (const d of calendarDays) {
+      map.set(d.date, d)
+    }
+    return map
+  }, [calendarDays])
+
+  // Group days into Persian months
+  const months = React.useMemo<CalendarMonthGroup[]>(() => {
+    if (calendarDays.length === 0) return []
+
+    const groups: Map<string, CalendarMonthGroup> = new Map()
+
+    for (const d of calendarDays) {
+      const dateObj = new Date(d.date + "T00:00:00Z")
+
+      // Extract Persian parts
+      const parts = new Intl.DateTimeFormat("en-u-ca-persian", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).formatToParts(dateObj)
+
+      let pYear = "1405"
+      let pMonth = "1"
+      let pDay = 1
+
+      for (const part of parts) {
+        if (part.type === "year") pYear = part.value
+        if (part.type === "month") pMonth = part.value
+        if (part.type === "day") pDay = parseInt(part.value, 10)
+      }
+
+      const key = `${pYear}-${pMonth}`
+
+      if (!groups.has(key)) {
+        const monthName = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+          month: "long",
+        }).format(dateObj)
+        const yearPersian = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+          year: "numeric",
+        }).format(dateObj)
+
+        // Weekday index starting from Saturday (0: Sat, ..., 6: Fri)
+        const firstDayWeekday = (dateObj.getUTCDay() + 1) % 7
+
+        groups.set(key, {
+          key,
+          title: `${monthName} ${yearPersian}`,
+          leadingBlanks: firstDayWeekday,
+          days: [],
+        })
+      }
+
+      groups.get(key)!.days.push({
+        isoDate: d.date,
+        persianDay: pDay,
+        dayInfo: d,
+      })
+    }
+
+    return Array.from(groups.values())
+  }, [calendarDays])
+
+  // Date difference helper in days
+  const getNights = (d1: string, d2: string): number => {
+    const t1 = new Date(d1 + "T00:00:00Z").getTime()
+    const t2 = new Date(d2 + "T00:00:00Z").getTime()
+    return Math.round((t2 - t1) / (1000 * 60 * 60 * 24))
+  }
+
+  // Check if any day in [start, end) has is_available === false
+  const hasBlockedDaysInRange = (
+    start: string,
+    end: string,
+    lookup: Map<string, CalendarDayInfo>
+  ): boolean => {
+    const cur = new Date(start + "T00:00:00Z")
+    const endDate = new Date(end + "T00:00:00Z")
+    while (cur < endDate) {
+      const dateStr = cur.toISOString().split("T")[0]
+      const info = lookup.get(dateStr)
+      if (!info || !info.is_available) {
+        return true
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1)
+    }
+    return false
+  }
+
+  // Handle Day Click Selection
+  const handleDayClick = (clickedDate: string, dayInfo: CalendarDayInfo) => {
+    if (!dayInfo.is_available) return
+    setErrorNotice(null)
+
+    // Initial click or reset if both are already chosen
+    if (!checkIn || (checkIn && checkOut)) {
+      onDateRangeChange(clickedDate, null)
+      return
+    }
+
+    // Second click when checkIn is selected and !checkOut
+    if (clickedDate <= checkIn) {
+      // User clicked same or earlier date: reset checkIn to this date
+      onDateRangeChange(clickedDate, null)
+      return
+    }
+
+    // Check if any date in [checkIn, clickedDate) is unavailable
+    if (hasBlockedDaysInRange(checkIn, clickedDate, daysMap)) {
+      setErrorNotice("امکان انتخاب بازه‌ای که شامل روزهای پرشده باشد وجود ندارد.")
+      onDateRangeChange(clickedDate, null)
+      return
+    }
+
+    // Check minimum nights invariant
+    const nights = getNights(checkIn, clickedDate)
+    const effectiveMinNights = dayInfo.min_nights || minNights
+    if (nights < effectiveMinNights) {
+      setErrorNotice(`حداقل مدت اقامت در این بازه ${formatPersian(effectiveMinNights)} شب است.`)
+      return
+    }
+
+    // Valid range selected
+    onDateRangeChange(checkIn, clickedDate)
+  }
+
+  const handleClearDates = () => {
+    setErrorNotice(null)
+    onDateRangeChange(null, null)
+  }
+
+  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+
+  if (!isClient) {
+    return <div className="h-64 rounded-2xl bg-muted/40 animate-pulse" />
+  }
+
+  const renderMonth = (month: CalendarMonthGroup) => {
+    return (
+      <div key={month.key} className="flex-1 min-w-[280px]">
+        <div className="text-center font-semibold text-sm mb-4 text-foreground">
+          {month.title}
+        </div>
+
+        {/* Day of Week Headers */}
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground font-medium mb-2">
+          {WEEK_DAYS.map((w, i) => (
+            <div key={i} className="py-1">
+              {w}
+            </div>
+          ))}
+        </div>
+
+        {/* Day Grid */}
+        <div className="grid grid-cols-7 gap-y-1 gap-x-1">
+          {/* Leading Blanks */}
+          {Array.from({ length: month.leadingBlanks }).map((_, i) => (
+            <div key={`blank-${i}`} className="h-12 w-full" />
+          ))}
+
+          {/* Actual Days */}
+          {month.days.map(({ isoDate, persianDay, dayInfo }) => {
+            const isStart = checkIn === isoDate
+            const isEnd = checkOut === isoDate
+            const isInRange =
+              checkIn && checkOut && isoDate > checkIn && isoDate < checkOut
+            const isBlocked = !dayInfo.is_available
+            const effectivePrice = dayInfo.price > 0 ? dayInfo.price : basePrice
+
+            let dayStyle = "text-foreground hover:bg-accent cursor-pointer rounded-lg"
+            if (isBlocked) {
+              dayStyle =
+                "opacity-40 line-through text-muted-foreground pointer-events-none bg-transparent cursor-not-allowed"
+            } else if (isStart && isEnd) {
+              dayStyle = "bg-primary text-primary-foreground font-bold rounded-lg shadow-sm"
+            } else if (isStart) {
+              dayStyle =
+                "bg-primary text-primary-foreground font-bold rounded-r-lg rounded-l-none shadow-sm"
+            } else if (isEnd) {
+              dayStyle =
+                "bg-primary text-primary-foreground font-bold rounded-l-lg rounded-r-none shadow-sm"
+            } else if (isInRange) {
+              dayStyle = "bg-primary/10 text-primary font-medium rounded-none"
+            }
+
+            return (
+              <button
+                type="button"
+                key={isoDate}
+                disabled={isBlocked}
+                onClick={() => handleDayClick(isoDate, dayInfo)}
+                className={`h-12 flex flex-col items-center justify-center transition-colors select-none ${dayStyle}`}
+              >
+                <span className="text-xs leading-none">
+                  {formatPersian(persianDay)}
+                </span>
+                {!isBlocked && effectivePrice > 0 && (
+                  <span
+                    className={`text-[9px] mt-1 leading-none truncate max-w-full px-0.5 ${
+                      isStart || isEnd
+                        ? "text-primary-foreground/90 font-light"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {formatPersian(Math.round(effectivePrice / 1000))}ک
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            <span>تقویم و ظرفیت اقامتگاه</span>
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            قیمت‌ها بر حسب هزار تومان نمایش داده شده‌اند.
+          </p>
+        </div>
+
+        {(checkIn || checkOut) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClearDates}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>پاک کردن تاریخ‌ها</span>
+          </Button>
+        )}
+      </div>
+
+      {/* Minimum Stay Alert */}
+      {minNights > 1 && (
+        <Alert variant="default" className="py-2.5 bg-muted/60 border-border">
+          <AlertCircle className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-xs font-semibold">شرط حداقل اقامت</AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">
+            حداقل مدت اقامت در این اقامتگاه {formatPersian(minNights)} شب است.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Selection Validation Error Alert */}
+      {errorNotice && (
+        <Alert variant="destructive" className="py-2.5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{errorNotice}</AlertDescription>
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <div className="h-64 rounded-2xl bg-muted/30 animate-pulse flex items-center justify-center text-muted-foreground text-sm">
+          در حال بارگذاری تقویم...
+        </div>
+      ) : months.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground border rounded-2xl bg-muted/20">
+          اطلاعات تقویم برای این اقامتگاه یافت نشد.
+        </div>
+      ) : (
+        <div className="border border-border rounded-2xl p-4 sm:p-6 bg-card">
+          {/* Desktop: 2 side-by-side months */}
+          <div className="hidden md:flex gap-8">
+            {months.slice(0, 2).map((month) => renderMonth(month))}
+          </div>
+
+          {/* Mobile: 1 month with switcher */}
+          <div className="block md:hidden">
+            <div className="flex items-center justify-between mb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="ماه قبل"
+                disabled={mobileMonthIndex === 0}
+                onClick={() => setMobileMonthIndex((prev) => Math.max(0, prev - 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                ماه {formatPersian(mobileMonthIndex + 1)} از {formatPersian(months.length)}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="ماه بعد"
+                disabled={mobileMonthIndex >= months.length - 1}
+                onClick={() =>
+                  setMobileMonthIndex((prev) => Math.min(months.length - 1, prev + 1))
+                }
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </div>
+            {months[mobileMonthIndex] && renderMonth(months[mobileMonthIndex])}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
