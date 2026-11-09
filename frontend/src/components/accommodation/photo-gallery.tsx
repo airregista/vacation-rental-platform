@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -317,14 +318,14 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
 
       {/* Full-Screen Lightbox Modal */}
       <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
-        <DialogContent
-          className="max-w-5xl w-full h-[90vh] flex flex-col p-4 sm:p-6 bg-background"
-          aria-describedby={undefined}
-        >
+        <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-4 sm:p-6 bg-background">
           <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border">
             <DialogTitle className="text-base font-medium truncate max-w-[70%]">
               {title}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              مشاهده تصاویر اقامتگاه در اندازه بزرگ
+            </DialogDescription>
             <Badge variant="outline" className="text-xs">
               {formatPersian(activePhotoIndex + 1)} / {formatPersian(totalImages)}
             </Badge>

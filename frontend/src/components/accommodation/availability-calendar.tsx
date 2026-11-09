@@ -102,6 +102,7 @@ export function AvailabilityCalendar({
 
       // Extract Persian parts
       const parts = new Intl.DateTimeFormat("en-u-ca-persian", {
+        timeZone: "UTC",
         year: "numeric",
         month: "numeric",
         day: "numeric",
@@ -121,9 +122,11 @@ export function AvailabilityCalendar({
 
       if (!groups.has(key)) {
         const monthName = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+          timeZone: "UTC",
           month: "long",
         }).format(dateObj)
         const yearPersian = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+          timeZone: "UTC",
           year: "numeric",
         }).format(dateObj)
 
@@ -319,8 +322,9 @@ export function AvailabilityCalendar({
             } else if (isStart && isEnd) {
               dayStyle = "bg-primary text-primary-foreground font-bold rounded-lg shadow-sm"
             } else if (isStart) {
-              dayStyle =
-                "bg-primary text-primary-foreground font-bold rounded-r-lg rounded-l-none shadow-sm"
+              dayStyle = checkOut
+                ? "bg-primary text-primary-foreground font-bold rounded-r-lg rounded-l-none shadow-sm"
+                : "bg-primary text-primary-foreground font-bold rounded-lg shadow-sm"
             } else if (isEnd) {
               dayStyle =
                 "bg-primary text-primary-foreground font-bold rounded-l-lg rounded-r-none shadow-sm"
@@ -351,7 +355,7 @@ export function AvailabilityCalendar({
                         : "text-muted-foreground"
                     }`}
                   >
-                    {formatPersian(Math.round(effectivePrice / 1000))}ک
+                    {formatPersian(Math.round(effectivePrice / 1000))}
                   </span>
                 )}
               </button>

@@ -30,6 +30,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -212,6 +213,7 @@ export function BookingWidget({
     try {
       const d = new Date(isoStr + "T00:00:00Z")
       return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        timeZone: "UTC",
         month: "numeric",
         day: "numeric",
       }).format(d)
@@ -575,6 +577,9 @@ export function BookingWidget({
                 <SheetTitle className="text-base font-bold">
                   رزرو {accommodation.title}
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  انتخاب تاریخ و جزئیات رزرو اقامتگاه
+                </SheetDescription>
               </SheetHeader>
               <div className="py-4">
                 {renderBookingContent()}
