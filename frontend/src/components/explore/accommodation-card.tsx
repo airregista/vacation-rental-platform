@@ -32,7 +32,10 @@ export function AccommodationCard({
 
   const ratingDisplay = React.useMemo(() => {
     if (item.average_rating && item.average_rating > 0) {
-      return item.average_rating.toFixed(1)
+      return new Intl.NumberFormat("fa-IR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(item.average_rating)
     }
     return "جدید"
   }, [item.average_rating])
@@ -102,7 +105,7 @@ export function AccommodationCard({
       <div className="pt-3 pb-1 px-1 flex flex-col gap-1 text-right">
         <Link
           href={`/accommodations/${item.id}`}
-          className="hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm truncate"
+          className="block hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm truncate"
         >
           <h3 className="font-bold text-sm sm:text-base text-foreground truncate">
             {item.title}

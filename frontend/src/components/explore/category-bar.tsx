@@ -27,7 +27,7 @@ function getCategoryIcon(slug: string) {
   if (normalized.includes("villa") || normalized.includes("pool") || normalized.includes("estakhr")) {
     return Waves
   }
-  if (normalized.includes("ecotourism") || normalized.includes("boom") || normalized.includes("tabiat")) {
+  if (normalized.includes("eco") || normalized.includes("boom") || normalized.includes("tabiat")) {
     return Tent
   }
   if (normalized.includes("apartment") || normalized.includes("suite")) {

@@ -9,7 +9,7 @@ export function buildAccommodationQuery(params: AccommodationSearchParams): stri
   if (params.guests_count !== undefined && params.guests_count > 0) query.set("guests_count", String(params.guests_count))
   if (params.min_rooms !== undefined && params.min_rooms > 0) query.set("min_rooms", String(params.min_rooms))
   if (params.min_beds !== undefined && params.min_beds > 0) query.set("min_beds", String(params.min_beds))
-  if (params.min_price !== undefined) query.set("min_price", String(params.min_price))
+  if (params.min_price !== undefined && params.min_price > 0) query.set("min_price", String(params.min_price))
   if (params.max_price !== undefined) query.set("max_price", String(params.max_price))
 
   // Date invariant: Both check_in and check_out must be supplied together

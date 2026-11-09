@@ -277,7 +277,7 @@ This view strictly leverages canonical Shadcn UI primitives. Hand-rolled custom 
      if (params.guests_count !== undefined && params.guests_count > 0) query.set("guests_count", String(params.guests_count))
      if (params.min_rooms !== undefined && params.min_rooms > 0) query.set("min_rooms", String(params.min_rooms))
      if (params.min_beds !== undefined && params.min_beds > 0) query.set("min_beds", String(params.min_beds))
-     if (params.min_price !== undefined) query.set("min_price", String(params.min_price))
+     if (params.min_price !== undefined && params.min_price > 0) query.set("min_price", String(params.min_price))
      if (params.max_price !== undefined) query.set("max_price", String(params.max_price))
 
      // Date invariant: Both check_in and check_out must be supplied together
@@ -318,7 +318,7 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
    - Persian icons mapped by category slug with fallback:
      - `slug.includes("cottage")` or `slug.includes("choobi")` -> `TreePine`
      - `slug.includes("villa")` or `slug.includes("pool")` or `slug.includes("estakhr")` -> `Waves`
-     - `slug.includes("ecotourism")` or `slug.includes("boom")` -> `Tent`
+     - `slug.includes("eco")` or `slug.includes("boom")` -> `Tent`
      - `slug.includes("apartment")` -> `Building`
      - fallback -> `Home` (from `lucide-react`)
    - Display `category.title` (NOT `name`).
@@ -403,9 +403,9 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
      - Heart icon filled with terracotta `text-primary fill-primary` when `isWishlisted` is true.
      - On click: Calls `onToggleWishlist?.(item.id)`. (Parent manages optimistic state update, auth checks via `openOtpModal()`, in-flight request debouncing, and API synchronization).
    - Card Content:
-     - Title: `font-bold text-base truncate text-foreground`.
+     - Title: Wrapped in `<Link>` with `block truncate` and `<h3>` `font-bold text-base truncate text-foreground`.
      - Location: `{item.city?.name}، {item.city?.province?.name || ""}` in `text-sm text-muted-foreground flex items-center gap-1`.
-     - Rating Badge: `★ {item.average_rating ? item.average_rating.toFixed(1) : "جدید"}` using `Badge variant="secondary"`.
+     - Rating Badge: `★ {item.average_rating ? new Intl.NumberFormat('fa-IR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(item.average_rating) : "جدید"}` using `Badge variant="secondary"`.
      - Price: `{new Intl.NumberFormat('fa-IR').format(Number(item.base_price) || 0)} تومان / شب` in `text-sm font-semibold text-primary`.
 2. Create `frontend/src/components/explore/accommodation-grid.tsx`:
    - Component Props:
@@ -442,12 +442,12 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
    - Sticky top bar with `SearchPill`.
    - `CategoryBar` for quick property type filtering.
    - `FilterDialog` for advanced price, room, and amenity adjustments.
-   - `AccommodationGrid` displaying fetched accommodations.
+   - `AccommodationGrid` displaying fetched accommodations inside a semantic `<section aria-label="محتوای اقامتگاه‌ها">` avoiding duplicate `<main>` landmarks within the layout root.
 2. State Management:
    - `searchParams`: Stores current `AccommodationSearchParams`.
    - `accommodations`: `AccommodationListItem[]`.
    - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/?limit=100` to prevent default 20-item pagination truncation.
-   - `activeWishlistIds`: Derived via `React.useMemo(() => (token ? wishlistIds : new Set<number>()), [token, wishlistIds])` ensuring logged-out sessions immediately clear cached favorites without stale state leakage.
+   - `activeWishlistIds`: Derived via `React.useMemo(() => (token ? wishlistIds : new Set<number>()), [token, wishlistIds])` ensuring logged-out sessions immediately clear cached favorites without stale state leakage and without triggering React 19 `react-hooks/set-state-in-effect` cascading renders.
    - `pendingWishlistIds`: `Set<number>` tracking in-flight toggle requests to prevent rapid multi-click concurrency and state inversion.
    - Wishlist Toggle Handler:
      ```typescript

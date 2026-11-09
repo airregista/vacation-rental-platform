@@ -215,7 +215,7 @@ export default function Home() {
       />
 
       {/* Main Accommodations Content */}
-      <main className="flex-1 py-4">
+      <section aria-label="محتوای اقامتگاه‌ها" className="flex-1 py-4">
         {fetchError ? (
           <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
             <div className="size-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
@@ -245,7 +245,7 @@ export default function Home() {
             onClearFilters={handleClearFilters}
           />
         )}
-      </main>
+      </section>
     </div>
   )
 }
