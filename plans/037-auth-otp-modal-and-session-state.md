@@ -20,7 +20,7 @@
 - **Depends on**: plans/036-nextjs-shadcn-scaffold-and-warm-persian-theme.md
 - **Category**: direction
 - **Planned at**: commit `677a622`, 2026-11-09
-- **Implemented at**: commit `c3e64a3` (hardened in subsequent commits), branch `advisor/037-auth-otp-modal-and-session-state`
+- **Implemented at**: commit `4474662`, branch `advisor/037-auth-otp-modal-and-session-state`
 
 ## Why this matters
 
