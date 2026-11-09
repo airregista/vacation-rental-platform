@@ -90,6 +90,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }, [])
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout()
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("auth:unauthorized", handleUnauthorized)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("auth:unauthorized", handleUnauthorized)
+      }
+    }
+  }, [logout])
+
   const value = useMemo<AuthContextType>(
     () => ({
       user,

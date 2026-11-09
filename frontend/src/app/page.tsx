@@ -5,7 +5,7 @@ import { Compass, ShieldCheck, HeartHandshake, Sparkles, MapPin } from "lucide-r
 
 export default function Home() {
   return (
-    <main className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-border bg-gradient-to-b from-muted/50 to-background">
         <div className="max-w-4xl mx-auto text-center space-y-6">
@@ -72,6 +72,6 @@ export default function Home() {
           </Card>
         </div>
       </section>
-    </main>
+    </div>
   )
 }

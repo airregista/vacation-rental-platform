@@ -388,7 +388,10 @@ export function OtpModal() {
           <div className="space-y-2 text-center sm:text-right">
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => {
+                setStep(1)
+                setError(null)
+              }}
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <ArrowRight className="h-3.5 w-3.5" />
@@ -432,6 +435,7 @@ export function OtpModal() {
                     inputMode="numeric"
                     maxLength={1}
                     value={toPersianDigits(digit)}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleDigitKeyDown(idx, e)}
                     onPaste={idx === 0 ? handlePaste : undefined}

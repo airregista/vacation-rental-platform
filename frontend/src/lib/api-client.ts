@@ -42,6 +42,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("access_token")
+      window.dispatchEvent(new Event("auth:unauthorized"))
     }
     let errorDetail = "خطای سرور رخ داده است"
     try {

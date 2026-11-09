@@ -24,6 +24,7 @@ import {
   User,
   Home,
 } from "lucide-react"
+import { ApiError } from "@/lib/api-client"
 
 export function Header() {
   const router = useRouter()
@@ -43,8 +44,10 @@ export function Header() {
     try {
       await becomeHost()
       router.push("/host")
-    } catch {
-      // handled by api-client toast/error
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
+      alert(message)
     } finally {
       setIsPromoting(false)
     }

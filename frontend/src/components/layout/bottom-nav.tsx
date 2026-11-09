@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { ApiError } from "@/lib/api-client"
 
 export function BottomNav() {
   const pathname = usePathname()
@@ -43,8 +44,10 @@ export function BottomNav() {
       await becomeHost()
       setIsProfileDrawerOpen(false)
       router.push("/host")
-    } catch {
-      // Handled by api client
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
+      alert(message)
     } finally {
       setIsPromoting(false)
     }
