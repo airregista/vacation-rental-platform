@@ -65,7 +65,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const text = await response.text()
-  return (text ? JSON.parse(text) : {}) as T
+  if (!text) {
+    return {} as T
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return text as unknown as T
+  }
 }
 
 export const apiClient = {

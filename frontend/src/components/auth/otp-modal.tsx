@@ -36,7 +36,7 @@ import {
 function toEnglishDigits(str: string): string {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
   const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"]
-  let result = str
+  let result = String(str ?? "")
   for (let i = 0; i < 10; i++) {
     result = result.replace(new RegExp(persianDigits[i], "g"), i.toString())
     result = result.replace(new RegExp(arabicDigits[i], "g"), i.toString())
@@ -273,6 +273,12 @@ export function OtpModal() {
         nextDigits[index] = ""
         setOtpDigits(nextDigits)
       }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault()
+      otpRefs.current[index - 1]?.focus()
+    } else if (e.key === "ArrowRight" && index < 3) {
+      e.preventDefault()
+      otpRefs.current[index + 1]?.focus()
     }
   }
 
