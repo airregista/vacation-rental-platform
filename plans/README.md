@@ -45,7 +45,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **035** | `035-backend-otp-and-host-role-extension.md` | P1 | S | — | **DONE** | `main` | `ba4afa7` |
 | **036** | `036-nextjs-shadcn-scaffold-and-warm-persian-theme.md` | P1 | M | 035 | **DONE** | `main` | `ba4afa7` |
 | **037** | `037-auth-otp-modal-and-session-state.md` | P1 | M | 036 | **DONE** | `main` | `ba4afa7` |
-| **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **DONE** | `advisor/038-explore-search-filters-and-listing-grid` | `9e03cb5` |
+| **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **DONE** | `main` | `53629b4` |
 | **039** | `039-accommodation-detail-and-booking-engine.md` | P1 | L | 036, 037 | **TODO** | `advisor/039-accommodation-detail-and-booking-engine` | `677a622` |
 | **040** | `040-checkout-lifecycle-shaparak-and-invoice.md` | P1 | M | 039 | **TODO** | `advisor/040-checkout-lifecycle-shaparak-and-invoice` | `677a622` |
 | **041** | `041-my-trips-cancellation-preview-and-host-chat.md` | P1 | L | 036, 037 | **TODO** | `advisor/041-my-trips-cancellation-preview-and-host-chat` | `677a622` |
@@ -263,7 +263,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
     - Implements dedicated **Fixed Mobile Bottom Navigation Bar** (`bottom-nav.tsx`) for 1-tap mobile navigation (خانه، علاقه‌مندی‌ها، سفرهای من، پروفایل/ورود).
     - Implements responsive navigation header with "میزبان شوید" CTA and user menu, plus responsive footer.
 
-11. **Plan 038 — Implement Explore Page with Destination Search Pill, Category Bar, Filter Modal, and Listing Grid (`advisor/038-explore-search-filters-and-listing-grid`)**:
+11. **Plan 038 — Implement Explore Page with Destination Search Pill, Category Bar, Filter Modal, and Listing Grid (`main`)**:
     - Implements segmented search pill on desktop and compact search shortcut on mobile opening a **Full-Screen 3-Step Search Drawer** (Destination, Dates, Guests).
     - Implements touch-momentum horizontal category selector bar (`overflow-x-auto scrollbar-none snap-x`).
     - Implements comprehensive filter: floating dialog on desktop and slide-up bottom sheet with sticky footer on mobile.
