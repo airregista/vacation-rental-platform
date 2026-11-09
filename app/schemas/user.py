@@ -102,3 +102,37 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class UserOTPRequest(BaseModel):
+    phone: str = Field(description="Iranian mobile phone number")
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_and_normalize_phone(cls, v: str) -> str:
+        return normalize_iranian_phone(v)
+
+
+class UserOTPVerify(BaseModel):
+    phone: str = Field(description="Iranian mobile phone number")
+    code: str = Field(min_length=4, max_length=6, description="OTP verification code")
+    first_name: str | None = Field(default=None, max_length=50)
+    last_name: str | None = Field(default=None, max_length=50)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_and_normalize_phone(cls, v: str) -> str:
+        return normalize_iranian_phone(v)
+
+    @field_validator("code", mode="before")
+    @classmethod
+    def normalize_code(cls, v: object) -> object:
+        if v is None:
+            return v
+        return str(v).strip().translate(PERSIAN_ARABIC_DIGITS)
+
+
+class OTPResponse(BaseModel):
+    message: str
+    dev_code: str | None = None
+    expires_in_seconds: int = 300

@@ -89,3 +89,15 @@ async def get_optional_current_user(
 
 
 OptionalCurrentUserDep = Annotated[User | None, Depends(get_optional_current_user)]
+
+
+async def get_current_host_or_admin(current_user: CurrentUserDep) -> User:
+    if current_user.role not in ("admin", "host"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Host or Admin privileges required to perform this action",
+        )
+    return current_user
+
+
+CurrentHostOrAdminDep = Annotated[User, Depends(get_current_host_or_admin)]

@@ -245,7 +245,12 @@ export function OtpModal() {
 
     // Ignore non-digit characters
     const singleDigit = digitsOnly.slice(-1)
-    if (!singleDigit) return
+    if (!singleDigit) {
+      if (otpRefs.current[index]) {
+        otpRefs.current[index]!.value = toPersianDigits(otpDigits[index])
+      }
+      return
+    }
 
     const nextDigits = [...otpDigits]
     nextDigits[index] = singleDigit
@@ -261,6 +266,17 @@ export function OtpModal() {
   }
 
   const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey &&
+      e.key.length === 1 &&
+      !/^\d$/.test(toEnglishDigits(e.key))
+    ) {
+      e.preventDefault()
+      return
+    }
+
     if (e.key === "Enter") {
       e.preventDefault()
       if (!isSubmitting && otpDigits.every((d) => d.length === 1)) {
@@ -468,12 +484,33 @@ export function OtpModal() {
           </div>
 
           {/* Mandatory Test Code Banner */}
-          <Alert className="border-secondary/40 bg-secondary/10 text-secondary-foreground">
-            <Info className="h-4 w-4 text-secondary" />
-            <AlertTitle className="font-bold text-sm">کد تایید آزمایشی سیستم</AlertTitle>
-            <AlertDescription className="text-xs leading-relaxed mt-1">
-              جهت بررسی و ارزیابی سامانه، کد آزمایشی <strong>۱۲۳۴</strong> را وارد نمایید.
-            </AlertDescription>
+          <Alert className="border-secondary/40 bg-secondary/10 text-secondary-foreground p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <AlertTitle className="font-bold text-sm">کد تایید آزمایشی سیستم</AlertTitle>
+                  <AlertDescription className="text-xs leading-relaxed">
+                    جهت بررسی و ارزیابی سامانه، کد آزمایشی <strong>۱۲۳۴</strong> را وارد نمایید.
+                  </AlertDescription>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const testCode = ["1", "2", "3", "4"]
+                  setOtpDigits(testCode)
+                  otpRefs.current[3]?.focus()
+                  handleVerifySubmit("1234")
+                }}
+                disabled={isSubmitting}
+                className="shrink-0 h-8 px-2.5 rounded-lg border-secondary/40 text-secondary font-mono text-xs font-bold hover:bg-secondary/20 cursor-pointer self-end sm:self-center"
+              >
+                درج خودکار ۱۲۳۴
+              </Button>
+            </div>
           </Alert>
 
           {/* Step 2 OTP 4-Digit Input */}

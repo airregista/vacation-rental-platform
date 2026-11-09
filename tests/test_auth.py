@@ -297,3 +297,160 @@ async def test_invalid_email_format_rejected(client: AsyncClient):
             },
         )
         assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_otp_send_and_verify_flow(client: AsyncClient):
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+
+    # 0. Rejection of OTP verification without prior send
+    unrequested_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    assert unrequested_res.status_code == 400
+
+    # 1. Send OTP
+    send_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert send_res.status_code == 200
+    data = send_res.json()
+    assert data["dev_code"] == "1234"
+
+    # 2. Rejection of invalid OTP
+    bad_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "9999"},
+    )
+    assert bad_res.status_code == 400
+
+    # 3. Successful verification with 1234 creates user and issues JWT
+    ok_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234", "first_name": "تست", "last_name": "پیامکی"},
+    )
+    assert ok_res.status_code == 200
+    token_data = ok_res.json()
+    assert "access_token" in token_data
+    assert token_data["user"]["phone"] == random_phone
+    assert token_data["user"]["first_name"] == "تست"
+    assert token_data["user"]["role"] == "guest"
+
+    # 4. Replay attack rejection: code already evicted on success
+    replay_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    assert replay_res.status_code == 400
+
+    # 5. Schema validation: code=null returns 422 Unprocessable Entity
+    null_code_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": None},
+    )
+    assert null_code_res.status_code == 422
+
+    # 6. Existing user re-login with OTP (does not duplicate user, issues valid JWT)
+    await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    relogin_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    assert relogin_res.status_code == 200
+    assert relogin_res.json()["user"]["id"] == token_data["user"]["id"]
+
+    # 7. Persian numeral phone & code normalization
+    persian_phone = "۰۹۱۲" + str(uuid.uuid4().int % 10000000).zfill(7).translate(
+        str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+    )
+    send_persian = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": persian_phone},
+    )
+    assert send_persian.status_code == 200
+    verify_persian = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": persian_phone, "code": "۱۲۳۴"},
+    )
+    assert verify_persian.status_code == 200
+    assert verify_persian.json()["user"]["phone"].startswith("0912")
+
+
+@pytest.mark.asyncio
+async def test_become_host_flow(client: AsyncClient):
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    token = verify_res.json()["access_token"]
+    user_id = verify_res.json()["user"]["id"]
+
+    # Guest user cannot create accommodation (403)
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": "ویلا هاست تستی جدید",
+        "description": "توضیحات تست هاست",
+        "address": "گیلان، رشت",
+        "base_price": 2000000,
+        "cleaning_fee": 150000,
+        "capacity": 3,
+        "max_capacity": 5,
+        "extra_guest_fee": 100000,
+        "rooms_count": 1,
+        "beds_count": 2,
+        "rules": "قوانین اقامتگاه",
+        "is_active": True,
+        "images": [{"image_url": "https://example.com/host.jpg", "is_cover": True, "sort_order": 1}],
+    }
+
+    guest_create = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert guest_create.status_code == 403
+
+    # Upgrade to host
+    host_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert host_res.status_code == 200
+    assert host_res.json()["role"] == "host"
+
+    # Newly promoted host cannot create accommodation on behalf of another host (403)
+    spoofed_payload = dict(acc_payload)
+    spoofed_payload["host_id"] = user_id + 999
+    spoofed_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=spoofed_payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert spoofed_res.status_code == 403
+
+    # Newly promoted host can create accommodation (201)
+    host_create = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=acc_payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert host_create.status_code == 201
+    created_acc = host_create.json()
+    assert created_acc["host_id"] == user_id
+    assert created_acc["title"] == acc_payload["title"]

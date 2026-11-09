@@ -20,7 +20,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.api.dependencies import CurrentAdminDep, CurrentUserDep, OptionalCurrentUserDep, SessionDep
+from app.api.dependencies import (
+    CurrentHostOrAdminDep,
+    CurrentUserDep,
+    OptionalCurrentUserDep,
+    SessionDep,
+)
 from app.core.config import settings
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
@@ -785,7 +790,7 @@ async def sync_external_calendar(
 @router.post("/", response_model=AccommodationDetail, status_code=status.HTTP_201_CREATED)
 async def create_accommodation(
     acc_in: AccommodationCreate,
-    admin: CurrentAdminDep,
+    current_user: CurrentHostOrAdminDep,
     db: SessionDep,
 ) -> AccommodationDetail:
     # Verify city and category
@@ -820,7 +825,7 @@ async def create_accommodation(
                 detail=f"Amenity IDs not found: {sorted(list(missing))}",
             )
 
-    if acc_in.host_id is not None:
+    if current_user.role == "admin" and acc_in.host_id is not None:
         host_user = (
             (await db.execute(select(User).where(User.id == acc_in.host_id))).scalars().first()
         )
@@ -830,8 +835,17 @@ async def create_accommodation(
                 detail=f"Host user with ID {acc_in.host_id} not found",
             )
         host_id = acc_in.host_id
+    elif (
+        current_user.role != "admin"
+        and acc_in.host_id is not None
+        and acc_in.host_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hosts cannot create accommodations on behalf of other users",
+        )
     else:
-        host_id = admin.id
+        host_id = current_user.id
 
     accommodation = Accommodation(
         host_id=host_id,
@@ -881,7 +895,7 @@ async def create_accommodation(
     await db.commit()
 
     # Re-fetch with relationships
-    return await get_accommodation(accommodation.id, db, current_user=admin)
+    return await get_accommodation(accommodation.id, db, current_user=current_user)
 
 
 @router.put("/{id}", response_model=AccommodationDetail)
