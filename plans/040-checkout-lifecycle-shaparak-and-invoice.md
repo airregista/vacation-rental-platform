@@ -343,13 +343,14 @@ Build a robust Persian countdown timer component:
    - Computes `remainingSeconds = Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000))`.
    - Runs a `1000ms` `setInterval` updating seconds when `isPending` is true and `remainingSeconds > 0`.
    - When `remainingSeconds === 0`, invokes `onExpired?.()` callback once and ceases timer.
-   - If `!isPending` (reservation already cancelled or confirmed), ceases timer immediately and does not trigger countdown.
+   - If `!isPending` (reservation already cancelled, confirmed, or completed), returns `null` immediately and does not render or trigger timer callbacks.
 2. **Persian Number Formatting**:
    - Formats `minutes` and `seconds` as two-digit Persian numerals (e.g. `۲۹:۴۵` or `۰۴:۱۲`) using `new Intl.NumberFormat("fa-IR", { minimumIntegerDigits: 2 })`.
 3. **Visual Hierarchy & States**:
+   - **Inactive State (`!isPending`)**: Returns `null` (suppresses countdown UI on confirmed or completed bookings).
    - **Normal State (> 5 minutes)**: Renders a clean banner with timer icon, secondary badge, and message: "این رزرو موقت به مدت ۲۸:۴۵ دقیقه برای شما نگهداری شده است."
    - **Urgent State (<= 5 minutes)**: Renders canonical `Alert` with pulsing indicator, warning the guest that the booking hold is about to expire.
-   - **Expired State (0 seconds or reservation already cancelled)**: Renders canonical `Alert` with `variant="destructive"` stating that the payment window has expired and dates have been released.
+   - **Expired State (0 seconds while pending)**: Renders canonical `Alert` with `variant="destructive"` stating that the payment window has expired and dates have been released.
 
 ```typescript
 export interface CountdownTimerProps {
@@ -418,6 +419,7 @@ Implement the payment gateway modal with adaptive responsive design:
    - Uses an initiation ref guard (`hasInitiatedRef`) or checks if `paymentData` is already initialized for this reservation to prevent duplicate POST requests under React 19 `StrictMode` double-mounting.
    - Stores returned `payment_id`, `tracking_code`, and `amount`.
 2. **Shaparak Gateway Form Simulation**:
+   - Accepts optional `initialGateway?: string` (defaults to `"mellat"`), synchronizing selection from parent checkout page.
    - Gateway selector composed with canonical `RadioGroup` and `RadioGroupItem` (`@/components/ui/radio-group`):
      - **به‌پرداخت ملت (شاپرک)** (`value="mellat"`) — Selected by default (پیشنهادی • پایدارترین درگاه).
      - **پرداخت الکترونیک سامان کیش (سپ)** (`value="sep"`).
@@ -430,6 +432,7 @@ Implement the payment gateway modal with adaptive responsive design:
 3. **Payment Verification & Confirmation**:
    - CTA button: "پرداخت و تایید نهایی (مبلغ: X تومان)".
    - Clicking triggers `POST /api/v1/payments/verify` with `{ payment_id, tracking_code, simulate_success: true }`.
+   - Validates `response.status === "success"` before advancing to confirmation view; sets descriptive error if non-success status returned.
    - On success:
      - Displays success confirmation view:
        - Green checkmark icon.
@@ -449,6 +452,7 @@ export interface PaymentGatewayModalProps {
   reservation: ReservationDetail
   onSuccess: (payment: PaymentResponse) => void
   onOpenInvoice?: (payment: PaymentResponse) => void
+  initialGateway?: string
 }
 ```
 
@@ -470,15 +474,15 @@ Build the official printable tax invoice modal matching `template/pdf/code.html`
      - **فروشنده (ارائه‌دهنده خدمت و کارمزد)**: شرکت توسعه فناوری گردشگری آشیانک (سهامی خاص), National Registration No., Postal Code, Address.
      - **خریدار (مهمان)**: Full guest name (`data.guest?.full_name || "مهمان آشیانک"`), contact phone number (`data.guest?.phone || "-"`), national code (`data.guest?.national_code || "-"`), email (`data.guest?.email || "-"`).
    - Itemized Accounting Table:
-     - Row 1: Stay description (`اقامت X شب در <عنوان اقامتگاه>`), dates, nights count, base total (`baseTotal = Number(data.reservation.total_price) - (data.accommodation?.cleaning_fee ?? 0)`).
+     - Row 1: Stay description (`اقامت X شب در <عنوان اقامتگاه>`), dates, nights count, base total (`baseTotal = (accommodation?.base_price ?? 0) > 0 ? (accommodation?.base_price ?? 0) * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)`).
      - Row 2: Cleaning and hospitality services fee (`data.accommodation?.cleaning_fee ?? 0`).
-     - Row 3: Promotional discount coupon (if `data.reservation.coupon_code` is present).
+     - Row 3: Promotional discount coupon (if `data.reservation.coupon_code` is present and `discountAmount = Math.max(0, baseTotal + cleaningFee - totalPayable) > 0`).
      - Row 4: Platform commission & VAT tax notice.
      - Total: Net paid amount in Toman (`new Intl.NumberFormat("fa-IR").format(Number(data.payment.amount || data.reservation.total_price))`) and Persian words description.
    - Digital Seal Badge: "تاییدشده در سامانه مودیان مالیاتی / معتبر با امضای دیجیتال".
 2. **Print Handling (`@media print`)**:
    - Top action bar includes: "چاپ فاکتور رسمی" (`window.print()`) and "بستن" (`onClose`).
-   - Encapsulated `@media print` CSS ensures clean A4 portrait printing by suppressing dialog backdrops and body overflow locks:
+   - Encapsulated `@media print` CSS ensures clean A4 portrait printing by suppressing dialog backdrops, resetting color variables for dark-mode compatibility, and body overflow locks:
      ```css
      @media print {
        @page { size: A4 portrait; margin: 10mm 12mm; }
@@ -486,6 +490,15 @@ Build the official printable tax invoice modal matching `template/pdf/code.html`
        [data-radix-portal] > div:first-child { display: none !important; }
        .print-hide { display: none !important; }
        .printable-invoice-card {
+         --background: #ffffff !important;
+         --foreground: #111c2d !important;
+         --card: #ffffff !important;
+         --card-foreground: #111c2d !important;
+         --muted: #f5f5f4 !important;
+         --muted-foreground: #64748b !important;
+         --border: #e2e8f0 !important;
+         background-color: #ffffff !important;
+         color: #111c2d !important;
          border: 1.5px solid #d8e3fb !important;
          padding: 16px !important;
          width: 100% !important;
@@ -529,15 +542,16 @@ Assemble the complete responsive checkout page:
    - Uses `useAuth()` hook. If unauthenticated, displays informative login card with `openOtpModal()` button.
 2. **Data Fetching & Guest Pre-filling**:
    - Fetches reservation: `apiClient.get<ReservationDetail>(`/reservations/${reservationId}`)`.
+   - Effect guard checks `if (isAuthLoading || !isAuthenticated || !reservationId || isNaN(reservationId)) return` and depends on `[reservationId, isAuthLoading, isAuthenticated, reloadTrigger]`, seamlessly fetching reservation data upon OTP login completion without stale 401 errors.
    - Fetches accommodation detail: `apiClient.get<CheckoutAccommodationInfo>(`/accommodations/${reservation.accommodation_id}`)` to populate cover photo, address, and host details.
    - Guest contact details pre-filled from `user` (`[user?.first_name, user?.last_name].filter(Boolean).join(" ")`, `user?.phone`, `user?.email`), with national code state.
 3. **State Management**:
    - Handles `loading`, `error`, `pending`, `confirmed`, and `cancelled/expired` states.
    - **Pending State**:
      - 3-Step Checkout Stepper at top.
-     - Countdown Timer banner (with `isPending={reservation.status === "pending"}`).
+     - Countdown Timer banner (rendered strictly when `isPending` is true: `{isPending && <CountdownTimer ... />}`).
      - Guest contact details card with editable fields.
-     - Payment Gateway selector card (composed with canonical `RadioGroup` and `RadioGroupItem`).
+     - Payment Gateway selector card (composed with canonical `RadioGroup` and `RadioGroupItem`). Passes selected gateway to modal via `initialGateway={gateway}`.
      - Cancellation policy explanation and terms agreement checkbox (`قوانین و مقررات را خوانده‌ام و موافقم`).
      - "انتقال به درگاه امن بانکی و پرداخت" button (disabled if terms unchecked, inputs invalid, or timer expired).
      - Right sidebar on desktop: Reservation Order Summary card.
