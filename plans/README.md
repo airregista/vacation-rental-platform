@@ -42,9 +42,9 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **032** | `032-dead-code-and-dependency-pruning.md` | P1 | S | — | **DONE** | `advisor/032-dead-code-and-dependency-pruning` | `2315619` |
 | **033** | `033-database-operations-simplification.md` | P2 | S | — | **DONE** | `advisor/033-database-operations-simplification` | `19ed2f6` |
 | **034** | `034-service-and-endpoint-deduplication.md` | P2 | S | — | **DONE** | `advisor/034-service-and-endpoint-deduplication` | `677a622` |
-| **035** | `035-backend-otp-and-host-role-extension.md` | P1 | S | — | **DONE** | `advisor/035-backend-otp-and-host-role-extension` | `677a622` |
-| **036** | `036-nextjs-shadcn-scaffold-and-warm-persian-theme.md` | P1 | M | 035 | **DONE** | `advisor/036-nextjs-shadcn-scaffold-and-warm-persian-theme` | `677a622` |
-| **037** | `037-auth-otp-modal-and-session-state.md` | P1 | M | 036 | **DONE** | `advisor/037-auth-otp-modal-and-session-state` | `4474662` |
+| **035** | `035-backend-otp-and-host-role-extension.md` | P1 | S | — | **DONE** | `main` | `ba4afa7` |
+| **036** | `036-nextjs-shadcn-scaffold-and-warm-persian-theme.md` | P1 | M | 035 | **DONE** | `main` | `ba4afa7` |
+| **037** | `037-auth-otp-modal-and-session-state.md` | P1 | M | 036 | **DONE** | `main` | `ba4afa7` |
 | **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **TODO** | `advisor/038-explore-search-filters-and-listing-grid` | `677a622` |
 | **039** | `039-accommodation-detail-and-booking-engine.md` | P1 | L | 036, 037 | **TODO** | `advisor/039-accommodation-detail-and-booking-engine` | `677a622` |
 | **040** | `040-checkout-lifecycle-shaparak-and-invoice.md` | P1 | M | 039 | **TODO** | `advisor/040-checkout-lifecycle-shaparak-and-invoice` | `677a622` |
