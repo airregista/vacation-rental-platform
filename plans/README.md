@@ -46,7 +46,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **036** | `036-nextjs-shadcn-scaffold-and-warm-persian-theme.md` | P1 | M | 035 | **DONE** | `main` | `ba4afa7` |
 | **037** | `037-auth-otp-modal-and-session-state.md` | P1 | M | 036 | **DONE** | `main` | `ba4afa7` |
 | **038** | `038-explore-search-filters-and-listing-grid.md` | P1 | M | 036, 037 | **DONE** | `main` | `53629b4` |
-| **039** | `039-accommodation-detail-and-booking-engine.md` | P1 | L | 036, 037, 038 | **DONE** | `advisor/039-accommodation-detail-and-booking-engine` | `47b08a4` |
+| **039** | `039-accommodation-detail-and-booking-engine.md` | P1 | L | 036, 037, 038 | **DONE** | `advisor/039-accommodation-detail-and-booking-engine` | `c6b6c85` |
 | **040** | `040-checkout-lifecycle-shaparak-and-invoice.md` | P1 | M | 039 | **TODO** | `advisor/040-checkout-lifecycle-shaparak-and-invoice` | `677a622` |
 | **041** | `041-my-trips-cancellation-preview-and-host-chat.md` | P1 | L | 036, 037 | **TODO** | `advisor/041-my-trips-cancellation-preview-and-host-chat` | `677a622` |
 | **042** | `042-wishlists-and-travel-planning.md` | P2 | M | 036, 037 | **TODO** | `advisor/042-wishlists-and-travel-planning` | `677a622` |
