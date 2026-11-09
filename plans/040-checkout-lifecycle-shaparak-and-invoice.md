@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan
 > in `plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat f15cd63..HEAD -- frontend/src/lib/api-client.ts app/api/v1/endpoints/payments.py app/api/v1/endpoints/reservations.py app/schemas/payment.py app/schemas/reservation.py`
+> **Drift check (run first)**: `git diff --stat 33890e5..HEAD -- frontend/src/lib/api-client.ts app/api/v1/endpoints/payments.py app/api/v1/endpoints/reservations.py app/schemas/payment.py app/schemas/reservation.py`
 > If any in-scope file changed since this plan was written, compare the
 > "Current state" excerpts against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -18,7 +18,7 @@
 - **Risk**: MED
 - **Depends on**: plans/039-accommodation-detail-and-booking-engine.md
 - **Category**: direction
-- **Planned at**: commit `f15cd63`, 2026-11-10
+- **Planned at**: commit `33890e5`, 2026-11-10
 
 ## Why this matters
 
