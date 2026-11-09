@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/context/auth-context"
-import { buildAccommodationQuery } from "@/lib/search-utils"
+import { buildAccommodationQuery, parseAccommodationQuery } from "@/lib/search-utils"
 import type {
   AccommodationListItem,
   AccommodationSearchParams,
@@ -15,11 +16,14 @@ import { AccommodationGrid } from "@/components/explore/accommodation-grid"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, RotateCcw } from "lucide-react"
 
-export default function Home() {
+function HomeContent() {
+  const searchParamsHook = useSearchParams()
   const { token, openOtpModal } = useAuth()
 
-  // State
-  const [searchParams, setSearchParams] = React.useState<AccommodationSearchParams>({})
+  // State initialized from URL query parameters
+  const [searchParams, setSearchParams] = React.useState<AccommodationSearchParams>(() =>
+    parseAccommodationQuery(searchParamsHook)
+  )
   const [searchKey, setSearchKey] = React.useState<number>(0)
   const [accommodations, setAccommodations] = React.useState<AccommodationListItem[]>([])
   const [wishlistIds, setWishlistIds] = React.useState<Set<number>>(new Set())
@@ -28,6 +32,20 @@ export default function Home() {
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [isFilterOpen, setIsFilterOpen] = React.useState<boolean>(false)
   const [reloadTrigger, setReloadTrigger] = React.useState<number>(0)
+
+  // Synchronize state changes to browser URL query string for deep-linking
+  const isFirstRender = React.useRef(true)
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const queryString = buildAccommodationQuery(searchParams)
+    const newUrl = queryString ? `/${queryString}` : "/"
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", newUrl)
+    }
+  }, [searchParams])
 
   // Derive active wishlist IDs ensuring logged-out sessions immediately clear cached favorites
   const activeWishlistIds = React.useMemo(
@@ -247,5 +265,29 @@ export default function Home() {
         )}
       </section>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex flex-col min-h-screen bg-background">
+          <section className="border-b border-border/60 bg-background/95 py-4 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto h-24" />
+          </section>
+          <section aria-label="محتوای اقامتگاه‌ها" className="flex-1 py-4">
+            <AccommodationGrid
+              items={[]}
+              isLoading={true}
+              wishlistIds={new Set()}
+              onToggleWishlist={() => {}}
+            />
+          </section>
+        </div>
+      }
+    >
+      <HomeContent />
+    </React.Suspense>
   )
 }

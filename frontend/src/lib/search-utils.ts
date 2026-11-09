@@ -30,3 +30,56 @@ export function buildAccommodationQuery(params: AccommodationSearchParams): stri
   const qs = query.toString()
   return qs ? `?${qs}` : ""
 }
+
+export interface SearchParamsGetter {
+  get(name: string): string | null
+  getAll(name: string): string[]
+}
+
+export function parseAccommodationQuery(searchParams: SearchParamsGetter): AccommodationSearchParams {
+  const params: AccommodationSearchParams = {}
+
+  const cityId = searchParams.get("city_id")
+  if (cityId && !isNaN(Number(cityId))) params.city_id = Number(cityId)
+
+  const provinceId = searchParams.get("province_id")
+  if (provinceId && !isNaN(Number(provinceId))) params.province_id = Number(provinceId)
+
+  const categoryId = searchParams.get("category_id")
+  if (categoryId && !isNaN(Number(categoryId))) params.category_id = Number(categoryId)
+
+  const guestsCount = searchParams.get("guests_count")
+  if (guestsCount && Number(guestsCount) > 0) params.guests_count = Number(guestsCount)
+
+  const minRooms = searchParams.get("min_rooms")
+  if (minRooms && Number(minRooms) > 0) params.min_rooms = Number(minRooms)
+
+  const minBeds = searchParams.get("min_beds")
+  if (minBeds && Number(minBeds) > 0) params.min_beds = Number(minBeds)
+
+  const minPrice = searchParams.get("min_price")
+  if (minPrice && Number(minPrice) > 0) params.min_price = Number(minPrice)
+
+  const maxPrice = searchParams.get("max_price")
+  if (maxPrice && !isNaN(Number(maxPrice))) params.max_price = Number(maxPrice)
+
+  const checkIn = searchParams.get("check_in")
+  const checkOut = searchParams.get("check_out")
+  if (checkIn && checkOut && checkOut > checkIn) {
+    params.check_in = checkIn
+    params.check_out = checkOut
+  }
+
+  const sortBy = searchParams.get("sort_by")
+  if (sortBy === "newest" || sortBy === "price_asc" || sortBy === "price_desc") {
+    params.sort_by = sortBy
+  }
+
+  const amenityIds = searchParams.getAll("amenity_ids")
+  if (amenityIds.length > 0) {
+    const parsed = amenityIds.map(Number).filter((n) => !isNaN(n) && n > 0)
+    if (parsed.length > 0) params.amenity_ids = parsed
+  }
+
+  return params
+}

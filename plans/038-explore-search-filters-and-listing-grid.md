@@ -264,7 +264,7 @@ This view strictly leverages canonical Shadcn UI primitives. Hand-rolled custom 
    }
    ```
 
-4. Create `frontend/src/lib/search-utils.ts` to serialize query parameters correctly for FastAPI:
+4. Create `frontend/src/lib/search-utils.ts` to serialize and parse query parameters correctly for FastAPI and Next.js deep-linking:
    ```typescript
    import type { AccommodationSearchParams } from "@/types/accommodation"
 
@@ -297,6 +297,59 @@ This view strictly leverages canonical Shadcn UI primitives. Hand-rolled custom 
 
      const qs = query.toString()
      return qs ? `?${qs}` : ""
+   }
+
+   export interface SearchParamsGetter {
+     get(name: string): string | null
+     getAll(name: string): string[]
+   }
+
+   export function parseAccommodationQuery(searchParams: SearchParamsGetter): AccommodationSearchParams {
+     const params: AccommodationSearchParams = {}
+
+     const cityId = searchParams.get("city_id")
+     if (cityId && !isNaN(Number(cityId))) params.city_id = Number(cityId)
+
+     const provinceId = searchParams.get("province_id")
+     if (provinceId && !isNaN(Number(provinceId))) params.province_id = Number(provinceId)
+
+     const categoryId = searchParams.get("category_id")
+     if (categoryId && !isNaN(Number(categoryId))) params.category_id = Number(categoryId)
+
+     const guestsCount = searchParams.get("guests_count")
+     if (guestsCount && Number(guestsCount) > 0) params.guests_count = Number(guestsCount)
+
+     const minRooms = searchParams.get("min_rooms")
+     if (minRooms && Number(minRooms) > 0) params.min_rooms = Number(minRooms)
+
+     const minBeds = searchParams.get("min_beds")
+     if (minBeds && Number(minBeds) > 0) params.min_beds = Number(minBeds)
+
+     const minPrice = searchParams.get("min_price")
+     if (minPrice && Number(minPrice) > 0) params.min_price = Number(minPrice)
+
+     const maxPrice = searchParams.get("max_price")
+     if (maxPrice && !isNaN(Number(maxPrice))) params.max_price = Number(maxPrice)
+
+     const checkIn = searchParams.get("check_in")
+     const checkOut = searchParams.get("check_out")
+     if (checkIn && checkOut && checkOut > checkIn) {
+       params.check_in = checkIn
+       params.check_out = checkOut
+     }
+
+     const sortBy = searchParams.get("sort_by")
+     if (sortBy === "newest" || sortBy === "price_asc" || sortBy === "price_desc") {
+       params.sort_by = sortBy
+     }
+
+     const amenityIds = searchParams.getAll("amenity_ids")
+     if (amenityIds.length > 0) {
+       const parsed = amenityIds.map(Number).filter((n) => !isNaN(n) && n > 0)
+       if (parsed.length > 0) params.amenity_ids = parsed
+     }
+
+     return params
    }
    ```
 
@@ -442,13 +495,14 @@ node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json -
 
 ### Step 6: Assemble Explore Experience in `frontend/src/app/page.tsx`
 
-1. Convert `frontend/src/app/page.tsx` into a client component (`"use client"`) composing:
+1. Convert `frontend/src/app/page.tsx` into a client component (`"use client"`) composing `HomeContent` wrapped in `<React.Suspense>` for safe Next.js static generation with `useSearchParams()`:
    - Sticky top bar with `SearchPill`.
    - `CategoryBar` for quick property type filtering.
    - `FilterDialog` for advanced price, room, and amenity adjustments.
    - `AccommodationGrid` displaying fetched accommodations inside a semantic `<section aria-label="محتوای اقامتگاه‌ها">` avoiding duplicate `<main>` landmarks within the layout root.
-2. State Management:
-   - `searchParams`: Stores current `AccommodationSearchParams`.
+2. State Management & Deep-Linking:
+   - `searchParams`: Stores current `AccommodationSearchParams`, initialized from URL search params on mount via `parseAccommodationQuery(searchParamsHook)`.
+   - Synchronizes query updates back to browser URL via `window.history.replaceState(null, "", newUrl)` without full page reload or scroll disruption, supporting bookmarking and shareable filtered links.
    - `accommodations`: `AccommodationListItem[]`.
    - `wishlistIds`: `Set<number>` tracking wishlisted accommodation IDs. Fetched on initial mount if authenticated via `GET /wishlists/?limit=100` to prevent default 20-item pagination truncation.
    - `activeWishlistIds`: Derived via `React.useMemo(() => (token ? wishlistIds : new Set<number>()), [token, wishlistIds])` ensuring logged-out sessions immediately clear cached favorites without stale state leakage and without triggering React 19 `react-hooks/set-state-in-effect` cascading renders.
@@ -549,14 +603,14 @@ Expected: All 4 components are imported and rendered in `page.tsx`.
 
 Machine-checkable. ALL must hold:
 
-- [ ] `node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false` exits 0
-- [ ] `npm --prefix frontend run lint` exits 0
-- [ ] `Test-Path frontend/src/components/ui/slider.tsx` returns True
-- [ ] `Test-Path frontend/src/components/ui/checkbox.tsx` returns True
-- [ ] `Test-Path frontend/src/lib/search-utils.ts` returns True
-- [ ] `Select-String -Path "frontend/src/app/page.tsx" -Pattern "AccommodationGrid"` returns match
-- [ ] No files outside in-scope list are modified (`git status --porcelain`)
-- [ ] `plans/README.md` status row updated to DONE (when executed)
+- [x] `node frontend/node_modules/typescript/bin/tsc --project frontend/tsconfig.json --noEmit --incremental false` exits 0
+- [x] `npm --prefix frontend run lint` exits 0
+- [x] `Test-Path frontend/src/components/ui/slider.tsx` returns True
+- [x] `Test-Path frontend/src/components/ui/checkbox.tsx` returns True
+- [x] `Test-Path frontend/src/lib/search-utils.ts` returns True
+- [x] `Select-String -Path "frontend/src/app/page.tsx" -Pattern "AccommodationGrid"` returns match
+- [x] No files outside in-scope list are modified (`git status --porcelain`)
+- [x] `plans/README.md` status row updated to DONE (when executed)
 
 ---
 
@@ -573,4 +627,4 @@ Stop and report back (do not improvise) if:
 ## Maintenance notes
 
 - Infinite scroll pagination can be introduced in a future optimization using an `IntersectionObserver` hook targeting the `skip` / `limit` query parameters.
-- Search filters can be synchronized with URL query params (`useSearchParams`) to support shareable deep-links.
+- Search filters are synchronized with URL query params (`useSearchParams` & `window.history.replaceState`) supporting shareable deep-links and persistent filtered views.
