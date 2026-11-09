@@ -306,6 +306,7 @@ export function BookingWidget({
                 type="button"
                 variant="outline"
                 size="icon"
+                aria-label="کاهش تعداد نفرات"
                 className="h-7 w-7 rounded-full"
                 disabled={guestsCount <= 1}
                 onClick={() => setGuestsCount((prev) => Math.max(1, prev - 1))}
@@ -319,6 +320,7 @@ export function BookingWidget({
                 type="button"
                 variant="outline"
                 size="icon"
+                aria-label="افزایش تعداد نفرات"
                 className="h-7 w-7 rounded-full"
                 disabled={guestsCount >= accommodation.max_capacity}
                 onClick={() =>
@@ -551,7 +553,25 @@ export function BookingWidget({
                   رزرو {accommodation.title}
                 </SheetTitle>
               </SheetHeader>
-              <div className="py-4">{renderBookingContent()}</div>
+              <div className="py-4">
+                {renderBookingContent()}
+                {(!checkIn || !checkOut) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsMobileSheetOpen(false)
+                      setTimeout(() => {
+                        document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" })
+                      }, 100)
+                    }}
+                    className="w-full mt-3 flex items-center justify-center gap-2 text-xs"
+                  >
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    <span>مشاهده تقویم و انتخاب تاریخ</span>
+                  </Button>
+                )}
+              </div>
             </SheetContent>
           </Sheet>
         </div>

@@ -16,15 +16,18 @@ export interface AvailabilityCalendarProps {
   onDateRangeChange: (checkIn: string | null, checkOut: string | null) => void
 }
 
+interface CalendarDayCell {
+  isoDate: string
+  persianDay: number
+  dayInfo: CalendarDayInfo
+  isPast?: boolean
+}
+
 interface CalendarMonthGroup {
   key: string // e.g. "1405-8"
   title: string // e.g. "آبان ۱۴۰۵"
   leadingBlanks: number
-  days: {
-    isoDate: string
-    persianDay: number
-    dayInfo: CalendarDayInfo
-  }[]
+  days: CalendarDayCell[]
 }
 
 const WEEK_DAYS = ["ش", "ی", "د", "س", "چ", "پ", "ج"]
@@ -87,7 +90,7 @@ export function AvailabilityCalendar({
     return map
   }, [calendarDays])
 
-  // Group days into Persian months
+  // Group days into Persian months with accurate month start & past padding
   const months = React.useMemo<CalendarMonthGroup[]>(() => {
     if (calendarDays.length === 0) return []
 
@@ -123,14 +126,32 @@ export function AvailabilityCalendar({
           year: "numeric",
         }).format(dateObj)
 
+        // Day 1 of this Persian month
+        const firstDayOfMonthDate = new Date(dateObj.getTime() - (pDay - 1) * 86400000)
         // Weekday index starting from Saturday (0: Sat, ..., 6: Fri)
-        const firstDayWeekday = (dateObj.getUTCDay() + 1) % 7
+        const monthFirstWeekday = (firstDayOfMonthDate.getUTCDay() + 1) % 7
+
+        const initialDays: CalendarDayCell[] = []
+        // Pad past days of this month prior to first available date
+        for (let day = 1; day < pDay; day++) {
+          initialDays.push({
+            isoDate: `past-${key}-${day}`,
+            persianDay: day,
+            dayInfo: {
+              date: "",
+              price: 0,
+              is_available: false,
+              is_exception: false,
+            },
+            isPast: true,
+          })
+        }
 
         groups.set(key, {
           key,
           title: `${monthName} ${yearPersian}`,
-          leadingBlanks: firstDayWeekday,
-          days: [],
+          leadingBlanks: monthFirstWeekday,
+          days: initialDays,
         })
       }
 
@@ -138,6 +159,7 @@ export function AvailabilityCalendar({
         isoDate: d.date,
         persianDay: pDay,
         dayInfo: d,
+        isPast: false,
       })
     }
 
@@ -172,26 +194,31 @@ export function AvailabilityCalendar({
 
   // Handle Day Click Selection
   const handleDayClick = (clickedDate: string, dayInfo: CalendarDayInfo) => {
-    if (!dayInfo.is_available) return
     setErrorNotice(null)
 
     // Initial click or reset if both are already chosen
     if (!checkIn || (checkIn && checkOut)) {
+      if (!dayInfo.is_available) return
       onDateRangeChange(clickedDate, null)
       return
     }
 
     // Second click when checkIn is selected and !checkOut
     if (clickedDate <= checkIn) {
+      if (!dayInfo.is_available) return
       // User clicked same or earlier date: reset checkIn to this date
       onDateRangeChange(clickedDate, null)
       return
     }
 
-    // Check if any date in [checkIn, clickedDate) is unavailable
+    // User is selecting checkout on clickedDate (> checkIn):
+    // Check if any day in [checkIn, clickedDate) is unavailable.
+    // Note: clickedDate itself is checkout and does not need to be available.
     if (hasBlockedDaysInRange(checkIn, clickedDate, daysMap)) {
       setErrorNotice("امکان انتخاب بازه‌ای که شامل روزهای پرشده باشد وجود ندارد.")
-      onDateRangeChange(clickedDate, null)
+      if (dayInfo.is_available) {
+        onDateRangeChange(clickedDate, null)
+      }
       return
     }
 
@@ -203,7 +230,7 @@ export function AvailabilityCalendar({
       return
     }
 
-    // Valid range selected
+    // Valid checkout date selected
     onDateRangeChange(checkIn, clickedDate)
   }
 
@@ -241,14 +268,37 @@ export function AvailabilityCalendar({
             <div key={`blank-${i}`} className="h-12 w-full" />
           ))}
 
-          {/* Actual Days */}
-          {month.days.map(({ isoDate, persianDay, dayInfo }) => {
-            const isStart = checkIn === isoDate
-            const isEnd = checkOut === isoDate
+          {/* Actual Days & Past Padded Days */}
+          {month.days.map((cell) => {
+            if (cell.isPast) {
+              return (
+                <div
+                  key={cell.isoDate}
+                  className="h-12 flex flex-col items-center justify-center opacity-25 text-muted-foreground pointer-events-none select-none"
+                >
+                  <span className="text-xs leading-none">
+                    {formatPersian(cell.persianDay)}
+                  </span>
+                </div>
+              )
+            }
+
+            const isStart = checkIn === cell.isoDate
+            const isEnd = checkOut === cell.isoDate
             const isInRange =
-              checkIn && checkOut && isoDate > checkIn && isoDate < checkOut
-            const isBlocked = !dayInfo.is_available
-            const effectivePrice = dayInfo.price > 0 ? dayInfo.price : basePrice
+              checkIn && checkOut && cell.isoDate > checkIn && cell.isoDate < checkOut
+
+            // Can this date serve as checkout?
+            const canBeCheckout =
+              checkIn !== null &&
+              checkOut === null &&
+              cell.isoDate > checkIn &&
+              !hasBlockedDaysInRange(checkIn, cell.isoDate, daysMap)
+
+            // Blocked if unavailable AND cannot be selected as checkout
+            const isBlocked = !cell.dayInfo.is_available && !canBeCheckout
+            const effectivePrice =
+              cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
 
             let dayStyle = "text-foreground hover:bg-accent cursor-pointer rounded-lg"
             if (isBlocked) {
@@ -264,18 +314,22 @@ export function AvailabilityCalendar({
                 "bg-primary text-primary-foreground font-bold rounded-l-lg rounded-r-none shadow-sm"
             } else if (isInRange) {
               dayStyle = "bg-primary/10 text-primary font-medium rounded-none"
+            } else if (!cell.dayInfo.is_available && canBeCheckout) {
+              // Day is booked for new check-in, but eligible as checkout
+              dayStyle =
+                "text-foreground hover:bg-accent cursor-pointer rounded-lg border border-dashed border-border"
             }
 
             return (
               <button
                 type="button"
-                key={isoDate}
+                key={cell.isoDate}
                 disabled={isBlocked}
-                onClick={() => handleDayClick(isoDate, dayInfo)}
+                onClick={() => handleDayClick(cell.isoDate, cell.dayInfo)}
                 className={`h-12 flex flex-col items-center justify-center transition-colors select-none ${dayStyle}`}
               >
                 <span className="text-xs leading-none">
-                  {formatPersian(persianDay)}
+                  {formatPersian(cell.persianDay)}
                 </span>
                 {!isBlocked && effectivePrice > 0 && (
                   <span
@@ -297,7 +351,7 @@ export function AvailabilityCalendar({
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div id="availability-calendar" className="w-full space-y-4">
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div>

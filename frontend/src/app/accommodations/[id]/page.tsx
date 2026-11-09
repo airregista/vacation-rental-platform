@@ -338,14 +338,16 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
           <AmenitiesList amenities={data.amenities} />
 
           {/* Availability Calendar */}
-          <AvailabilityCalendar
-            accommodationId={data.id}
-            minNights={data.min_nights}
-            basePrice={data.base_price}
-            checkIn={checkIn}
-            checkOut={checkOut}
-            onDateRangeChange={handleDateRangeChange}
-          />
+          <section id="availability-calendar">
+            <AvailabilityCalendar
+              accommodationId={data.id}
+              minNights={data.min_nights}
+              basePrice={data.base_price}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </section>
 
           {/* Reviews Section */}
           <ReviewsSection

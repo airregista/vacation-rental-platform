@@ -216,7 +216,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Featured Image */}
             <div
               className={`relative h-full bg-muted cursor-pointer group overflow-hidden ${
-                totalImages === 3 ? "col-span-2" : "col-span-1"
+                totalImages >= 3 ? "col-span-2" : "col-span-1"
               }`}
               onClick={() => openLightbox(0)}
             >
@@ -230,7 +230,11 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               />
             </div>
             {/* Secondary Images */}
-            <div className={`grid gap-2 h-full ${totalImages === 4 ? "grid-rows-3" : "grid-rows-1"}`}>
+            <div
+              className={`grid gap-2 h-full ${
+                totalImages === 4 ? "grid-rows-3" : totalImages === 3 ? "grid-rows-2" : "grid-rows-1"
+              }`}
+            >
               {sortedImages.slice(1, totalImages).map((img, idx) => (
                 <div
                   key={img.id}
