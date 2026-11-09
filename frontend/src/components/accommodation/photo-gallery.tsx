@@ -33,6 +33,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
 
   // Mobile touch swipe tracking
   const [touchStartX, setTouchStartX] = React.useState<number | null>(null)
+  const isSwiping = React.useRef(false)
 
   const sortedImages = React.useMemo(() => {
     if (!images || images.length === 0) return []
@@ -76,7 +77,14 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
 
   // Mobile swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    isSwiping.current = false
     setTouchStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX !== null && Math.abs(e.touches[0].clientX - touchStartX) > 10) {
+      isSwiping.current = true
+    }
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -139,8 +147,11 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
         {/* Carousel Image Container */}
         <div
           className="relative h-full w-full cursor-pointer"
-          onClick={() => openLightbox(activePhotoIndex)}
+          onClick={() => {
+            if (!isSwiping.current) openLightbox(activePhotoIndex)
+          }}
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <Image

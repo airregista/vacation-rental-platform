@@ -46,6 +46,7 @@ export function AvailabilityCalendar({
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
   const [errorNotice, setErrorNotice] = React.useState<string | null>(null)
   const [mobileMonthIndex, setMobileMonthIndex] = React.useState(0)
+  const [desktopMonthIndex, setDesktopMonthIndex] = React.useState(0)
 
   const isClient = React.useSyncExternalStore(
     emptySubscribe,
@@ -222,11 +223,22 @@ export function AvailabilityCalendar({
       return
     }
 
-    // Check minimum nights invariant
+    // Scan all stayed nights strictly in [checkIn, clickedDate) for maximum dayInfo.min_nights
+    let requiredMinNights = minNights
+    const cur = new Date(checkIn + "T00:00:00Z")
+    const end = new Date(clickedDate + "T00:00:00Z")
+    while (cur < end) {
+      const dStr = cur.toISOString().split("T")[0]
+      const info = daysMap.get(dStr)
+      if (info?.min_nights && info.min_nights > requiredMinNights) {
+        requiredMinNights = info.min_nights
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1)
+    }
+
     const nights = getNights(checkIn, clickedDate)
-    const effectiveMinNights = dayInfo.min_nights || minNights
-    if (nights < effectiveMinNights) {
-      setErrorNotice(`حداقل مدت اقامت در این بازه ${formatPersian(effectiveMinNights)} شب است.`)
+    if (nights < requiredMinNights) {
+      setErrorNotice(`حداقل مدت اقامت در این بازه ${formatPersian(requiredMinNights)} شب است.`)
       return
     }
 
@@ -295,8 +307,8 @@ export function AvailabilityCalendar({
               cell.isoDate > checkIn &&
               !hasBlockedDaysInRange(checkIn, cell.isoDate, daysMap)
 
-            // Blocked if unavailable AND cannot be selected as checkout
-            const isBlocked = !cell.dayInfo.is_available && !canBeCheckout
+            // Blocked if unavailable AND cannot be selected as checkout, and not already selected as isEnd
+            const isBlocked = !cell.dayInfo.is_available && !canBeCheckout && !isEnd
             const effectivePrice =
               cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
 
@@ -351,7 +363,7 @@ export function AvailabilityCalendar({
   }
 
   return (
-    <div id="availability-calendar" className="w-full space-y-4">
+    <div className="w-full space-y-4">
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -407,9 +419,40 @@ export function AvailabilityCalendar({
         </div>
       ) : (
         <div className="border border-border rounded-2xl p-4 sm:p-6 bg-card">
-          {/* Desktop: 2 side-by-side months */}
-          <div className="hidden md:flex gap-8">
-            {months.slice(0, 2).map((month) => renderMonth(month))}
+          {/* Desktop: 2 side-by-side months with pagination */}
+          <div className="hidden md:block">
+            {months.length > 2 && (
+              <div className="flex items-center justify-between mb-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={desktopMonthIndex === 0}
+                  onClick={() => setDesktopMonthIndex((prev) => Math.max(0, prev - 1))}
+                  className="gap-1 text-xs"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span>ماه قبلی</span>
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  نمایش ماه {formatPersian(desktopMonthIndex + 1)} و {formatPersian(desktopMonthIndex + 2)} از {formatPersian(months.length)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={desktopMonthIndex + 2 >= months.length}
+                  onClick={() => setDesktopMonthIndex((prev) => Math.min(months.length - 2, prev + 1))}
+                  className="gap-1 text-xs"
+                >
+                  <span>ماه بعدی</span>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            <div className="flex gap-8">
+              {months.slice(desktopMonthIndex, desktopMonthIndex + 2).map((month) => renderMonth(month))}
+            </div>
           </div>
 
           {/* Mobile: 1 month with switcher */}

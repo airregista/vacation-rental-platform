@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -124,6 +125,9 @@ export function AmenitiesList({ amenities }: AmenitiesListProps) {
                 <DialogTitle className="text-base font-bold">
                   تمام امکانات اقامتگاه ({formatPersian(amenities.length)})
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  لیست تمامی امکانات اقامتگاه
+                </DialogDescription>
               </DialogHeader>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto py-4 scrollbar-thin">

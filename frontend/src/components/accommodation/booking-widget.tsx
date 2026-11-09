@@ -261,6 +261,14 @@ export function BookingWidget({
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onDateRangeChange(null, null)
+                }
+              }}
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
               onClick={() => onDateRangeChange(null, null)}
             >
@@ -270,6 +278,14 @@ export function BookingWidget({
               </span>
             </div>
             <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onDateRangeChange(checkIn, null)
+                }
+              }}
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
               onClick={() => onDateRangeChange(checkIn, null)}
             >
@@ -474,7 +490,12 @@ export function BookingWidget({
           type="button"
           onClick={handleBook}
           disabled={
-            !checkIn || !checkOut || !isValidRange || isCalculating || isSubmitting
+            !checkIn ||
+            !checkOut ||
+            !isValidRange ||
+            isCalculating ||
+            isSubmitting ||
+            !effectivePriceData
           }
           className="w-full h-11 text-sm font-bold mt-2 shadow-md"
         >
@@ -492,6 +513,8 @@ export function BookingWidget({
             "تاریخ سفر را انتخاب کنید"
           ) : !isValidRange ? (
             `حداقل اقامت ${formatPersian(accommodation.min_nights)} شب است`
+          ) : !effectivePriceData && submitError ? (
+            "خطا در محاسبه قیمت"
           ) : (
             "رزرو اقامتگاه"
           )}
