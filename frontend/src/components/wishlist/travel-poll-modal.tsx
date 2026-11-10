@@ -5,8 +5,6 @@ import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
 import { useRouter } from "next/navigation"
 import {
   Users,
-  Share2,
-  Check,
   CheckCircle2,
   Calendar,
   Sparkles,
@@ -93,6 +91,27 @@ const emptySubscribe = () => () => {}
 const getClientSnapshot = () => true
 const getServerClientSnapshot = () => false
 
+function isValidStoredPollOption(entry: unknown): entry is DatePollOption {
+  if (typeof entry !== "object" || entry === null) return false
+  const opt = entry as Record<string, unknown>
+  return (
+    typeof opt.id === "string" &&
+    opt.id.length > 0 &&
+    typeof opt.title === "string" &&
+    opt.title.length > 0 &&
+    typeof opt.votes === "number" &&
+    Number.isFinite(opt.votes) &&
+    opt.votes >= 0 &&
+    typeof opt.voted === "boolean" &&
+    Array.isArray(opt.voters) &&
+    opt.voters.every((v) => typeof v === "string") &&
+    typeof opt.check_in === "string" &&
+    opt.check_in.length > 0 &&
+    typeof opt.check_out === "string" &&
+    opt.check_out.length > 0
+  )
+}
+
 export interface TravelPollModalProps {
   isOpen: boolean
   onClose: () => void
@@ -109,8 +128,6 @@ export function TravelPollModal({
   const isMobile = useSyncExternalStore(subscribeResize, getMobileSnapshot, getServerMobileSnapshot)
 
   const [options, setOptions] = useState<DatePollOption[]>(INITIAL_POLL_OPTIONS)
-  const [isCopied, setIsCopied] = useState(false)
-  const [shareError, setShareError] = useState<string | null>(null)
   const [isProposing, setIsProposing] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newCheckIn, setNewCheckIn] = useState("")
@@ -123,17 +140,29 @@ export function TravelPollModal({
         if (stored) {
           const parsed = JSON.parse(stored) as DatePollOption[]
           if (Array.isArray(parsed) && parsed.length > 0) {
-            // Stored options from before the date fields existed cannot
-            // be navigated to — discard them and keep the seeded ones.
-            const valid = parsed.filter(
-              (opt) =>
-                typeof opt.check_in === "string" &&
-                typeof opt.check_out === "string" &&
-                opt.check_in.length > 0 &&
-                opt.check_out.length > 0
-            )
+            const valid = parsed.filter(isValidStoredPollOption)
             if (valid.length > 0) {
-              setOptions(valid)
+              // Normalise stored state from before single-vote
+              // enforcement: keep only the first voted option.
+              const firstVotedIndex = valid.findIndex((opt) => opt.voted)
+              const needsNormalise =
+                firstVotedIndex !== -1 &&
+                valid.some((opt, i) => opt.voted && i !== firstVotedIndex)
+              const normalised = needsNormalise
+                ? valid.map((opt, i) =>
+                    opt.voted && i !== firstVotedIndex
+                      ? { ...opt, voted: false }
+                      : opt
+                  )
+                : valid
+              setOptions(normalised)
+              if (needsNormalise) {
+                try {
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalised))
+                } catch {
+                  // Handle storage quota issues safely
+                }
+              }
             }
           }
         }
@@ -238,40 +267,6 @@ export function TravelPollModal({
     setNewCheckIn("")
     setNewCheckOut("")
     setIsProposing(false)
-  }
-
-  const handleShare = async () => {
-    setShareError(null)
-    const url = typeof window !== "undefined" ? window.location.href : ""
-    try {
-      if (typeof window !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        setIsCopied(true)
-        setTimeout(() => setIsCopied(false), 2000)
-        return
-      }
-      throw new Error("clipboard unavailable")
-    } catch {
-      // Fallback: temporary textarea + execCommand("copy").
-      try {
-        const textarea = document.createElement("textarea")
-        textarea.value = url
-        textarea.style.position = "fixed"
-        textarea.style.opacity = "0"
-        document.body.appendChild(textarea)
-        try {
-          textarea.select()
-          const ok = document.execCommand("copy")
-          if (!ok) throw new Error("execCommand copy failed")
-          setIsCopied(true)
-          setTimeout(() => setIsCopied(false), 2000)
-        } finally {
-          document.body.removeChild(textarea)
-        }
-      } catch {
-        setShareError("کپی لینک انجام نشد؛ لطفاً لینک را به‌صورت دستی کپی کنید.")
-      }
-    }
   }
 
   const handleFinalizeDates = () => {
@@ -505,32 +500,7 @@ export function TravelPollModal({
       )}
 
       {/* Modal footer CTAs */}
-      <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleShare}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground w-full sm:w-auto"
-          >
-            {isCopied ? (
-              <>
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-600 font-bold">لینک کپی شد!</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="w-4 h-4" />
-                <span>اشتراک‌گذاری با همسفران</span>
-              </>
-            )}
-          </Button>
-          {shareError && (
-            <p className="text-xs text-destructive">{shareError}</p>
-          )}
-        </div>
-
+      <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
         <Button
           type="button"
           onClick={handleFinalizeDates}

@@ -211,6 +211,118 @@ async def test_wishlist_returns_real_rating(
     assert matching[0]["accommodation"]["average_rating"] == 5.0
     assert matching[0]["accommodation"]["reviews_count"] == 1
 
+    # Second guest, second reservation on the same accommodation, review
+    # with rating 4: the average must be (5 + 4) / 2 = 4.5, count 2.
+    guest2_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": "09122222222",
+            "password": "guest123",
+            "first_name": "مهمان",
+            "last_name": "دوم",
+        },
+    )
+    assert guest2_res.status_code == 201
+    guest2_token = guest2_res.json()["access_token"]
+
+    res2_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=44)).isoformat(),
+            "check_out": (date.today() + timedelta(days=46)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert res2_res.status_code == 201
+    res2_id = res2_res.json()["id"]
+
+    checkout2_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res2_id},
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert checkout2_res.status_code in (200, 201)
+    payment2_id = checkout2_res.json()["payment_id"]
+    tracking2_code = checkout2_res.json()["tracking_code"]
+
+    verify2_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": payment2_id,
+            "tracking_code": tracking2_code,
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert verify2_res.status_code == 200
+
+    async with AsyncSessionLocal() as session:
+        db_res2 = await session.get(Reservation, res2_id)
+        assert db_res2 is not None
+        db_res2.check_in = date.today() - timedelta(days=3)
+        db_res2.check_out = date.today() - timedelta(days=1)
+        await session.commit()
+
+    review2 = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
+        json={
+            "reservation_id": res2_id,
+            "rating": 4,
+            "comment": "تجربه خوب بود.",
+        },
+        headers={"Authorization": f"Bearer {guest2_token}"},
+    )
+    assert review2.status_code == 201
+    assert review2.json()["rating"] == 4
+
+    wl_list = await client.get(
+        f"{settings.API_V1_STR}/wishlists/",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_list.status_code == 200
+    matching = [item for item in wl_list.json() if item["accommodation_id"] == acc_id]
+    assert len(matching) == 1
+    assert matching[0]["accommodation"]["average_rating"] == 4.5
+    assert matching[0]["accommodation"]["reviews_count"] == 2
+
+    # Second accommodation with no reviews: average is None, count 0.
+    acc2_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": "کلبه چوبی جنگلی بدون بازخورد",
+            "address": "مازندران، جاده چالوس",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+            "extra_person_fee": 100000,
+            "cleaning_fee": 50000,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc2_res.status_code == 201
+    acc2_id = acc2_res.json()["id"]
+
+    wl2_add = await client.post(
+        f"{settings.API_V1_STR}/wishlists/{acc2_id}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl2_add.status_code == 200
+    assert wl2_add.json()["is_favorite"] is True
+
+    wl_list = await client.get(
+        f"{settings.API_V1_STR}/wishlists/",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_list.status_code == 200
+    matching2 = [item for item in wl_list.json() if item["accommodation_id"] == acc2_id]
+    assert len(matching2) == 1
+    assert matching2[0]["accommodation"]["average_rating"] is None
+    assert matching2[0]["accommodation"]["reviews_count"] == 0
+
 
 @pytest.mark.asyncio
 async def test_wishlist_and_public_review_listing(
