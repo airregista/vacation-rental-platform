@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import delete, func, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
@@ -147,14 +148,17 @@ async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
     # Test OTP code as requested by user
     code = "1234"
     expiry = now + timedelta(minutes=5)
-    existing = (
-        (await db.execute(select(OTPCode).where(OTPCode.phone == req.phone))).scalars().first()
+    # Upsert: two concurrent sends for the same phone must both succeed
+    # instead of racing on select-then-insert and 500ing on the phone PK.
+    stmt = (
+        pg_insert(OTPCode)
+        .values(phone=req.phone, code=code, expires_at=expiry)
+        .on_conflict_do_update(
+            index_elements=["phone"],
+            set_={"code": code, "expires_at": expiry},
+        )
     )
-    if existing:
-        existing.code = code
-        existing.expires_at = expiry
-    else:
-        db.add(OTPCode(phone=req.phone, code=code, expires_at=expiry))
+    await db.execute(stmt)
     await db.commit()
     return OTPResponse(
         message="کد تایید یکبار مصرف ارسال شد",
@@ -168,21 +172,35 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
     phone = payload.phone
     code = payload.code
 
-    # Require prior OTP request in the database and active expiry
-    otp_row = (await db.execute(select(OTPCode).where(OTPCode.phone == phone))).scalars().first()
-    if not otp_row:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="کد تایید منقضی شده یا درخواستی ثبت نشده است",
+    # Atomically consume the OTP: the DELETE only removes a live row
+    # matching this phone+code, so two concurrent verifies can never both
+    # pass the check (TOCTOU). Zero rows deleted means the code is
+    # missing, wrong, or expired — read the row only to tell the caller
+    # which one.
+    now = datetime.now(timezone.utc)
+    consumed = (
+        await db.execute(
+            delete(OTPCode)
+            .where(OTPCode.phone == phone, OTPCode.code == code, OTPCode.expires_at > now)
+            .returning(OTPCode.phone)
         )
-    if datetime.now(timezone.utc) > otp_row.expires_at:
-        await db.delete(otp_row)
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="کد تایید منقضی شده است (کد آزمایشی: 1234)",
+    ).scalars().first()
+    if consumed is None:
+        otp_row = (
+            (await db.execute(select(OTPCode).where(OTPCode.phone == phone))).scalars().first()
         )
-    if code != otp_row.code:
+        if not otp_row:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="کد تایید منقضی شده یا درخواستی ثبت نشده است",
+            )
+        if datetime.now(timezone.utc) > otp_row.expires_at:
+            await db.delete(otp_row)
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="کد تایید منقضی شده است (کد آزمایشی: 1234)",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="کد تایید وارد شده نامعتبر است (کد آزمایشی: 1234)",
@@ -213,10 +231,17 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="خطا در ایجاد حساب کاربری",
                 )
+            # The rollback also undid the atomic OTP consumption, and the
+            # user was created by a concurrent request — consume the code
+            # again before issuing a token.
+            await db.execute(
+                delete(OTPCode).where(OTPCode.phone == phone, OTPCode.code == code)
+            )
+            await db.commit()
 
-    # Evict the OTP only after the user is successfully persisted, so a
-    # failed commit leaves the code usable for a retry while unexpired.
-    await db.delete(otp_row)
+    # Persist the OTP consumption (a no-op when the user-creation commit
+    # above already committed it). A failed commit rolls the delete back,
+    # so the code stays usable for a retry while unexpired.
     await db.commit()
 
     token = create_access_token(subject=user.id)

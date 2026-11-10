@@ -1,16 +1,20 @@
+import asyncio
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine, get_db
+from app.main import app
 from app.models.otp_code import OTPCode
+from app.models.user import User
 
 
 @pytest.mark.asyncio
@@ -645,3 +649,101 @@ async def test_otp_usable_after_commit_failure(client: AsyncClient, monkeypatch)
     )
     assert retry_res.status_code == 200
     assert retry_res.json()["user"]["phone"] == random_phone
+
+
+async def _engine_get_db() -> AsyncGenerator[AsyncSession, None]:
+    """get_db override bound to the real engine pool.
+
+    The autouse db_isolation fixture binds every request session to ONE
+    shared connection with savepoint joins, which cannot run two requests
+    concurrently (the savepoint bookkeeping collides). The T1/T2 race
+    tests need real concurrent connections, so they swap this override in
+    for their duration; the fixture teardown clears overrides afterwards.
+    Mirrors app.core.database.get_db.
+    """
+    session = AsyncSession(bind=engine, expire_on_commit=False)
+    async with session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def _delete_test_phone_data(phone: str) -> None:
+    """Remove user/OTP rows created for a phone by the T1/T2 race tests,
+    which run on real engine connections outside the fixture transaction
+    (so the fixture rollback would not clean them up)."""
+    async with AsyncSession(bind=engine, expire_on_commit=False) as session:
+        await session.execute(delete(OTPCode).where(OTPCode.phone == phone))
+        await session.execute(delete(User).where(User.phone == phone))
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_otp_concurrent_verify_only_one_succeeds(client: AsyncClient):
+    """T1: two concurrent verifies with the same code -> exactly one 200,
+    the other 400; the OTP is consumed atomically, not checked-then-deleted."""
+    app.dependency_overrides[get_db] = _engine_get_db
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    try:
+        send_res = await client.post(
+            f"{settings.API_V1_STR}/auth/otp/send",
+            json={"phone": random_phone},
+        )
+        assert send_res.status_code == 200
+
+        results = await asyncio.gather(
+            client.post(
+                f"{settings.API_V1_STR}/auth/otp/verify",
+                json={"phone": random_phone, "code": "1234"},
+            ),
+            client.post(
+                f"{settings.API_V1_STR}/auth/otp/verify",
+                json={"phone": random_phone, "code": "1234"},
+            ),
+        )
+        assert sorted(r.status_code for r in results) == [200, 400]
+
+        # Sequential replay is still blocked after the concurrent attempt
+        replay_res = await client.post(
+            f"{settings.API_V1_STR}/auth/otp/verify",
+            json={"phone": random_phone, "code": "1234"},
+        )
+        assert replay_res.status_code == 400
+    finally:
+        await _delete_test_phone_data(random_phone)
+
+
+@pytest.mark.asyncio
+async def test_otp_concurrent_send_both_succeed(client: AsyncClient):
+    """T2: two concurrent sends for the same phone -> both 200, exactly
+    one row in the table (upsert, not select-then-insert)."""
+    app.dependency_overrides[get_db] = _engine_get_db
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    try:
+        results = await asyncio.gather(
+            client.post(
+                f"{settings.API_V1_STR}/auth/otp/send",
+                json={"phone": random_phone},
+            ),
+            client.post(
+                f"{settings.API_V1_STR}/auth/otp/send",
+                json={"phone": random_phone},
+            ),
+        )
+        assert [r.status_code for r in results] == [200, 200]
+
+        async with AsyncSession(bind=engine, expire_on_commit=False) as session:
+            rows = (
+                (await session.execute(select(OTPCode).where(OTPCode.phone == random_phone)))
+                .scalars()
+                .all()
+            )
+            assert len(rows) == 1
+            assert rows[0].code == "1234"
+    finally:
+        await _delete_test_phone_data(random_phone)
