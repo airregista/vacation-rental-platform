@@ -42,13 +42,13 @@ export function Header() {
       return
     }
     if (isHost) {
-      router.push("/host")
+      router.push("/host/dashboard")
       return
     }
     setIsPromoting(true)
     try {
       await becomeHost()
-      router.push("/host")
+      router.push("/host/dashboard")
     } catch (err: unknown) {
       const message =
         err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
@@ -185,7 +185,7 @@ export function Header() {
 
                 {isHost && (
                   <DropdownMenuItem
-                    onClick={() => router.push("/host")}
+                    onClick={() => router.push("/host/dashboard")}
                     className="gap-2 cursor-pointer"
                   >
                     <Building2 className="size-4 text-primary" />
