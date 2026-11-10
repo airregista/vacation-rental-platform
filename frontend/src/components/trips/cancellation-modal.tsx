@@ -182,7 +182,12 @@ export function CancellationModal({
       }, 1200)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setErrorMessage(err.detail || err.message || "خطا در لغو رزرو. ممکن است زمان تحویل سپری شده باشد.")
+        // Same three 400s as the preview path (settled payout, passed
+        // check-in, un-cancellable status) — map them to Persian too.
+        setErrorMessage(
+          mapPreviewError(err.detail || err.message) ||
+            "خطا در لغو رزرو. ممکن است زمان تحویل سپری شده باشد."
+        )
       } else {
         setErrorMessage("خطا در ارسال درخواست لغو. لطفاً دوباره امتحان کنید.")
       }

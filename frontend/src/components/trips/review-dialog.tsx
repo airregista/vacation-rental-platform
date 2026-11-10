@@ -200,7 +200,9 @@ export function ReviewDialog({
         } else if (err.status === 400 && errorDetail.includes("check-out time")) {
           setErrorMessage("امکان ثبت نظر تنها پس از پایان موعد تحویل و خروج از اقامتگاه فراهم است.")
         } else {
-          setErrorMessage(err.detail || err.message || "خطا در ثبت نظر. لطفاً مجدداً بررسی فرمایید.")
+          // Unmapped errors (non-400, 500, differently-worded 400) show the
+          // Persian generic, never raw backend English.
+          setErrorMessage("خطا در ثبت نظر. لطفاً مجدداً بررسی فرمایید.")
         }
       } else {
         setErrorMessage("خطا در ارسال نظر. لطفاً اتصال اینترنت خود را بررسی کنید.")
