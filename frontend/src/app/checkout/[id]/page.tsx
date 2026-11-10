@@ -63,6 +63,18 @@ function getPolicyText(policy?: string): { title: string; description: string } 
   }
 }
 
+function formatCancellationReason(reason?: string | null): string {
+  if (!reason) return "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."
+  const lower = reason.toLowerCase()
+  if (lower.includes("ttl") || lower.includes("expire") || lower.includes("timeout")) {
+    return "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است و تاریخ‌های انتخابی آزاد شدند."
+  }
+  if (lower.includes("concurrent") || lower.includes("conflict") || lower.includes("occupied")) {
+    return "متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد."
+  }
+  return reason
+}
+
 export default function CheckoutPage({ params }: CheckoutPageProps) {
   const resolvedParams = React.use(params)
   const reservationId = Number(resolvedParams.id)
@@ -116,6 +128,20 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             if (!isCancelled) setAccommodation(acc)
           } catch {
             // Fallback gracefully
+          }
+
+          if (res.status === "confirmed" || res.status === "completed") {
+            try {
+              const myPayments = await apiClient.get<PaymentResponse[]>("/payments/my?limit=50")
+              const match = myPayments.find(
+                (p) => p.reservation_id === res.id && p.status === "success"
+              )
+              if (match && !isCancelled) {
+                setLatestPayment(match)
+              }
+            } catch {
+              // Fallback is handled by memo
+            }
           }
         }
       } catch (err) {
@@ -471,7 +497,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                     این رزرو منقضی یا لغو شده است
                   </h2>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                    {reservation.cancellation_reason || "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."}
+                    {formatCancellationReason(reservation.cancellation_reason)}
                   </p>
                 </div>
               </div>

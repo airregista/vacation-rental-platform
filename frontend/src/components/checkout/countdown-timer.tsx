@@ -114,7 +114,7 @@ export function CountdownTimer({
           <span className="flex items-center gap-2">
             <span>زمان پرداخت رو به پایان است!</span>
           </span>
-          <span className="font-mono text-base font-extrabold tracking-wider bg-amber-200/80 dark:bg-amber-900/60 px-2.5 py-0.5 rounded-md text-amber-900 dark:text-amber-100">
+          <span dir="ltr" className="font-mono text-base font-extrabold tracking-wider bg-amber-200/80 dark:bg-amber-900/60 px-2.5 py-0.5 rounded-md text-amber-900 dark:text-amber-100">
             {formattedTime}
           </span>
         </AlertTitle>
@@ -140,7 +140,7 @@ export function CountdownTimer({
         <div>
           <p className="text-sm font-medium">
             این رزرو موقت به مدت{" "}
-            <span className="font-bold text-primary font-mono text-base px-1">
+            <span dir="ltr" className="font-bold text-primary font-mono text-base px-1">
               {formattedTime}
             </span>{" "}
             دقیقه برای شما نگهداری شده است.
@@ -151,7 +151,7 @@ export function CountdownTimer({
         </div>
       </div>
       <Badge variant="secondary" className="self-start sm:self-auto font-mono text-xs px-2.5 py-1">
-        {formattedTime} مانده
+        <span dir="ltr">{formattedTime}</span> مانده
       </Badge>
     </div>
   )

@@ -102,8 +102,8 @@ export function PaymentGatewayModal({
   React.useEffect(() => {
     if (!isOpen) return
 
-    // If already initiated for this reservation and pending, do not re-post
-    if (hasInitiatedRef.current === reservation.id && paymentData) {
+    // If already initiated for this reservation, do not re-post
+    if (hasInitiatedRef.current === reservation.id) {
       return
     }
 
@@ -111,9 +111,6 @@ export function PaymentGatewayModal({
     const initiatePayment = async () => {
       setIsInitiating(true)
       setInitiateError(null)
-      setVerifyError(null)
-      setIsSuccess(false)
-      setCompletedPayment(null)
       try {
         const response = await apiClient.post<PaymentInitiateResponse>("/payments/checkout", {
           reservation_id: reservation.id,
@@ -127,8 +124,6 @@ export function PaymentGatewayModal({
           if (err instanceof ApiError) {
             setInitiateError(err.detail)
             if (err.status === 409 || (err.status === 400 && err.detail.toLowerCase().includes("expire"))) {
-              hasInitiatedRef.current = null
-              setPaymentData(null)
               onStatusChange?.("cancelled", err.detail)
             }
           } else {
@@ -147,7 +142,7 @@ export function PaymentGatewayModal({
     return () => {
       isCancelled = true
     }
-  }, [isOpen, reservation.id, paymentData, onStatusChange])
+  }, [isOpen, reservation.id, onStatusChange])
 
   // OTP cooldown timer
   React.useEffect(() => {
@@ -196,14 +191,10 @@ export function PaymentGatewayModal({
         if (err.status === 409) {
           const conflictReason = "متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد."
           setVerifyError(conflictReason)
-          hasInitiatedRef.current = null
-          setPaymentData(null)
           onStatusChange?.("cancelled", conflictReason)
         } else if (err.status === 400 && err.detail.toLowerCase().includes("expire")) {
           const expiredReason = "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است."
           setVerifyError(expiredReason)
-          hasInitiatedRef.current = null
-          setPaymentData(null)
           onStatusChange?.("cancelled", expiredReason)
         } else {
           setVerifyError(err.detail)

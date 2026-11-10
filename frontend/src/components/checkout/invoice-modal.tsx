@@ -20,7 +20,10 @@ function formatFaNumber(num: number | string): string {
 function formatPersianLongDate(dateStr?: string): string {
   if (!dateStr) return "-"
   try {
-    const d = new Date(dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
+    const isoStr = dateStr.includes("T")
+      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
+      : `${dateStr}T00:00:00Z`
+    const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
       dateStyle: "long",
       timeZone: "UTC",
@@ -64,11 +67,14 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
 
   // When no coupon is present, stay total is (totalPayable - cleaningFee) to strictly
   // reflect extra guest fees, weekend pricing exceptions, and preserve line item sum.
+  // When coupon is present, clamp baseTotal to at least (totalPayable - cleaningFee)
+  // so surcharge exceptions don't cause line items to sum to less than totalPayable.
   const baseTotal = !reservation.coupon_code
     ? Math.max(0, totalPayable - cleaningFee)
-    : basePrice > 0
-    ? basePrice * reservation.total_nights
-    : Math.max(0, totalPayable - cleaningFee)
+    : Math.max(
+        basePrice > 0 ? basePrice * reservation.total_nights : 0,
+        Math.max(0, totalPayable - cleaningFee)
+      )
 
   const discountAmount = reservation.coupon_code
     ? Math.max(0, baseTotal + cleaningFee - totalPayable)
@@ -120,6 +126,9 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 display: none !important;
               }
               .print-hide {
+                display: none !important;
+              }
+              .printable-dialog-content > button {
                 display: none !important;
               }
               .printable-invoice-card {
