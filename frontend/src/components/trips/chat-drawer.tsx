@@ -16,9 +16,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import {
+  MessageScrollerProvider,
+  MessageScroller,
+  MessageScrollerViewport,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerButton,
+} from "@/components/ui/message-scroller"
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+  MessageHeader,
+} from "@/components/ui/message"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
-import { cn } from "@/lib/utils"
 import { formatMessageTime, toPersianDigits } from "@/lib/format-fa"
 import type { ChatMessageItem, TripReservationItem } from "@/types/trips"
 
@@ -36,16 +50,9 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
   const [inputText, setInputText] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isLoadingMessages = isOpen && !hasLoadedInitially && !errorMessage
-
-  const scrollToBottom = useCallback((smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: smooth ? "smooth" : "auto",
-    })
-  }, [])
 
   const isMyMessage = useCallback(
     (msg: ChatMessageItem) => {
@@ -86,7 +93,6 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
         if (isMounted) {
           setMessages(data)
           setHasLoadedInitially(true)
-          setTimeout(() => scrollToBottom(false), 50)
         }
       })
       .catch((err: unknown) => {
@@ -129,14 +135,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       clearInterval(interval)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [isOpen, tripId, scrollToBottom])
-
-  // Scroll on new message added
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom(true)
-    }
-  }, [messages.length, scrollToBottom])
+  }, [isOpen, tripId])
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -153,7 +152,6 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       )
       setMessages((prev) => [...prev, sent])
       setInputText("")
-      setTimeout(() => scrollToBottom(true), 50)
       textareaRef.current?.focus()
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -211,87 +209,96 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
           </div>
         )}
 
-        {/* Message Container Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {isLoadingMessages ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-              <Loader2 className="size-6 animate-spin text-primary" />
-              <span className="text-xs">در حال بارگذاری پیام‌ها...</span>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground gap-3">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60">
-                <MessageSquare className="size-6" />
-              </div>
-              <p className="text-sm font-medium text-foreground">
-                هنوز پیامی رد و بدل نشده است.
-              </p>
-              <p className="text-xs leading-relaxed max-w-xs">
-                اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود را انجام دهید.
-              </p>
-            </div>
-          ) : (
-            messages.map((msg) => {
-              const mine = isMyMessage(msg)
-              return (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex flex-col max-w-[82%]",
-                    mine ? "ml-auto items-end" : "mr-auto items-start"
-                  )}
-                >
-                  {/* Sender Name for Incoming */}
-                  {!mine && (
-                    <span className="text-[11px] font-semibold text-muted-foreground mb-1 pr-1">
-                      {msg.sender_name || "میزبان"}
-                    </span>
-                  )}
-
-                  <div className="flex items-end gap-2">
-                    {!mine && (
-                      <Avatar className="size-7 shrink-0 bg-secondary/20 text-secondary border border-border">
-                        <AvatarFallback className="text-[11px] font-bold">
-                          {msg.sender_name ? msg.sender_name.charAt(0) : "م"}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-
-                    <div
-                      className={cn(
-                        "px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap shadow-xs",
-                        mine
-                          ? "bg-primary text-primary-foreground rounded-bl-sm"
-                          : "bg-muted text-foreground rounded-br-sm border border-border"
-                      )}
-                    >
-                      <p>{msg.message}</p>
-                      <div
-                        className={cn(
-                          "text-[10px] mt-1 text-right",
-                          mine
-                            ? "text-primary-foreground/75"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {formatMessageTime(msg.created_at)}
-                      </div>
-                    </div>
-
-                    {mine && (
-                      <Avatar className="size-7 shrink-0 bg-primary/20 text-primary border border-border">
-                        <AvatarFallback className="text-[11px] font-bold">
-                          {user?.first_name ? user.first_name.charAt(0) : <User className="size-3.5" />}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
+        {/* Message Thread — shadcn chat primitives own scrolling,
+            anchoring and jump-to-latest; no manual scroll wiring. */}
+        <MessageScrollerProvider autoScroll>
+          {/* h-auto overrides the stock size-full height so the scroller
+              shares the Sheet column with the header and composer. */}
+          <MessageScroller className="h-auto min-h-0 flex-1">
+            <MessageScrollerViewport className="p-4">
+              <MessageScrollerContent className="gap-3">
+                {isLoadingMessages ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="size-6 animate-spin text-primary" />
+                    <span className="text-xs">در حال بارگذاری پیام‌ها...</span>
                   </div>
-                </div>
-              )
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60">
+                      <MessageSquare className="size-6" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">
+                      هنوز پیامی رد و بدل نشده است.
+                    </p>
+                    <p className="text-xs leading-relaxed max-w-xs">
+                      اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود را انجام دهید.
+                    </p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const mine = isMyMessage(msg)
+                    return (
+                      <MessageScrollerItem
+                        key={msg.id}
+                        messageId={String(msg.id)}
+                        scrollAnchor={mine}
+                      >
+                        <Message align={mine ? "end" : "start"}>
+                          <MessageAvatar>
+                            {!mine ? (
+                              <Avatar className="size-7 shrink-0 bg-secondary/20 text-secondary border border-border">
+                                <AvatarFallback className="text-[11px] font-bold">
+                                  {msg.sender_name ? msg.sender_name.charAt(0) : "م"}
+                                </AvatarFallback>
+                              </Avatar>
+                            ) : (
+                              <Avatar className="size-7 shrink-0 bg-primary/20 text-primary border border-border">
+                                <AvatarFallback className="text-[11px] font-bold">
+                                  {user?.first_name ? user.first_name.charAt(0) : <User className="size-3.5" />}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                          </MessageAvatar>
+                          <MessageContent>
+                            {!mine && (
+                              <MessageHeader>
+                                {msg.sender_name || "میزبان"}
+                              </MessageHeader>
+                            )}
+                            <Bubble
+                              variant={mine ? "default" : "muted"}
+                              align={mine ? "end" : "start"}
+                            >
+                              <BubbleContent
+                                className={
+                                  mine
+                                    ? "whitespace-pre-wrap rounded-bl-sm"
+                                    : "whitespace-pre-wrap rounded-br-sm border-border"
+                                }
+                              >
+                                <p>{msg.message}</p>
+                                <div
+                                  className={
+                                    mine
+                                      ? "text-[10px] mt-1 text-right text-primary-foreground/75"
+                                      : "text-[10px] mt-1 text-right text-muted-foreground"
+                                  }
+                                >
+                                  {formatMessageTime(msg.created_at)}
+                                </div>
+                              </BubbleContent>
+                            </Bubble>
+                          </MessageContent>
+                        </Message>
+                      </MessageScrollerItem>
+                    )
+                  })
+                )}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
 
         {/* Composer Footer */}
         <div className="p-3 border-t border-border bg-card shrink-0">
