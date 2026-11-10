@@ -60,6 +60,14 @@ export function BottomNav() {
   const userDisplayName =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "کاربر آشیانک"
 
+  // Host screens (dashboard, wizard) have their own fixed bottom bars
+  // (wizard stepper bar, dashboard FAB) at the same z-index; the mobile
+  // nav is rendered after <main>, so it would paint over them and make
+  // them untappable on phones. Hide it on /host/* routes (T1, T2).
+  if (pathname.startsWith("/host")) {
+    return null
+  }
+
   const userInitials =
     user?.first_name && user?.last_name
       ? `${user.first_name[0]} ${user.last_name[0]}`

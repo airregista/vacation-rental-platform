@@ -58,44 +58,50 @@ export function PayoutLedger({ payouts, reservations }: PayoutLedgerProps) {
     <div className="space-y-4">
       {/* Financial metrics cards */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4" aria-label="خلاصه مالی">
-        <div className="bg-card p-4 rounded-2xl border border-border/70 flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">کل درآمد ناخالص</span>
-            <div className="text-2xl font-black text-foreground font-price">
-              {formatToman(totals.gross)}
-              <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+        <Card className="rounded-2xl border-border/70 shadow-xs">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">کل درآمد ناخالص</span>
+              <div className="text-2xl font-black text-foreground font-price">
+                {formatToman(totals.gross)}
+                <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+              </div>
             </div>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-            <Wallet className="w-5 h-5" />
-          </div>
-        </div>
+            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Wallet className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card p-4 rounded-2xl border border-border/70 flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">کارمزد ۱۰٪ سامانه</span>
-            <div className="text-2xl font-black text-foreground font-price">
-              {formatToman(totals.commission)}
-              <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+        <Card className="rounded-2xl border-border/70 shadow-xs">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">کارمزد ۱۰٪ سامانه</span>
+              <div className="text-2xl font-black text-foreground font-price">
+                {formatToman(totals.commission)}
+                <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+              </div>
             </div>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-            <Percent className="w-5 h-5" />
-          </div>
-        </div>
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <Percent className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card p-4 rounded-2xl border border-border/70 flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">درآمد خالص قابل تسویه</span>
-            <div className="text-2xl font-black text-foreground font-price">
-              {formatToman(totals.net)}
-              <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+        <Card className="rounded-2xl border-border/70 shadow-xs">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">درآمد خالص قابل تسویه</span>
+              <div className="text-2xl font-black text-foreground font-price">
+                {formatToman(totals.net)}
+                <span className="text-xs font-medium text-muted-foreground mr-1">تومان</span>
+              </div>
             </div>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
-            <Banknote className="w-5 h-5" />
-          </div>
-        </div>
+            <div className="w-11 h-11 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+              <Banknote className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {payouts.length === 0 ? (
