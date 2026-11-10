@@ -354,3 +354,33 @@ async def test_become_host_flow(client: AsyncClient):
 ## Maintenance notes
 
 - When deploying to production with a real Iranian SMS provider (Kavenegar / Ghasedak / SMS.ir), replace `dev_code="1234"` with cryptographically secure 5-digit generation (`secrets.randbelow`) and gate the static code behind `settings.ENVIRONMENT == "development"`.
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `8d33479` on `advisor/035-review-fixes` (9 files, +417/−22). Reviewer re-ran the full suite in the worktree: **109 passed** (106 baseline + 3 new R1/R2/R3 tests), ruff 0, tsc/lint/build 0; read the full diff. R1–R3 all done. The first run STOPPED on 17 pre-existing tests that assumed an admin could assign a listing to a guest; a REVISE round fixed them by promoting the assignee to host via `become-host` (test-only change, intent preserved, R1 not weakened). The one unidentified extra failure from the first run did not reproduce.
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section. All 3 findings are Low; no Medium/High in this plan.
+- **Scope:** `app/api/v1/endpoints/auth.py`, `app/api/v1/endpoints/accommodations.py`, the OTP model file under `app/models/` (new table only), one new Alembic migration under `migrations/`, `tests/test_auth.py` (extend). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### R1 (Low) — Admin can assign a listing to a plain guest
+- **File:** `app/api/v1/endpoints/accommodations.py:828-837`. The admin branch of `create_accommodation` checks only that `host_id` exists; it never checks `host_user.role`. A mistyped user ID hands a listing to a guest, who can then edit/delete it and manage its calendar (those endpoints authorize on `acc.host_id == current_user.id` alone) and sees it in `GET /accommodations/my`.
+- **Fix:** in the admin branch, reject with 400 unless `host_user.role in ("host", "admin")`.
+- **Done when:** an admin creating a listing with a guest's `host_id` gets 400; with a host/admin `host_id` still gets 201; `test_admin_create_accommodation_permission` still passes.
+
+### R2 (Low) — OTP cache is in-process memory; OTPs break across workers/restarts
+- **File:** `app/api/v1/endpoints/auth.py:139` (`_OTP_CACHE` dict). `send_otp` stores the code in a module-level dict in one worker; `verify_otp` reads whichever process handles the request. With `--workers > 1` or a restart between send and verify, the verify finds no entry and returns 400 "no request registered" despite a correct code. Latent today (single-worker run command).
+- **Judgment call (flagged):** plan 037 already records this as a *production migration* ("migrate `_OTP_CACHE` to Redis or a PostgreSQL table"). This R-item implements it now because the maintainer asked to fix all correct findings. Approach: a **PostgreSQL table** (no Redis in the stack — no new infrastructure). Preserve the current TTL and the `dev_code="1234"` behavior in development.
+- **Fix:** add an `otp_codes` table (`phone` PK, `code`, `expires_at`, `created_at`), an Alembic migration, and read/write the OTP through the DB instead of the dict. Keep the expiry prune.
+- **Done when:** a test sends an OTP, then verifies it with the in-memory state cleared (simulating a fresh process) and it still succeeds; expired codes still fail; verifying the same code twice still fails on the second attempt; all existing auth tests pass.
+
+### R3 (Low) — OTP is evicted before the user record is created
+- **File:** `app/api/v1/endpoints/auth.py:187`. The OTP is popped right after the code check, but the auto-registration `commit()` below only catches `IntegrityError`. Any other DB failure propagates as a 500 after the OTP is already gone — the user must request a new code and start over.
+- **Fix:** evict the OTP only after the user is successfully committed (with R2 this means deleting the DB row only after commit; on any failure path the row stays so the code can be retried while unexpired).
+- **Done when:** a test that forces a commit failure (a non-`IntegrityError` from `db.commit`) leaves the OTP usable for a retry; the happy path still evicts after success.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/035-review-fixes`, from main `438fdc8`. Commit as `fix(auth): second-pass review fixes R1-R3`.

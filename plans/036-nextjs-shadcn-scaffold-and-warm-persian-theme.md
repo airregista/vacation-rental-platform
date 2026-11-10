@@ -1039,3 +1039,46 @@ npm --prefix frontend run build
 
 - Any new UI components must be built by composing existing Shadcn primitives in `src/components/ui/`.
 - Never use inline hex color values in `.tsx` files; always reference semantic tokens (`bg-primary`, `text-secondary`, etc.).
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `c190a34` on `advisor/036-review-fixes` (6 files). Reviewer re-ran tsc/lint/build (all exit 0) and the full suite: **106 passed**; read the full diff. R1–R5 all done. Judgment accepted: the `.safe-pb` definition stays in `globals.css` because BottomNav and the host wizard bar still use it correctly (only the competing body/sheet usages were replaced).
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section. 1 Medium, 4 Low.
+- **Scope:** `frontend/src/app/globals.css`, `frontend/src/app/layout.tsx`, `frontend/src/components/ui/sheet.tsx`, `frontend/src/lib/api-client.ts`, `frontend/package.json` (+ lockfile). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### R1 (Medium) — Unlayered `.safe-pb` silently overrides the `pb-20` bottom offset
+- **File:** `frontend/src/app/globals.css:83-85` + `frontend/src/app/layout.tsx:31`. `.safe-pb` is declared at the top level of `globals.css` (unlayered) while Tailwind's `pb-20` lives in `@layer utilities`. Unlayered author CSS always beats layered CSS, so on `<body className="... pb-20 md:pb-0 safe-pb ...">` the effective `padding-bottom` is just `env(safe-area-inset-bottom, 0px)` — 0px on devices without a bottom inset — instead of the intended 80px. Same root cause in `sheet.tsx`'s bottom variant, where `p-6` combined with `safe-pb` is overridden to 0px bottom padding on non-notch devices.
+- **Scenario:** on any phone (< `md`), scroll to the bottom of any page — the fixed `BottomNav` (64px tall) covers the bottom ~64px of content (footer, end-of-page buttons), which cannot be scrolled into view.
+- **Fix:** remove `safe-pb` from `<body>` and use an additive utility instead, e.g. `pb-[calc(5rem+env(safe-area-inset-bottom,0px))]` (and the same for the sheet's bottom variant).
+- **Done when:** the built CSS gives `<body>` an effective `padding-bottom` of 80px + safe-area inset on mobile, and the sheet's bottom variant keeps its `p-6` bottom padding; no other page's bottom offset regresses.
+
+### R2 (Low) — All `animate-in` / `fade-*` / `zoom-*` / `slide-in-from-*` classes are dead
+- **File:** `frontend/src/components/ui/dialog.tsx:20,37`, `frontend/src/components/ui/sheet.tsx:20,30`. The overlay/content classes rely on `tw-animate-css`, but that package is not in `package.json`, is not in `node_modules`, and `globals.css` never imports it. Tailwind v4 does not ship these utilities. The built CSS contains 0 occurrences of `animate-in`.
+- **Scenario:** every dialog/sheet open/close — no fade, zoom, or slide runs; overlays just pop in/out instantly.
+- **Fix:** `npm i tw-animate-css` and add `@import "tw-animate-css";` to `globals.css`.
+- **Done when:** the built CSS contains `animate-in` (and the `fade-*`/`zoom-*` utilities the dialog/sheet use); dialogs/sheets animate on open/close.
+
+### R3 (Low) — A trailing slash in `NEXT_PUBLIC_API_URL` produces double-slash paths
+- **File:** `frontend/src/lib/api-client.ts:13,23`. The URL is built by raw concatenation (`${BASE_URL}${endpoint...}`) with no normalization, so `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1/` yields `.../api/v1//listings`, which FastAPI does not match (404). The default has no trailing slash, so this only bites on a differently-set env value.
+- **Fix:** strip trailing slashes once, e.g. `.replace(/\/+$/, "")` on the base URL.
+- **Done when:** a base URL with a trailing slash produces single-slash paths (assert in a unit test or by inspection of the built request URL).
+
+### R4 (Low) — Error detail can be a non-string at runtime despite the `string` type
+- **File:** `frontend/src/lib/api-client.ts:58-62`. `errorDetail = errorJson.message` is assigned with no type check, and `errorJson.detail[0]?.msg` is likewise unchecked. If a backend returns e.g. `{ "message": { ... } }`, `ApiError.detail` (typed `string`) holds an object.
+- **Scenario:** any error response whose `message` (or first validation `msg`) is an object/number renders as `[object Object]` to the user instead of a readable message.
+- **Fix:** guard with `typeof ... === "string" ? ... : JSON.stringify(...)` before assigning to `errorDetail`.
+- **Done when:** a non-string `message`/`msg` in an error response surfaces as readable JSON text, never `[object Object]`.
+
+### R5 (Low) — The `.dark` token block can never activate
+- **File:** `frontend/src/app/globals.css:31-50`. The dark-theme tokens are scoped under a `.dark` class, but nothing in the repo ever adds that class, and Tailwind v4's default `dark:` variant is `prefers-color-scheme`-media-based, not class-based (no `@custom-variant dark` is defined).
+- **Scenario:** on a dark-mode OS, components using `dark:` utilities get dark styling while all semantic tokens (`--background`, `--foreground`, etc.) stay light — a half-dark, inconsistent UI.
+- **Judgment call (flagged):** delete the dead `.dark` block. Adding a theme toggle is a feature, not a fix; the minimal fix is removing tokens that can never apply.
+- **Done when:** no `.dark` block remains in `globals.css`; `tsc`/`lint`/`build` still pass; no component references the removed tokens.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/036-review-fixes`, from main `438fdc8`. Commit as `fix(theme): second-pass review fixes R1-R5`.

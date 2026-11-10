@@ -671,3 +671,51 @@ Stop and report back (do not improvise) if:
 ## Maintenance notes
 
 - Real Shaparak IPG redirects in production will replace the mock modal with an HTTP form POST redirecting directly to the authorized PSP switch (Beh Pardakht Mellat or Saman SEP), with callback redirection to `/payments/verify`.
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `ad537f2` on `advisor/040-review-fixes` (4 files). Reviewer re-ran tsc/lint/build (all exit 0) and the full suite: **106 passed**; read the full diff. R1–R6 all done; no `SHP-CONFIRMED` remains in `frontend/src`. Residual: real print test still owed on Justin's machine; the payment lookup caps at 1,000 payments (10 pages × 100) by design.
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section. 1 Medium, 5 Low.
+- **Scope:** `frontend/src/app/checkout/[id]/page.tsx`, `frontend/src/components/checkout/payment-gateway-modal.tsx`, `frontend/src/components/checkout/invoice-modal.tsx`, `frontend/src/types/checkout.ts`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### R1 (Medium) — Official invoice fabricates a payment when the real one isn't found
+- **File:** `frontend/src/app/checkout/[id]/page.tsx:240` (invoiceData memo, lines ~230–248). The memo falls back to a synthetic payment `{ id: reservation.id, tracking_code: "SHP-CONFIRMED", amount: total_price, status: "success" }` whenever `latestPayment` is null. That happens not only when the payment lookup fails (the `catch` around `GET /payments/my` silently swallows errors) but also for any frequent guest whose real payment falls outside `limit=50` — `/payments/my` is ordered newest-first, so a user with 50+ newer payments gets a fake tracking code.
+- **Scenario:** such a user opens a confirmed checkout and prints an "official" fiscal invoice showing tracking code `SHP-CONFIRMED` and a payment ID that is actually the reservation ID.
+- **Fix:** never fabricate a payment — hide/disable the invoice button and show an error when no real successful payment is found. (Also fix the root cause of the miss: the `GET /payments/my` lookup should find the reservation's payment even past 50 newer payments — e.g. filter by reservation on the client from a larger fetch, or fetch the reservation's payment directly if an endpoint allows it; the minimal correct fix is the no-fabrication guard plus a lookup that cannot miss the payment for this reservation.)
+- **Done when:** with no real successful payment found, no invoice renders and the user sees an error instead of `SHP-CONFIRMED`; with a real payment (including one past 50 newer payments) the invoice shows the real tracking code.
+
+### R2 (Low) — The payment success view is unreachable dead code
+- **File:** `frontend/src/components/checkout/payment-gateway-modal.tsx:224` + `frontend/src/app/checkout/[id]/page.tsx:774`. On verify success the modal calls `setIsSuccess(true)` and then `onSuccess(response)`, which flips the parent reservation to `confirmed` in the same React batch — and the parent only mounts the modal when `isPending`. The modal unmounts before the success view (tracking code, receipt card, "مشاهده فاکتور رسمی" button) ever paints.
+- **Scenario:** no user-facing loss — the parent's confirmed banner offers the same invoice/trips actions — but the whole success branch and its `onOpenInvoice`-from-modal path never run.
+- **Judgment call (flagged):** delete the dead success branch (and the now-unused `onOpenInvoice`-from-modal path). Keeping the modal mounted until dismissal would be a bigger UX change for zero user-facing gain.
+- **Done when:** no `isSuccess` success-view branch remains in the modal; the parent's confirmed banner still offers invoice/trips actions; `tsc`/`lint`/`build` pass with no unused-code warnings.
+
+### R3 (Low) — Reopening the gateway creates a duplicate pending Payment row
+- **File:** `frontend/src/components/checkout/payment-gateway-modal.tsx:128–140`. The duplicate guard only works within one open: `hasInitiatedRef` is set after a successful POST but reset to `null` on every close, and the effect re-initiates whenever the ref is null — it never checks the already-held `paymentData`. The backend `POST /payments/checkout` creates a new `Payment` + new tracking code unconditionally, with no existing-pending-payment check.
+- **Scenario:** user opens the gateway (initiation succeeds), closes with انصراف, reopens → a second POST creates a second pending payment with a different tracking code; the first row is orphaned (stays `pending` forever, visible in payment history). No double charge — verify uses only the latest code.
+- **Fix:** skip initiation when `paymentData` already exists for this reservation, or only reset the ref on initiation error.
+- **Done when:** opening, closing, and reopening the gateway for the same pending reservation issues exactly one `POST /payments/checkout` (one pending row, one tracking code).
+
+### R4 (Low) — Print styles don't reset the dialog's scroll container, so long invoices may truncate in print
+- **File:** `frontend/src/components/checkout/invoice-modal.tsx:61` + print CSS (~lines 70–115). The `@media print` block resets `.printable-invoice-card` (`max-height: none; overflow: visible`) but `DialogContent` itself keeps `max-h-[95vh] overflow-y-auto`, which is not overridden in print. The invoice (header, parties, table, ledger, seals) can exceed 95vh.
+- **Scenario:** printing a long invoice yields only the first ~95vh of content.
+- **Fix:** add `.printable-dialog-content { max-height: none !important; overflow: visible !important; }` inside `@media print` and apply that class to the dialog content.
+- **Done when:** the print CSS contains the override and the dialog content carries the class. Residual: a real print test is manual — the maintainer should print a long invoice once on their machine.
+
+### R5 (Low) — `getPersianYear`: naive-datetime parsing plus a stale hardcoded fallback year
+- **File:** `frontend/src/types/checkout.ts:150–157`. Unlike every other date helper in 040, this parses with bare `new Date(dateStr)` (no `Z`-append guard), so a naive timestamp near the Nowruz boundary is read as local Tehran time but formatted in UTC and can yield the wrong Persian year for the invoice number; the invalid-date fallback is hardcoded `"1403"` (current year is 1405). Latent in practice — the backend returns offset timestamps — but inconsistent with the file's own defensive pattern.
+- **Fix:** apply the same `Z`-append normalisation used in `countdown-timer.tsx`/`invoice-modal.tsx`, and derive the fallback year from `new Date()` instead of `"1403"`.
+- **Done when:** a naive timestamp near the Nowruz boundary yields the correct Persian year, and an invalid date falls back to the current Persian year (not 1403).
+
+### R6 (Low) — `PaymentGatewayModalProps` is defined twice
+- **File:** `frontend/src/types/checkout.ts:91` vs `frontend/src/components/checkout/payment-gateway-modal.tsx:36`. The identical interface exists in `types/checkout.ts` and is redeclared locally in the modal, which uses its local copy — unlike `InvoiceModalProps`, which the invoice modal correctly imports from `types/checkout.ts`. Pure drift risk today (the two copies currently match).
+- **Fix:** delete the local declaration and import the type from `@/types/checkout`.
+- **Done when:** only one `PaymentGatewayModalProps` exists (in `types/checkout.ts`); the modal imports it; `tsc` passes.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/040-review-fixes`, from main `438fdc8`. Commit as `fix(checkout): second-pass review fixes R1-R6`.

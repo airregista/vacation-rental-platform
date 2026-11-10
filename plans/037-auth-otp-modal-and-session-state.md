@@ -418,3 +418,27 @@ Stop and report back (do not improvise) if:
 - When switching to production SMS services (e.g. Kavenegar), replace the mock static alert in `otp-modal.tsx` with dynamic production messaging.
 - For international visitors in future iterations, the `+98` prefix can be driven by a country-code selector.
 - In production with multiple Uvicorn workers (`--workers > 1`), migrate `_OTP_CACHE` in `app/api/v1/endpoints/auth.py` from in-memory dict to Redis or a PostgreSQL table to avoid multi-worker cache misses.
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `df04162` on `advisor/037-review-fixes` (1 file). Reviewer re-ran tsc/lint/build (all exit 0) and the full suite: **106 passed**; read the full diff. R1 done (focus moved into `finally` wrapped in the same 100ms `setTimeout` as `handlePhoneSubmit`). Behavior verified by code reasoning only — no browser in the sandbox; in-browser check still owed.
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section.
+- **Scope:** `frontend/src/components/auth/otp-modal.tsx`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### Resolved without action — "Become host" navigates to a route that doesn't exist
+- **File (was):** `frontend/src/components/layout/header.tsx:45,51,188`; `frontend/src/components/layout/bottom-nav.tsx:43,50`. After `becomeHost()` succeeded the code did `router.push("/host")`, but there was no `frontend/src/app/host/` route on main — the user landed on a 404.
+- **Resolution:** plan 043 (merged 2026-11-10, merge commit `8df32fb`) created `/host/dashboard` and retargeted all five calls to `/host/dashboard` (verified by the advisor on main at `438fdc8`). No R-item is needed for this finding.
+
+### R1 (Low) — Focus after OTP resend is a no-op because the inputs are still disabled
+- **File:** `frontend/src/components/auth/otp-modal.tsx:336` (`handleResend`). `handleResend` calls `otpRefs.current[0]?.focus()` while `isSubmitting` is still `true`; the OTP inputs have `disabled={isSubmitting}`, and focusing a disabled input does nothing. `setIsSubmitting(false)` only runs in the `finally` after the focus call.
+- **Scenario:** user taps "ارسال مجدد کد تایید", the new code arrives, they start typing — nothing appears because no digit box is focused; they must tap a box first.
+- **Fix:** move the focus into the `finally` (or a short `setTimeout` like `handlePhoneSubmit` does) so it runs after the inputs are re-enabled.
+- **Done when:** after a resend completes, the first OTP digit box is focused and typing fills it without an extra tap.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/037-review-fixes`, from main `438fdc8`. Commit as `fix(auth): second-pass review fix R1 (OTP resend focus)`.

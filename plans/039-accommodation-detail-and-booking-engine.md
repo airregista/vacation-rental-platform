@@ -606,3 +606,50 @@ Stop and report back (do not improvise) if:
 - Photo gallery uses Next.js `<Image unoptimized .../>` because external user images are served from local backend / public uploads.
 - Reservation hold state has a 30-minute server TTL; when Plan 040 (checkout) is implemented, a countdown timer can be synchronized with `created_at` timestamp.
 - Dynamic route `params` in Next.js 16 is an asynchronous Promise; all child page components must resolve it before accessing `id`.
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `0cb1d40` on `advisor/039-review-fixes` (6 files). Reviewer re-ran tsc/lint/build (all exit 0) and the full suite: **106 passed**; read the full diff. R1–R6 all done. Two gate-forced deviations accepted: R6 uses React's render-adjustment reset (eslint rejects the effect version); R4 removed the now-unused `onDateRangeChange` prop from BookingWidget.
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section. 2 Medium, 4 Low.
+- **Scope:** `frontend/src/components/accommodation/host-card.tsx`, `frontend/src/components/accommodation/reviews-section.tsx`, `frontend/src/components/accommodation/booking-widget.tsx`, `frontend/src/components/accommodation/availability-calendar.tsx`, `frontend/src/app/accommodations/[id]/page.tsx`, `frontend/src/components/accommodation/photo-gallery.tsx`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### R1 (Medium) — Strict cancellation policy text is wrong about refunds
+- **File:** `frontend/src/components/accommodation/host-card.tsx:30`. `POLICY_LABELS.strict.desc` says "لغو تا ۷ روز قبل از تحویل با بازگشت ۵۰٪ مبلغ" (cancel up to 7 days before check-in, 50% refund). The backend (`app/services/cancellation_service.py:66-75`) is tiered: ≥14 days = full refund, 7–14 days = 50%, **<7 days = 0%**. The card omits the full-refund ≥14-day window and implies 50% applies all the way up to 7 days before.
+- **Scenario:** a guest on a "strict" listing reads the card, cancels 3 days before check-in expecting half their money back, and gets nothing.
+- **Fix:** describe the tiers — full refund ≥14 days, 50% at 7–14 days, no refund under 7 days.
+- **Done when:** the strict card text states all three tiers and matches `cancellation_service.py` exactly.
+
+### R2 (Medium) — Reviews fetch silently caps at 20; averages and "show more" are computed over a truncated sample
+- **File:** `frontend/src/components/accommodation/reviews-section.tsx:32`. The fetch calls `/accommodations/${accommodationId}/reviews` with no `limit`, and the backend defaults `limit=20` (max 100, `app/api/v1/endpoints/reviews.py:20-25`). The header shows the true total (`reviewsCount` from the detail endpoint), but the list, the "show more" button (which can never reveal beyond 20), and the client-side cleanliness/accuracy averages are all computed over at most the 20 most recent reviews.
+- **Scenario:** a listing with 87 reviews shows "۴.۵ · ۸۷ نظر" while only the 20 newest are ever displayed, and the cleanliness/accuracy bars reflect only those 20 — a recent cluster of bad (or good) reviews skews the displayed sub-ratings versus the true average.
+- **Fix:** fetch with `?limit=100` so the list and sub-rating averages cover the same population the header claims (up to 100 reviews; full pagination beyond 100 is out of scope for this fix round).
+- **Done when:** the fetch URL includes `limit=100`; a listing with >20 reviews shows more than 20 and its sub-rating averages are computed over the fetched set.
+
+### R3 (Low) — Any 400 while a coupon is applied is reported as "invalid or expired coupon", and a failed fallback leaves no price error
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:119-138`. The catch branch treats every `ApiError` 400 as a coupon failure: it shows "کد تخفیف معتبر نیست یا منقضی شده است", clears the coupon, and retries without it. But `calculate-price` also returns 400 for a coupon's minimum-subtotal or usage-limit failure — the coupon is valid, just inapplicable — and the fallback's own failure only does `setPriceData(null)` without setting `submitError`, so the book button ends up disabled with the label "رزرو اقامتگاه" and no price-error explanation. (Clearing the coupon also re-triggers the effect, so the no-coupon price is fetched twice.)
+- **Fix:** only treat the 400 as a coupon error when the backend detail matches the invalid-coupon message; otherwise surface `err.message` via `setSubmitError`, and set `submitError` in the fallback catch.
+- **Done when:** a 400 for minimum-subtotal/usage-limit shows the backend's message (not "invalid coupon") and keeps the coupon; a failed fallback shows a price error instead of a dead button.
+
+### R4 (Low) — Clicking a date field silently wipes the selection instead of letting the user change it
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:274-295`. The check-in box's click/keyboard handler calls `onDateRangeChange(null, null)` (clears both dates) and the check-out box calls `onDateRangeChange(checkIn, null)`; neither scrolls to the calendar nor labels itself as a clear action. On desktop there is no scroll-to-calendar affordance at all.
+- **Scenario:** a guest with dates selected and a price calculated clicks the check-in field to adjust the date; both dates and the calculated price vanish with no guidance on how to re-pick.
+- **Fix:** make the date boxes scroll to `#availability-calendar` (clearing only the field being edited, if anything), instead of wiping the range.
+- **Done when:** clicking a date box scrolls to the calendar and preserves the existing selection (or clears only that one field); the price is not wiped by a click.
+
+### R5 (Low) — Fetch failures are swallowed and rendered as false empty states
+- **File:** `frontend/src/components/accommodation/availability-calendar.tsx:70` and `frontend/src/components/accommodation/reviews-section.tsx:38`. Both catches set the list to `[]` with no error state. The calendar then shows "اطلاعات تقویم برای این اقامتگاه یافت نشد" (indistinguishable from genuinely no data), and worse, the reviews section shows "هنوز نظری برای این اقامتگاه ثبت نشده است" — a factual claim that no reviews exist.
+- **Fix:** track a fetch-error state in both components and render an error notice with a retry button instead of the empty state.
+- **Done when:** a failed calendar/reviews fetch shows an error + retry (not "no data" / "no reviews"); a successful fetch after retry renders the data.
+
+### R6 (Low) — Booking/gallery state is not reset when the `[id]` param changes client-side
+- **File:** `frontend/src/app/accommodations/[id]/page.tsx:40-41` (+ calendar/widget/gallery/reviews state). `checkIn`/`checkOut`, the calendar's month indexes, the widget's guests/coupon/price, `visibleCount`, and the gallery's `activePhotoIndex` all live in components that persist across a client-side param change (no effect keyed on `accommodationId` resets them). There is no in-page link between listings, so this needs a manual URL edit, but the consequence is sharp: dates selected on listing A carry over to listing B (and can render as selected end-caps on days blocked on B), and the gallery indexes `sortedImages[activePhotoIndex]` unguarded (`photo-gallery.tsx:175,354`), so moving from a listing with 8 photos (viewing photo 7) to one with 2 photos throws a render-time TypeError.
+- **Fix:** add `key={accommodationId}` on the detail page's content (or reset the date/gallery/widget state in an effect on `accommodationId` change), and clamp `activePhotoIndex` to `totalImages - 1`.
+- **Done when:** navigating from listing A (photo 7 of 8, dates selected) to listing B (2 photos) renders B with no crash, no carried-over dates, and the gallery clamped to a valid index.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/039-review-fixes`, from main `438fdc8`. Commit as `fix(detail): second-pass review fixes R1-R6`.

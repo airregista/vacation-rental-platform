@@ -628,3 +628,55 @@ Stop and report back (do not improvise) if:
 
 - Infinite scroll pagination can be introduced in a future optimization using an `IntersectionObserver` hook targeting the `skip` / `limit` query parameters.
 - Search filters are synchronized with URL query params (`useSearchParams` & `window.history.replaceState`) supporting shareable deep-links and persistent filtered views.
+
+## Second-pass review fixes (2026-11-10)
+
+- **Status: APPROVED 2026-11-10.** Executor commit `7551216` on `advisor/038-review-fixes` (6 files). Reviewer re-ran tsc/lint/build (all exit 0) and the full suite: **106 passed**; read the full diff. R1–R7 all done. Note: R2's done-when was corrected by the reviewer — `skip` resets to 0 on filter change by pre-existing design (page 1); the parse + URL-sync round-trip is the criterion.
+- **Planned at:** `438fdc8` (main, post-043 merge). **Source:** the 035–040 code review (2026-11-10): a coordinator subagent reviewed the net effect of plans 035–040 on main; the advisor verified every finding below against the live code before writing this section. 1 Medium, 6 Low.
+- **Scope:** `frontend/src/app/page.tsx`, `frontend/src/lib/search-utils.ts`, `frontend/src/components/explore/search-pill.tsx`, `frontend/src/components/explore/filter-dialog.tsx`, `frontend/src/components/explore/accommodation-grid.tsx`, `frontend/src/components/ui/slider.tsx`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+
+### R1 (Medium) — Stale fetch response can overwrite newer results (no request sequencing/abort)
+- **File:** `frontend/src/app/page.tsx:80-106`. The accommodations fetch effect guards only with `isMounted`, which prevents setState after unmount but does nothing about out-of-order responses: two overlapping requests are both allowed to call `setAccommodations` and `setIsLoading(false)`.
+- **Scenario:** user taps category chips in quick succession (or changes filters rapidly); the first request resolves after the second, so the grid shows the *earlier* filter's listings and the skeletons disappear while the correct request is still in flight — wrong results until the next interaction.
+- **Fix:** track a request sequence number (or `AbortController`) in the effect and ignore/abort superseded responses.
+- **Done when:** with two overlapping fetches, only the latest response updates the grid (verify by code inspection + a test if the effect is testable, otherwise by reasoning documented in the report).
+
+### R2 (Low) — `parseAccommodationQuery` accepts invalid values and drops `skip`/`limit`
+- **File:** `frontend/src/lib/search-utils.ts:39-84`. IDs use only `!isNaN(Number(...))`, so `?city_id=0`, `?city_id=-1`, `?guests_count=1.5` are accepted; `max_price` accepts negatives; dates get only a lexicographic `checkOut > checkIn` check, so `?check_in=aaa&check_out=zzz` passes. The backend rejects these with 422, which `page.tsx` turns into the generic "خطا در بارگذاری" error screen; `skip`/`limit` are never parsed, so a shared link's pagination is silently lost on the next filter change.
+- **Fix:** validate with `Number.isInteger` + range checks and a `^\d{4}-\d{2}-\d{2}$` + real-date check, and parse `skip`/`limit`.
+- **Done when:** `?city_id=0`, `?guests_count=1.5`, `?max_price=-5`, `?check_in=aaa&check_out=zzz` are all ignored (no 422, no error screen); `skip`/`limit` parse and round-trip through the URL. NOTE (reviewer correction, 2026-11-10): `skip` is deliberately reset to 0 by the pre-existing `handleSelectCategory`/`handleSearch`/`handleApplyFilters` handlers when filters change (Step 6 design: changing filters returns to page 1) — so `skip` does NOT survive a filter change by design; only `limit` does. The parse + URL-sync round-trip is the criterion, not skip survival.
+
+### R3 (Low) — Stale wishlist IDs survive a failed refetch after a user switch
+- **File:** `frontend/src/app/page.tsx:57-76`. On logout the effect returns early without clearing `wishlistIds` (hiding relies on the derived `activeWishlistIds` memo), and the `catch` only logs — it never clears the set.
+- **Scenario:** user A is logged in (wishlist loaded), logs out, user B logs in and the `/wishlists/?limit=100` fetch fails (network error); B's session then displays A's favourited hearts as their own.
+- **Fix:** `setWishlistIds(new Set())` in the catch branch and when `!token`.
+- **Done when:** after logout, or after a failed wishlist refetch, no favourited hearts from the previous user remain.
+
+### R4 (Low) — Destination list hard-capped at 50 cities with no search
+- **File:** `frontend/src/components/explore/search-pill.tsx:48`. The pill fetches `/geo/cities?limit=50` (backend allows up to 100, ordered by name, no search param). The seed DB has only 17 cities so this is latent today, but any DB with >50 cities makes the rest unselectable.
+- **Fix:** request `limit=100` (backend max).
+- **Done when:** the pill fetches `/geo/cities?limit=100`.
+
+### R5 (Low) — Resizing across 768px while the filter dialog is open discards draft filters
+- **File:** `frontend/src/components/explore/filter-dialog.tsx:295-301,335`. `FilterForm` state lives inside two separate conditional branches (desktop `Dialog` vs mobile `Sheet`) selected by `isDesktop`, which updates on window resize.
+- **Scenario:** user has adjusted price/rooms/amenities in the open dialog, then rotates a phone or resizes the browser across 768px; the branch switches, `FilterForm` remounts, and all unapplied draft changes are lost.
+- **Fix:** hoist the filter form state into `FilterDialog` (or render one container and switch only the wrapper) so a breakpoint change doesn't remount the form.
+- **Done when:** changing the viewport across 768px with the dialog open preserves the unapplied draft values.
+
+### R6 (Low) — 4-column layout starts at 1536px, not the planned 1440px
+- **File:** `frontend/src/components/explore/accommodation-grid.tsx:29,80`. The grid uses `2xl:grid-cols-4`; Tailwind v4 defaults (no custom breakpoints in `globals.css`) make `2xl` = 1536px, while plan Step 5 specifies 4 columns for wide desktop ≥1440px.
+- **Fix:** define `--breakpoint-2xl: 90rem` in `@theme` in `globals.css` (one line; keeps the `2xl:` utilities meaning 1440px everywhere). Note: `globals.css` is touched by this one-line theme addition only — do not rework the file.
+- **Done when:** at a 1440–1535px viewport the grid shows 4 columns.
+
+### R7 (Low, latent) — `props.value || props.defaultValue` mishandles falsy values
+- **File:** `frontend/src/components/ui/slider.tsx:11`. A single-value slider at `0` falls through to `defaultValue` (becoming uncontrolled instead of controlled at 0), and `value={[]}` renders zero thumbs. No current caller hits this (the only use is the range slider in `filter-dialog.tsx`, where the value is always a 2-element array), but any future single-value slider at 0 breaks.
+- **Fix:** use `props.value ?? props.defaultValue` and fall back to `[0]` when the result is undefined/empty.
+- **Done when:** a slider with `value={0}` stays controlled at 0 and a slider with `value={[]}` renders one thumb at 0.
+
+### Gates
+- Frontend: `npx tsc --noEmit`, `npx eslint`, `npm run build` (from `frontend/`) — all exit 0.
+- Full suite: `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` (from the repo root) — 106 passed. The sandbox Postgres runs on 127.0.0.1:5432 from `~/workspace/.pgdata-test`; if the server is down, restart it with `su postgres -c '/home/hatch/workspace/.pgsql18/bin/pg_ctl -D /home/hatch/workspace/.pgdata-test -l /home/hatch/workspace/.pgdata-test/logfile.log start'` — the `postgres` user may need recreating after a VM replacement (`useradd -u 999 postgres`).
+- `git status --porcelain` shows only in-scope files.
+
+### Git workflow
+- Work in the isolated worktree on branch `advisor/038-review-fixes`, from main `438fdc8`. Commit as `fix(explore): second-pass review fixes R1-R7`.
