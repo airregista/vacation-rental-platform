@@ -120,6 +120,14 @@ async def test_host_scoping_accommodation_permissions(
     assert guest2_res.status_code == 201
     guest2_token = guest2_res.json()["access_token"]
 
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # 3. Admin creates accommodation with host_id = guest_user_id
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
@@ -605,6 +613,13 @@ async def test_inactive_accommodation_hidden_from_public_detail_and_calendar(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
@@ -681,6 +696,13 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
@@ -794,6 +816,14 @@ async def test_my_accommodations_pagination(client: AsyncClient, admin_token: st
         headers={"Authorization": f"Bearer {host_token}"},
     )
     host_id = user_me.json()["id"]
+
+    # R1: an admin may only assign a listing to a host/admin — the freshly
+    # registered user is a guest, so promote them to host first.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote_res.status_code == 200
 
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
@@ -920,6 +950,14 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first. User 2 is both the host and the
+    # booking guest in this test; promotion changes neither role in the flow.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
@@ -1029,6 +1067,13 @@ async def test_ical_export_blocked_dates_include_dtend(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]

@@ -492,6 +492,14 @@ async def test_host_payout_ledger_and_settlement_flow(
     host_token = reg_res.json()["access_token"]
     assert host_data.get("shaba_number") is None
 
+    # R1: an admin may only assign a listing to a host/admin — the freshly
+    # registered user is a guest, so promote them to host first.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # 2. Admin creates an accommodation for this host
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
@@ -678,6 +686,14 @@ async def test_host_payout_settlement_rejected_for_cancelled_reservation(
     host_id = host_data["id"]
     host_token = reg_res.json()["access_token"]
 
+    # R1: an admin may only assign a listing to a host/admin — the freshly
+    # registered user is a guest, so promote them to host first.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # Register host Shaba number
     await client.put(
         f"{settings.API_V1_STR}/auth/me",
@@ -782,6 +798,14 @@ async def test_reservation_messaging_flow(
     host_data = host_reg.json()["user"]
     host_id = host_data["id"]
     host_token = host_reg.json()["access_token"]
+
+    # R1: an admin may only assign a listing to a host/admin — the freshly
+    # registered user is a guest, so promote them to host first.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote_res.status_code == 200
 
     # 2. Admin creates an accommodation for this host
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
@@ -986,6 +1010,14 @@ async def test_host_payout_settlement_retained_on_penalty_cancellation(
     host_data = reg_res.json()["user"]
     host_id = host_data["id"]
     host_token = reg_res.json()["access_token"]
+
+    # R1: an admin may only assign a listing to a host/admin — the freshly
+    # registered user is a guest, so promote them to host first.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote_res.status_code == 200
 
     # Register host Shaba number
     await client.put(

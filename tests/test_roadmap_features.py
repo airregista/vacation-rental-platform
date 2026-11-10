@@ -16,6 +16,13 @@ async def test_host_listing_and_reservations_isolation(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
         json={
@@ -87,6 +94,14 @@ async def test_host_reservations_and_permissions(
     )
     assert guest2_res.status_code == 201
     guest2_token = guest2_res.json()["access_token"]
+
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
 
     # Admin creates accommodation owned by guest 1 (host_id=2)
     acc_res = await client.post(
@@ -329,6 +344,14 @@ async def test_external_calendar_sync_flow(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # 1. Admin creates accommodation owned by host (host_id=2) with external_calendar_url
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
@@ -426,7 +449,16 @@ END:VCALENDAR"""
 async def test_external_calendar_sync_unauthorized(
     client: AsyncClient,
     admin_token: str,
+    guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; the 403 below is for an unrelated guest.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # Admin creates accommodation owned by user 2
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
@@ -474,6 +506,14 @@ async def test_external_calendar_sync_ssrf_rejection(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
+
     # Host creates/updates accommodation with loopback calendar URL
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
@@ -531,6 +571,13 @@ async def test_external_calendar_sync_redirect_ssrf_rejection(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
         json={
@@ -570,6 +617,13 @@ async def test_external_calendar_url_hidden_from_public_and_guests(
     admin_token: str,
     guest_token: str,
 ):
+    # R1: an admin may only assign a listing to a host/admin — promote the
+    # seed guest (user 2) to host first; this test treats them as the host.
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
     secret_feed = "https://calendar.example.com/secret-token-12345.ics"
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
