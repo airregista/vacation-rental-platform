@@ -33,32 +33,36 @@ export interface FilterDialogProps {
 const DEFAULT_MAX_PRICE = 20000000
 
 interface FilterFormProps {
-  currentParams: AccommodationSearchParams
+  priceRange: [number, number]
+  setPriceRange: (range: [number, number]) => void
+  minRooms: number
+  setMinRooms: (n: number) => void
+  minBeds: number
+  setMinBeds: (n: number) => void
+  selectedAmenityIds: number[]
+  setSelectedAmenityIds: (ids: number[]) => void
+  sortBy: "newest" | "price_asc" | "price_desc"
+  setSortBy: (s: "newest" | "price_asc" | "price_desc") => void
   amenities: Amenity[]
   isLoadingAmenities: boolean
   onApply: (filters: Partial<AccommodationSearchParams>) => void
 }
 
 function FilterForm({
-  currentParams,
+  priceRange,
+  setPriceRange,
+  minRooms,
+  setMinRooms,
+  minBeds,
+  setMinBeds,
+  selectedAmenityIds,
+  setSelectedAmenityIds,
+  sortBy,
+  setSortBy,
   amenities,
   isLoadingAmenities,
   onApply,
 }: FilterFormProps) {
-  // Initialize state directly from currentParams on mount
-  const [priceRange, setPriceRange] = React.useState<[number, number]>([
-    currentParams.min_price || 0,
-    currentParams.max_price || DEFAULT_MAX_PRICE,
-  ])
-  const [minRooms, setMinRooms] = React.useState<number>(currentParams.min_rooms || 0)
-  const [minBeds, setMinBeds] = React.useState<number>(currentParams.min_beds || 0)
-  const [selectedAmenityIds, setSelectedAmenityIds] = React.useState<number[]>(
-    currentParams.amenity_ids || []
-  )
-  const [sortBy, setSortBy] = React.useState<"newest" | "price_asc" | "price_desc">(
-    currentParams.sort_by || "newest"
-  )
-
   const handleReset = () => {
     setPriceRange([0, DEFAULT_MAX_PRICE])
     setMinRooms(0)
@@ -79,8 +83,10 @@ function FilterForm({
   }
 
   const toggleAmenity = (id: number) => {
-    setSelectedAmenityIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    setSelectedAmenityIds(
+      selectedAmenityIds.includes(id)
+        ? selectedAmenityIds.filter((item) => item !== id)
+        : [...selectedAmenityIds, id]
     )
   }
 
@@ -130,7 +136,7 @@ function FilterForm({
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setMinRooms((r) => Math.max(0, r - 1))}
+                onClick={() => setMinRooms(Math.max(0, minRooms - 1))}
                 disabled={minRooms <= 0}
                 aria-label="کاهش تعداد اتاق"
                 className="size-8 rounded-full"
@@ -144,7 +150,7 @@ function FilterForm({
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setMinRooms((r) => Math.min(10, r + 1))}
+                onClick={() => setMinRooms(Math.min(10, minRooms + 1))}
                 disabled={minRooms >= 10}
                 aria-label="افزایش تعداد اتاق"
                 className="size-8 rounded-full"
@@ -167,7 +173,7 @@ function FilterForm({
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setMinBeds((b) => Math.max(0, b - 1))}
+                onClick={() => setMinBeds(Math.max(0, minBeds - 1))}
                 disabled={minBeds <= 0}
                 aria-label="کاهش تعداد تخت"
                 className="size-8 rounded-full"
@@ -181,7 +187,7 @@ function FilterForm({
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => setMinBeds((b) => Math.min(20, b + 1))}
+                onClick={() => setMinBeds(Math.min(20, minBeds + 1))}
                 disabled={minBeds >= 20}
                 aria-label="افزایش تعداد تخت"
                 className="size-8 rounded-full"
@@ -296,6 +302,39 @@ export function FilterDialog({
   const [amenities, setAmenities] = React.useState<Amenity[]>([])
   const [isLoadingAmenities, setIsLoadingAmenities] = React.useState(true)
 
+  // Draft filter state lives here — not inside FilterForm — so switching
+  // between the desktop Dialog and mobile Sheet branches on window resize
+  // does not remount the form and discard unapplied draft changes.
+  const [priceRange, setPriceRange] = React.useState<[number, number]>([
+    currentParams.min_price || 0,
+    currentParams.max_price || DEFAULT_MAX_PRICE,
+  ])
+  const [minRooms, setMinRooms] = React.useState<number>(currentParams.min_rooms || 0)
+  const [minBeds, setMinBeds] = React.useState<number>(currentParams.min_beds || 0)
+  const [selectedAmenityIds, setSelectedAmenityIds] = React.useState<number[]>(
+    currentParams.amenity_ids || []
+  )
+  const [sortBy, setSortBy] = React.useState<"newest" | "price_asc" | "price_desc">(
+    currentParams.sort_by || "newest"
+  )
+
+  // Re-sync the draft from the committed params each time the dialog opens,
+  // so a dismissed draft does not leak into the next open.
+  const wasOpenRef = React.useRef(open)
+  React.useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setPriceRange([
+        currentParams.min_price || 0,
+        currentParams.max_price || DEFAULT_MAX_PRICE,
+      ])
+      setMinRooms(currentParams.min_rooms || 0)
+      setMinBeds(currentParams.min_beds || 0)
+      setSelectedAmenityIds(currentParams.amenity_ids || [])
+      setSortBy(currentParams.sort_by || "newest")
+    }
+    wasOpenRef.current = open
+  }, [open, currentParams])
+
   // Screen size detection
   React.useEffect(() => {
     const updateSize = () => setIsDesktop(window.innerWidth >= 768)
@@ -345,7 +384,16 @@ export function FilterDialog({
 
           {open && (
             <FilterForm
-              currentParams={currentParams}
+              priceRange={priceRange}
+              setPriceRange={setPriceRange}
+              minRooms={minRooms}
+              setMinRooms={setMinRooms}
+              minBeds={minBeds}
+              setMinBeds={setMinBeds}
+              selectedAmenityIds={selectedAmenityIds}
+              setSelectedAmenityIds={setSelectedAmenityIds}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
               amenities={amenities}
               isLoadingAmenities={isLoadingAmenities}
               onApply={handleApply}
@@ -368,7 +416,16 @@ export function FilterDialog({
 
         {open && (
           <FilterForm
-            currentParams={currentParams}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            minRooms={minRooms}
+            setMinRooms={setMinRooms}
+            minBeds={minBeds}
+            setMinBeds={setMinBeds}
+            selectedAmenityIds={selectedAmenityIds}
+            setSelectedAmenityIds={setSelectedAmenityIds}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
             amenities={amenities}
             isLoadingAmenities={isLoadingAmenities}
             onApply={handleApply}

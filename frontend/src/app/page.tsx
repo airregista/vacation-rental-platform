@@ -57,6 +57,13 @@ function HomeContent() {
   React.useEffect(() => {
     let isMounted = true
     if (!token) {
+      // Clear stale IDs from a previous user so their favourites never
+      // leak into a logged-out session or a different user's session.
+      // Syncing this state to the external auth state on logout is the
+      // effect's job; the derived activeWishlistIds memo only hides the
+      // stale set while logged out, it does not clear the source of truth.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWishlistIds(new Set())
       return
     }
 
@@ -69,6 +76,11 @@ function HomeContent() {
       })
       .catch((err) => {
         console.error("Failed to load wishlist items:", err)
+        // A failed refetch (e.g. after a user switch) must not leave the
+        // previous user's favourites displayed as the new user's.
+        if (isMounted) {
+          setWishlistIds(new Set())
+        }
       })
 
     return () => {
@@ -76,16 +88,22 @@ function HomeContent() {
     }
   }, [token])
 
+  // Sequence number so a stale (superseded) fetch response can never
+  // overwrite newer results when filters change in quick succession.
+  const fetchSeqRef = React.useRef(0)
+
   // Fetch accommodations whenever searchParams or reloadTrigger change
   React.useEffect(() => {
     let isMounted = true
+    const seq = ++fetchSeqRef.current
+    const isLatest = () => isMounted && seq === fetchSeqRef.current
     const queryString = buildAccommodationQuery(searchParams)
 
     // Note the mandatory trailing slash to prevent FastAPI 307 temporary redirects
     apiClient
       .get<AccommodationListItem[]>(`/accommodations/${queryString}`)
       .then((data) => {
-        if (isMounted) {
+        if (isLatest()) {
           setAccommodations(data || [])
           setFetchError(null)
           setIsLoading(false)
@@ -93,7 +111,7 @@ function HomeContent() {
       })
       .catch((err: unknown) => {
         console.error("Error fetching accommodations:", err)
-        if (isMounted) {
+        if (isLatest()) {
           setFetchError("خطا در بارگذاری اقامتگاه‌ها. لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش کنید.")
           setIsLoading(false)
         }

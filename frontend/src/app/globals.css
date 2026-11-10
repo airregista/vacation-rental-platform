@@ -28,6 +28,7 @@
 }
 
 @theme inline {
+  --breakpoint-2xl: 90rem;
   --font-sans: var(--font-vazirmatn);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
