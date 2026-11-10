@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertCircle, CheckCircle2, Loader2, Sparkles, Star } from "lucide-react"
 
 import {
@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { toPersianDigits } from "@/lib/format-fa"
 import type { ReviewSubmissionPayload, TripReservationItem } from "@/types/trips"
 
 export interface ReviewDialogProps {
@@ -26,15 +27,11 @@ export interface ReviewDialogProps {
   onReviewSubmitted: (reservationId?: number) => void
 }
 
-function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
-}
-
 interface StarPickerProps {
   label: string
   description?: string
-  value: number
-  onChange: (val: number) => void
+  value: number | null
+  onChange: (val: number | null) => void
   required?: boolean
   disabled?: boolean
 }
@@ -48,7 +45,7 @@ function StarPicker({
   disabled = false,
 }: StarPickerProps) {
   const [hoverVal, setHoverVal] = useState<number | null>(null)
-  const current = hoverVal !== null ? hoverVal : value
+  const current = hoverVal ?? value ?? 0
 
   return (
     <div className="space-y-1.5">
@@ -84,7 +81,7 @@ function StarPicker({
                   : "text-muted-foreground/30 hover:text-amber-400 hover:bg-muted"
               )}
               onMouseEnter={() => setHoverVal(star)}
-              onClick={() => onChange(star)}
+              onClick={() => onChange(star === value ? null : star)}
               aria-label={`${label}: ${star} از ۵`}
             >
               <Star
@@ -108,17 +105,31 @@ export function ReviewDialog({
   onReviewSubmitted,
 }: ReviewDialogProps) {
   const [rating, setRating] = useState<number>(5)
-  const [cleanliness, setCleanliness] = useState<number>(5)
-  const [accuracy, setAccuracy] = useState<number>(5)
+  const [cleanliness, setCleanliness] = useState<number | null>(null)
+  const [accuracy, setAccuracy] = useState<number | null>(null)
   const [comment, setComment] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const successTimerRef = useRef<number | null>(null)
+
+  // Clear the success timer if the dialog unmounts before it fires.
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current !== null) {
+        window.clearTimeout(successTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleClose = () => {
+    if (successTimerRef.current !== null) {
+      window.clearTimeout(successTimerRef.current)
+      successTimerRef.current = null
+    }
     setRating(5)
-    setCleanliness(5)
-    setAccuracy(5)
+    setCleanliness(null)
+    setAccuracy(null)
     setComment("")
     setErrorMessage(null)
     setSuccessMessage(null)
@@ -139,8 +150,8 @@ export function ReviewDialog({
       const payload: ReviewSubmissionPayload = {
         reservation_id: trip.id,
         rating,
-        cleanliness_rating: cleanliness || null,
-        accuracy_rating: accuracy || null,
+        cleanliness_rating: cleanliness,
+        accuracy_rating: accuracy,
         comment: comment.trim(),
       }
 
@@ -150,7 +161,8 @@ export function ReviewDialog({
       )
 
       setSuccessMessage("نظر ارزشمند شما با موفقیت ثبت شد و در صفحه اقامتگاه نمایش داده می‌شود.")
-      setTimeout(() => {
+      successTimerRef.current = window.setTimeout(() => {
+        successTimerRef.current = null
         onReviewSubmitted(trip.id)
         handleClose()
       }, 1200)
@@ -211,7 +223,9 @@ export function ReviewDialog({
                 label="امتیاز کلی به اقامتگاه"
                 description="میزان رضایت کلی شما از اقامت، امکانات و میزبانی"
                 value={rating}
-                onChange={setRating}
+                onChange={(val) => {
+                  if (val !== null) setRating(val)
+                }}
                 required
                 disabled={isSubmitting}
               />

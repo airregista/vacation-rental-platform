@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { toPersianDigits } from "@/lib/format-fa"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,10 +27,6 @@ import { CancellationModal } from "@/components/trips/cancellation-modal"
 import { ReviewDialog } from "@/components/trips/review-dialog"
 import { ChatDrawer } from "@/components/trips/chat-drawer"
 import type { TripReservationItem } from "@/types/trips"
-
-function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
-}
 
 export default function TripsPage() {
   const { token, isLoading: isAuthLoading, openOtpModal } = useAuth()
@@ -51,8 +48,24 @@ export default function TripsPage() {
 
     let isMounted = true
 
-    apiClient
-      .get<TripReservationItem[]>("/reservations/my")
+    // The backend defaults to limit=20; fetch every page so the list and
+    // the totals include all of the user's reservations.
+    const fetchAllTrips = async (): Promise<TripReservationItem[]> => {
+      const all: TripReservationItem[] = []
+      let skip = 0
+      let hasMore = true
+      while (hasMore) {
+        const page = await apiClient.get<TripReservationItem[]>(
+          `/reservations/my?skip=${skip}&limit=100`
+        )
+        all.push(...page)
+        hasMore = page.length === 100
+        skip += 100
+      }
+      return all
+    }
+
+    fetchAllTrips()
       .then((data) => {
         if (isMounted) {
           setTrips(data)
@@ -63,7 +76,9 @@ export default function TripsPage() {
         if (isMounted) {
           setIsLoadingTrips(false)
           if (err instanceof ApiError) {
-            setFetchError(err.message || "خطا در بارگذاری لیست سفرها.")
+            setFetchError(
+              err.detail || err.message || "خطا در بارگذاری لیست سفرها."
+            )
           } else {
             setFetchError("خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش فرمایید.")
           }
@@ -273,7 +288,7 @@ export default function TripsPage() {
           ) : trips.length === 0 ? (
             <EmptyState
               title="هنوز هیچ سفری رزرو نکرده‌اید"
-              description="برای تعطیلات بعدی خود از میان هزاران ویلا، سوئیت و اقامتگاه بوم‌گردی جاجیگا انتخاب کنید."
+              description="برای تعطیلات بعدی خود از میان هزاران ویلا، سوئیت و اقامتگاه بوم‌گردی آشیانک انتخاب کنید."
               actionHref="/"
               actionLabel="جستجوی اقامتگاه"
             />

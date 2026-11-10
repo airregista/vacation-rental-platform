@@ -19,29 +19,13 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { formatMessageTime, toPersianDigits } from "@/lib/format-fa"
 import type { ChatMessageItem, TripReservationItem } from "@/types/trips"
 
 export interface ChatDrawerProps {
   trip: TripReservationItem | null
   isOpen: boolean
   onClose: () => void
-}
-
-function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
-}
-
-function formatMessageTime(isoString: string): string {
-  try {
-    const d = new Date(isoString)
-    return new Intl.DateTimeFormat("fa-IR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(d)
-  } catch {
-    return ""
-  }
 }
 
 export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
@@ -72,6 +56,11 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     [user, trip]
   )
 
+  // Depend on the reservation id, not the trip object: the parent creates
+  // new trip objects on every refetch, which would restart the fetch and
+  // the polling interval while the drawer is open.
+  const tripId = trip?.id
+
   const handleClose = () => {
     setMessages([])
     setHasLoadedInitially(false)
@@ -81,14 +70,18 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     onClose()
   }
 
-  // Fetch on open & set up polling
+  // Fetch on open & set up polling.
+  // The messages endpoint defaults to limit=50, oldest first, and 100 is
+  // the maximum it accepts. Conversations longer than 100 messages still
+  // truncate to the oldest 100 — a backend "latest N" / cursor parameter
+  // would be needed to fix that properly (out of scope here).
   useEffect(() => {
-    if (!isOpen || !trip) return
+    if (!isOpen || tripId === undefined) return
 
     let isMounted = true
 
     apiClient
-      .get<ChatMessageItem[]>(`/reservations/${trip.id}/messages`)
+      .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
       .then((data) => {
         if (isMounted) {
           setMessages(data)
@@ -100,7 +93,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
         if (isMounted) {
           setHasLoadedInitially(true)
           if (err instanceof ApiError) {
-            setErrorMessage(err.message || "خطا در دریافت پیام‌ها.")
+            setErrorMessage(err.detail || err.message || "خطا در دریافت پیام‌ها.")
           } else {
             setErrorMessage("امکان برقراری ارتباط با چت وجود ندارد.")
           }
@@ -110,7 +103,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     // Poll for new messages every 8 seconds
     const interval = setInterval(() => {
       apiClient
-        .get<ChatMessageItem[]>(`/reservations/${trip.id}/messages`)
+        .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
         .then((data) => {
           if (isMounted) setMessages(data)
         })
@@ -121,7 +114,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
 
     const handleFocus = () => {
       apiClient
-        .get<ChatMessageItem[]>(`/reservations/${trip.id}/messages`)
+        .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
         .then((data) => {
           if (isMounted) setMessages(data)
         })
@@ -136,7 +129,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       clearInterval(interval)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [isOpen, trip, scrollToBottom])
+  }, [isOpen, tripId, scrollToBottom])
 
   // Scroll on new message added
   useEffect(() => {
@@ -164,7 +157,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       textareaRef.current?.focus()
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setErrorMessage(err.message || "خطا در ارسال پیام.")
+        setErrorMessage(err.detail || err.message || "خطا در ارسال پیام.")
       } else {
         setErrorMessage("خطا در ارسال پیام. لطفاً وضعیت اینترنت را بررسی کنید.")
       }

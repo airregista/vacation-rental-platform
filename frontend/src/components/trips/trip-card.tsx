@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Building, Calendar, CreditCard, FileText, MessageSquare, Star, Users, XCircle } from "lucide-react"
 
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatFaPrice } from "@/types/checkout"
+import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import type { TripReservationItem } from "@/types/trips"
 
 export interface TripCardProps {
@@ -16,28 +17,6 @@ export interface TripCardProps {
   onOpenChat: (trip: TripReservationItem) => void
   onOpenCancel: (trip: TripReservationItem) => void
   onOpenReview: (trip: TripReservationItem) => void
-}
-
-function formatPersianDate(dateStr: string): string {
-  if (!dateStr) return ""
-  try {
-    const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
-      : `${dateStr}T00:00:00Z`
-    const d = new Date(isoStr)
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(d)
-  } catch {
-    return dateStr
-  }
-}
-
-function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
 }
 
 export function TripCard({
@@ -48,12 +27,15 @@ export function TripCard({
 }: TripCardProps) {
   const [imageError, setImageError] = useState(false)
 
-  // Determine check-in and check-out timestamps for strict guards
+  // Determine check-in and check-out timestamps for strict guards.
+  // Bare dates use the backend defaults (check-in 14:00, check-out 12:00
+  // Tehran time; cancellation_service.py falls back to time(14, 0)). The
+  // per-accommodation times are authoritative on the server.
   const checkInTimestamp = React.useMemo(() => {
     try {
       const isoStr = trip.check_in.includes("T")
         ? trip.check_in
-        : `${trip.check_in}T14:00:00Z`
+        : `${trip.check_in}T10:30:00Z`
       return new Date(isoStr).getTime()
     } catch {
       return 0
@@ -64,14 +46,20 @@ export function TripCard({
     try {
       const isoStr = trip.check_out.includes("T")
         ? trip.check_out
-        : `${trip.check_out}T12:00:00Z`
+        : `${trip.check_out}T08:30:00Z`
       return new Date(isoStr).getTime()
     } catch {
       return 0
     }
   }, [trip.check_out])
 
-  const [now] = useState(() => Date.now())
+  // Refresh "now" every 60 seconds so the eligibility guards below do not
+  // go stale while the page stays open.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
   const canCancel = trip.status === "confirmed" && checkInTimestamp > now
   const canReview =
     trip.status === "completed" ||
