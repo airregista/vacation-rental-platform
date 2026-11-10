@@ -28,10 +28,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      setToken(storedToken)
+      // The token is only committed to state after /auth/me succeeds, so a
+      // network error or 5xx never leaves token non-null while user is null.
+      // The stored token stays in localStorage for a later retry; only
+      // 401/403 evicts it.
       try {
         const currentUser = await apiClient.get<UserResponse>("/auth/me")
         if (isMounted) {
+          setToken(storedToken)
           setUser(currentUser)
         }
       } catch (err: unknown) {

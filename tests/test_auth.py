@@ -645,3 +645,46 @@ async def test_otp_usable_after_commit_failure(client: AsyncClient, monkeypatch)
     )
     assert retry_res.status_code == 200
     assert retry_res.json()["user"]["phone"] == random_phone
+
+
+@pytest.mark.asyncio
+async def test_otp_send_rate_limit_60s_cooldown(client: AsyncClient):
+    """T1: a second OTP send within 60s is 429; after 60s it is 200 again,
+    and the cooldown restarts from the last send."""
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+
+    first = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert first.status_code == 200
+
+    second = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert second.status_code == 429
+
+    # Backdate the row past the cooldown window instead of sleeping 60s
+    async with AsyncSessionLocal() as session:
+        row = (
+            (await session.execute(select(OTPCode).where(OTPCode.phone == random_phone)))
+            .scalars()
+            .first()
+        )
+        assert row is not None
+        row.created_at = datetime.now(timezone.utc) - timedelta(seconds=61)
+        await session.commit()
+
+    third = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert third.status_code == 200
+
+    # Cooldown restarts from the last send
+    fourth = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert fourth.status_code == 429

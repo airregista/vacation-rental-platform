@@ -103,26 +103,27 @@ async def update_me(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> UserResponse:
-    if user_update.email and user_update.email != current_user.email:
-        stmt = select(User).where(
-            func.lower(User.email) == user_update.email, User.id != current_user.id
-        )
-        result = await db.execute(stmt)
-        if result.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This email address is already in use by another account",
+    fields = user_update.model_fields_set
+    if "email" in fields:
+        if user_update.email is None:
+            current_user.email = None
+        elif user_update.email != current_user.email:
+            stmt = select(User).where(
+                func.lower(User.email) == user_update.email, User.id != current_user.id
             )
-        current_user.email = user_update.email
+            result = await db.execute(stmt)
+            if result.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This email address is already in use by another account",
+                )
+            current_user.email = user_update.email
 
-    if user_update.first_name is not None:
-        current_user.first_name = user_update.first_name
-    if user_update.last_name is not None:
-        current_user.last_name = user_update.last_name
-    if user_update.avatar_url is not None:
-        current_user.avatar_url = user_update.avatar_url
-    if user_update.shaba_number is not None:
-        current_user.shaba_number = user_update.shaba_number
+    # model_fields_set distinguishes "omitted" from "explicitly null", so
+    # an explicit null clears the field while an omitted field is untouched.
+    for attr in ("first_name", "last_name", "avatar_url", "shaba_number"):
+        if attr in fields:
+            setattr(current_user, attr, getattr(user_update, attr))
 
     try:
         await db.commit()
@@ -150,9 +151,20 @@ async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
     existing = (
         (await db.execute(select(OTPCode).where(OTPCode.phone == req.phone))).scalars().first()
     )
+    # Per-phone 60s cooldown, measured from the last send (created_at is
+    # refreshed on every resend below). No hourly cap: that would need a
+    # send-log table.
+    if existing and existing.created_at is not None:
+        elapsed = (now - existing.created_at).total_seconds()
+        if elapsed < 60:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"لطفاً {int(60 - elapsed)} ثانیه دیگر دوباره تلاش کنید",
+            )
     if existing:
         existing.code = code
         existing.expires_at = expiry
+        existing.created_at = now
     else:
         db.add(OTPCode(phone=req.phone, code=code, expires_at=expiry))
     await db.commit()
