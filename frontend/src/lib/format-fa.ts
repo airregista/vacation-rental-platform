@@ -27,6 +27,7 @@ export function formatMessageTime(isoString: string): string {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
+      timeZone: "Asia/Tehran",
     }).format(d)
   } catch {
     return ""

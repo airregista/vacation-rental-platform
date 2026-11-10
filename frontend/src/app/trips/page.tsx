@@ -69,6 +69,7 @@ export default function TripsPage() {
       .then((data) => {
         if (isMounted) {
           setTrips(data)
+          setFetchError(null)
           setIsLoadingTrips(false)
         }
       })

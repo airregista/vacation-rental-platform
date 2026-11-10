@@ -78,6 +78,16 @@ export function CancellationModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const successTimerRef = useRef<number | null>(null)
+  // Pending parent callback for a success whose 1200ms timer has not fired
+  // yet: closing the dialog in that window must still deliver it (R3).
+  const pendingSuccessRef = useRef<(() => void) | null>(null)
+  // Whether the dialog is currently open; the POST can resolve after the
+  // user closed the dialog mid-submit (R3).
+  const isOpenRef = useRef(isOpen)
+
+  useEffect(() => {
+    isOpenRef.current = isOpen
+  }, [isOpen])
 
   // Clear the success timer if the dialog unmounts before it fires.
   useEffect(() => {
@@ -91,10 +101,16 @@ export function CancellationModal({
   const isLoadingPreview = isOpen && !preview && !errorMessage
 
   const handleClose = () => {
+    // If a success is still pending, deliver the parent update first so
+    // closing in the 1200ms success window does not drop it (R3).
+    const pending = pendingSuccessRef.current
+    pendingSuccessRef.current = null
+    if (pending) pending()
     if (successTimerRef.current !== null) {
       window.clearTimeout(successTimerRef.current)
       successTimerRef.current = null
     }
+    isOpenRef.current = false
     setPreview(null)
     setReason("")
     setErrorMessage(null)
@@ -147,10 +163,21 @@ export function CancellationModal({
         payload
       )
 
+      // Closed while the request was in flight: no timer, no success
+      // message — refresh the parent list right away instead (R3).
+      if (!isOpenRef.current) {
+        onCancelled(trip.id, response.refund_amount, response.penalty_amount)
+        return
+      }
+
       setSuccessMessage(response.message || "رزرو شما با موفقیت لغو شد و فرآیند استرداد وجه آغاز گردید.")
+      pendingSuccessRef.current = () =>
+        onCancelled(trip.id, response.refund_amount, response.penalty_amount)
       successTimerRef.current = window.setTimeout(() => {
         successTimerRef.current = null
-        onCancelled(trip.id, response.refund_amount, response.penalty_amount)
+        const pending = pendingSuccessRef.current
+        pendingSuccessRef.current = null
+        if (pending) pending()
         handleClose()
       }, 1200)
     } catch (err: unknown) {
