@@ -25,7 +25,7 @@ class User(Base):
     last_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     role: Mapped[str] = mapped_column(
         String(20), default="guest", nullable=False
-    )  # "admin" or "guest"
+    )  # "admin", "host" or "guest"
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     shaba_number: Mapped[str | None] = mapped_column(String(26), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
