@@ -44,6 +44,7 @@ function toEnglishDigits(str: string): string {
   return result
 }
 
+// shortcut: digit-by-digit replacement keeps leading zeros (phone "0912…", timer "05"); the shared Intl helper in @/lib/format-fa drops them — do not dedupe.
 function toPersianDigits(num: number | string): string {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
   return String(num).replace(/\d/g, (digit) => persianDigits[parseInt(digit, 10)])

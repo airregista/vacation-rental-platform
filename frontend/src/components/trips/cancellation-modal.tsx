@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertCircle, CheckCircle2, Clock, HelpCircle, Loader2 } from "lucide-react"
 
 import {
@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatFaPrice } from "@/types/checkout"
+import { toPersianDigits } from "@/lib/format-fa"
 import type {
   CancellationPreviewData,
   CancellationResponseData,
@@ -37,10 +38,6 @@ export interface CancellationModalProps {
   ) => void
 }
 
-function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
-}
-
 function getPolicyLabel(policy?: string): string {
   switch (policy?.toLowerCase()) {
     case "flexible":
@@ -54,6 +51,21 @@ function getPolicyLabel(policy?: string): string {
   }
 }
 
+// Translate known backend preview-failure details to Persian; unknown
+// errors pass through unchanged so they are never dropped.
+function mapPreviewError(detail: string): string {
+  if (detail.includes("cannot be cancelled from status")) {
+    return "این رزرو در وضعیتی نیست که بتوان آن را لغو کرد."
+  }
+  if (detail.includes("Host payout has already been settled")) {
+    return "تسویه حساب میزبان انجام شده و امکان لغو وجود ندارد."
+  }
+  if (detail.includes("check-in time has already arrived")) {
+    return "موعد تحویل اقامتگاه سپری شده و امکان لغو وجود ندارد."
+  }
+  return detail
+}
+
 export function CancellationModal({
   trip,
   isOpen,
@@ -65,10 +77,24 @@ export function CancellationModal({
   const [reason, setReason] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const successTimerRef = useRef<number | null>(null)
+
+  // Clear the success timer if the dialog unmounts before it fires.
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current !== null) {
+        window.clearTimeout(successTimerRef.current)
+      }
+    }
+  }, [])
 
   const isLoadingPreview = isOpen && !preview && !errorMessage
 
   const handleClose = () => {
+    if (successTimerRef.current !== null) {
+      window.clearTimeout(successTimerRef.current)
+      successTimerRef.current = null
+    }
     setPreview(null)
     setReason("")
     setErrorMessage(null)
@@ -92,7 +118,10 @@ export function CancellationModal({
       .catch((err: unknown) => {
         if (isMounted) {
           if (err instanceof ApiError) {
-            setErrorMessage(err.detail || err.message || "امکان محاسبه شرایط کنسلی برای این رزرو وجود ندارد.")
+            setErrorMessage(
+              mapPreviewError(err.detail || err.message) ||
+                "امکان محاسبه شرایط کنسلی برای این رزرو وجود ندارد."
+            )
           } else {
             setErrorMessage("خطا در برقراری ارتباط با سامانه. لطفاً مجدداً تلاش کنید.")
           }
@@ -119,7 +148,8 @@ export function CancellationModal({
       )
 
       setSuccessMessage(response.message || "رزرو شما با موفقیت لغو شد و فرآیند استرداد وجه آغاز گردید.")
-      setTimeout(() => {
+      successTimerRef.current = window.setTimeout(() => {
+        successTimerRef.current = null
         onCancelled(trip.id, response.refund_amount, response.penalty_amount)
         handleClose()
       }, 1200)
