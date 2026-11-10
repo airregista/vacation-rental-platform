@@ -117,6 +117,102 @@ async def test_create_and_read_reviews(
 
 
 @pytest.mark.asyncio
+async def test_wishlist_returns_real_rating(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": "کلبه چوبی جنگلی بازخورد علاقه‌مندی",
+            "address": "مازندران، جاده چالوس",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+            "extra_person_fee": 100000,
+            "cleaning_fee": 50000,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert acc_res.status_code == 201
+    acc_id = acc_res.json()["id"]
+
+    res_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=40)).isoformat(),
+            "check_out": (date.today() + timedelta(days=42)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_res.status_code == 201
+    res_id = res_res.json()["id"]
+
+    checkout_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout_res.status_code in (200, 201)
+    payment_id = checkout_res.json()["payment_id"]
+    tracking_code = checkout_res.json()["tracking_code"]
+
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": payment_id,
+            "tracking_code": tracking_code,
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify_res.status_code == 200
+
+    async with AsyncSessionLocal() as session:
+        db_res = await session.get(Reservation, res_id)
+        assert db_res is not None
+        db_res.check_in = date.today() - timedelta(days=3)
+        db_res.check_out = date.today() - timedelta(days=1)
+        await session.commit()
+
+    valid_review = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
+        json={
+            "reservation_id": res_id,
+            "rating": 5,
+            "cleanliness_rating": 4,
+            "accuracy_rating": 5,
+            "comment": "تجربه عالی و بسیار تمیز بود.",
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert valid_review.status_code == 201
+    assert valid_review.json()["rating"] == 5
+
+    wl_add = await client.post(
+        f"{settings.API_V1_STR}/wishlists/{acc_id}/toggle",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_add.status_code == 200
+    assert wl_add.json()["is_favorite"] is True
+
+    wl_list = await client.get(
+        f"{settings.API_V1_STR}/wishlists/",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert wl_list.status_code == 200
+    matching = [item for item in wl_list.json() if item["accommodation_id"] == acc_id]
+    assert len(matching) == 1
+    assert matching[0]["accommodation"]["average_rating"] == 5.0
+    assert matching[0]["accommodation"]["reviews_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_wishlist_and_public_review_listing(
     client: AsyncClient,
     guest_token: str,

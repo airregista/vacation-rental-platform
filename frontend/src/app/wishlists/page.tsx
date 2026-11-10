@@ -79,12 +79,22 @@ export default function WishlistsPage() {
   const [folders, setFolders] = useState<WishlistFolder[]>([])
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
 
-  const fetchWishlists = useCallback(async () => {
+  const fetchAllWishlists = useCallback(async () => {
     setIsFetching(true)
     setFetchError(null)
     try {
-      const data = await apiClient.get<WishlistItemResponse[]>("/wishlists/")
-      setItems(Array.isArray(data) ? data : [])
+      const allItems: WishlistItemResponse[] = []
+      let skip = 0
+      for (;;) {
+        const page = await apiClient.get<WishlistItemResponse[]>(
+          `/wishlists/?skip=${skip}&limit=100`
+        )
+        const batch = Array.isArray(page) ? page : []
+        allItems.push(...batch)
+        if (batch.length < 100) break
+        skip += 100
+      }
+      setItems(allItems)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setFetchError(err.detail)
@@ -97,35 +107,11 @@ export default function WishlistsPage() {
   }, [])
 
   useEffect(() => {
-    let isMounted = true
     if (!token) {
       return
     }
-
-    apiClient
-      .get<WishlistItemResponse[]>("/wishlists/")
-      .then((data) => {
-        if (isMounted) {
-          setItems(Array.isArray(data) ? data : [])
-          setFetchError(null)
-          setIsFetching(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          if (err instanceof ApiError) {
-            setFetchError(err.detail)
-          } else {
-            setFetchError("بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
-          }
-          setIsFetching(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [token])
+    void fetchAllWishlists()
+  }, [token, fetchAllWishlists])
 
   const handleRemove = async (accommodationId: number) => {
     setRemovingId(accommodationId)
@@ -162,10 +148,12 @@ export default function WishlistsPage() {
 
   // Summary Metrics
   const totalCount = items.length
-  const instantCount = useMemo(() => {
+  const activeCount = useMemo(() => {
     return items.filter((i) => i.accommodation.is_active).length
   }, [items])
-  const customFoldersCount = folders.length
+  const customFoldersCount = folders.filter((f) =>
+    f.id.startsWith("folder_")
+  ).length
 
   const formatPersianNumber = (num: number) => {
     return new Intl.NumberFormat("fa-IR").format(num)
@@ -259,10 +247,10 @@ export default function WishlistsPage() {
         <div className="bg-card p-4 rounded-2xl border border-border/70 flex items-center justify-between shadow-xs">
           <div className="space-y-1">
             <span className="text-xs font-medium text-muted-foreground">
-              اقامتگاه‌های رزرو فوری
+              اقامتگاه‌های فعال
             </span>
             <div className="text-2xl font-black text-foreground font-price">
-              {formatPersianNumber(instantCount)}
+              {formatPersianNumber(activeCount)}
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -298,7 +286,7 @@ export default function WishlistsPage() {
       {fetchError ? (
         <div className="text-center py-12 space-y-4">
           <p className="text-sm text-destructive">{fetchError}</p>
-          <Button variant="outline" onClick={fetchWishlists}>
+          <Button variant="outline" onClick={fetchAllWishlists} disabled={isFetching}>
             تلاش مجدد
           </Button>
         </div>
