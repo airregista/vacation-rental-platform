@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Vazirmatn variable font (wght 100-900), bundled locally so Persian text
+   renders in Vazirmatn even on machines without it installed. Source:
+   rastikerdar/vazirmatn releases (v33.003), fonts/webfonts/Vazirmatn[wght].woff2. */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: #FAFAF9; /* Warm Stone White */
@@ -62,7 +73,4 @@ body {
 /* Mobile Safe Area utilities */
 .safe-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.safe-pt {
-  padding-top: env(safe-area-inset-top, 0px);
 }
