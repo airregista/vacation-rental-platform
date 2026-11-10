@@ -99,18 +99,51 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
 
   const datesValid = startDate !== "" && endDate !== "" && endDate >= startDate
   const priceValue = Number(price)
-  const rateValid = datesValid && price !== "" && Number.isFinite(priceValue) && priceValue > 0
+  const minNightsValue = minNights === "" ? null : Number(minNights)
+  const minNightsValid =
+    minNights === "" ||
+    (minNightsValue !== null &&
+      Number.isFinite(minNightsValue) &&
+      Number.isInteger(minNightsValue) &&
+      minNightsValue >= 1)
+  const minNightsError =
+    minNights === "" || minNightsValid
+      ? null
+      : minNightsValue !== null &&
+          Number.isFinite(minNightsValue) &&
+          minNightsValue < 1
+        ? "حداقل اقامت باید حداقل ۱ شب باشد."
+        : "حداقل اقامت باید عدد صحیح باشد."
+  const rateValid =
+    datesValid &&
+    price !== "" &&
+    Number.isFinite(priceValue) &&
+    priceValue >= 0 &&
+    minNightsValid
 
   const runBatch = async (
     body: Record<string, unknown>
   ): Promise<void> => {
     if (accommodationId === null) return
     const chunks = splitRange(startDate, endDate, MAX_BLOCK_DAYS)
-    for (const chunk of chunks) {
-      await apiClient.post(
-        `/accommodations/${accommodationId}/pricing-exceptions/batch`,
-        { ...chunk, ...body }
-      )
+    let applied = 0
+    try {
+      for (const chunk of chunks) {
+        await apiClient.post(
+          `/accommodations/${accommodationId}/pricing-exceptions/batch`,
+          { ...chunk, ...body }
+        )
+        applied += 1
+      }
+    } catch (err) {
+      if (applied > 0) {
+        // Earlier chunks already committed; say so, so the host knows
+        // part of the range was applied and can safely retry the rest.
+        throw new Error(
+          "بخشی از بازهٔ انتخاب‌شده اعمال شد و ادامهٔ آن با خطا مواجه شد؛ برای تکمیل بازه دوباره تلاش کنید."
+        )
+      }
+      throw err
     }
     // Refresh the calendar so the change is confirmed on the server,
     // then close and let the dashboard refresh its own data.
@@ -133,6 +166,8 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setErrorMessage(err.detail || err.message || "مسدودسازی تقویم با خطا مواجه شد.")
+      } else if (err instanceof Error && err.message) {
+        setErrorMessage(err.message)
       } else {
         setErrorMessage("مسدودسازی تقویم با خطا مواجه شد.")
       }
@@ -152,16 +187,15 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
         price: priceValue,
         is_blocked: false,
       }
-      if (minNights !== "") {
-        const minNightsValue = Number(minNights)
-        if (Number.isFinite(minNightsValue) && minNightsValue >= 1) {
-          body.min_nights = minNightsValue
-        }
+      if (minNightsValue !== null && minNightsValid) {
+        body.min_nights = minNightsValue
       }
       await runBatch(body)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setErrorMessage(err.detail || err.message || "تغییر نرخ با خطا مواجه شد.")
+      } else if (err instanceof Error && err.message) {
+        setErrorMessage(err.message)
       } else {
         setErrorMessage("تغییر نرخ با خطا مواجه شد.")
       }
@@ -230,12 +264,16 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
             id="qc-min-nights"
             type="number"
             min={1}
+            step={1}
             inputMode="numeric"
             value={minNights}
             onChange={(e) => setMinNights(e.target.value)}
             placeholder="اختیاری"
             className="h-11 rounded-xl text-sm"
           />
+          {minNightsError && (
+            <p className="text-xs text-destructive font-medium">{minNightsError}</p>
+          )}
         </div>
       </div>
 

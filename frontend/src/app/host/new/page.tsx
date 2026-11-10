@@ -95,6 +95,21 @@ function Stepper({
   )
 }
 
+// Paginated fetch: loop skip/limit=100 until a short page, otherwise the
+// endpoint's limit cap (100) silently truncates the list (T3: cities).
+async function fetchAll<T>(path: string): Promise<T[]> {
+  const all: T[] = []
+  let skip = 0
+  for (;;) {
+    const page = await apiClient.get<T[]>(`${path}?skip=${skip}&limit=100`)
+    const batch = Array.isArray(page) ? page : []
+    all.push(...batch)
+    if (batch.length < 100) break
+    skip += 100
+  }
+  return all
+}
+
 export default function NewAccommodationPage() {
   const router = useRouter()
   const { token, isLoading, isHost, becomeHost, openOtpModal } = useAuth()
@@ -139,7 +154,7 @@ export default function NewAccommodationPage() {
       try {
         const [cats, cits, amens] = await Promise.all([
           apiClient.get<Category[]>("/categories/"),
-          apiClient.get<City[]>("/geo/cities?limit=100"),
+          fetchAll<City>("/geo/cities"),
           apiClient.get<Amenity[]>("/amenities/"),
         ])
         if (isMounted) {
@@ -193,7 +208,8 @@ export default function NewAccommodationPage() {
           form.base_price >= 0 &&
           form.cleaning_fee >= 0 &&
           form.extra_guest_fee >= 0 &&
-          (form.min_nights ?? 1) >= 1
+          (form.min_nights ?? 1) >= 1 &&
+          Number.isInteger(form.min_nights ?? 1)
         )
       case 5:
         return true
@@ -598,14 +614,14 @@ export default function NewAccommodationPage() {
                   value={form.capacity}
                   onChange={(v) => set("capacity", v)}
                   min={1}
-                  max={30}
+                  max={200}
                 />
                 <Stepper
                   label="حداکثر ظرفیت (مهمان)"
                   value={form.max_capacity}
                   onChange={(v) => set("max_capacity", v)}
                   min={form.capacity}
-                  max={30}
+                  max={200}
                 />
                 <Stepper
                   label="تعداد اتاق"
@@ -704,11 +720,17 @@ export default function NewAccommodationPage() {
                   id="wizard-min-nights"
                   type="number"
                   min={1}
+                  step={1}
                   inputMode="numeric"
                   value={form.min_nights ?? 1}
                   onChange={(e) => set("min_nights", Number(e.target.value) || 1)}
                   className="h-11 rounded-xl"
                 />
+                {!Number.isInteger(form.min_nights ?? 1) && (
+                  <p className="text-xs text-destructive font-medium">
+                    حداقل اقامت باید عدد صحیح باشد.
+                  </p>
+                )}
               </div>
             </div>
           )}
