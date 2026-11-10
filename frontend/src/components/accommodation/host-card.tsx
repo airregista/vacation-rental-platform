@@ -19,11 +19,11 @@ export interface HostCardProps {
 const POLICY_LABELS: Record<string, { label: string; desc: string }> = {
   flexible: {
     label: "انعطاف‌پذیر",
-    desc: "لغو تا ۲۴ ساعت قبل از تحویل با بازگشت کامل مبلغ",
+    desc: "لغو تا ۲۴ ساعت قبل از تحویل با بازگشت کامل مبلغ؛ لغو کمتر از ۲۴ ساعت قبل با بازگشت مبلغ به‌جز هزینه شب اول و نظافت",
   },
   moderate: {
     label: "متوسط",
-    desc: "لغو تا ۵ روز قبل از تحویل با بازگشت کامل مبلغ",
+    desc: "لغو تا ۵ روز قبل از تحویل با بازگشت کامل مبلغ؛ لغو کمتر از ۵ روز قبل با بازگشت ۵۰٪ مبلغ",
   },
   strict: {
     label: "سخت‌گیرانه",
@@ -56,6 +56,7 @@ export function HostCard({
     try {
       const d = new Date(host.created_at)
       return new Intl.DateTimeFormat("fa-IR", {
+        timeZone: "Asia/Tehran",
         year: "numeric",
         month: "long",
       }).format(d)

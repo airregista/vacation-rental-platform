@@ -96,6 +96,18 @@ export function AvailabilityCalendar({
     return map
   }, [calendarDays])
 
+  // Today's date in the client's local timezone (YYYY-MM-DD). Past cells
+  // must not be selectable: the backend window starts at the server's
+  // date.today(), which can be yesterday in Tehran when the server runs
+  // on UTC (00:00–03:30 Tehran time).
+  const todayIso = React.useMemo(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, "0")
+    const d = String(now.getDate()).padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }, [])
+
   // Group days into Persian months with accurate month start & past padding
   const months = React.useMemo<CalendarMonthGroup[]>(() => {
     if (calendarDays.length === 0) return []
@@ -204,6 +216,10 @@ export function AvailabilityCalendar({
   // Handle Day Click Selection
   const handleDayClick = (clickedDate: string, dayInfo: CalendarDayInfo) => {
     setErrorNotice(null)
+
+    // Past dates are never selectable, even if the backend window includes
+    // one (server running on UTC: its "today" can be yesterday in Tehran).
+    if (clickedDate < todayIso) return
 
     // Initial click or reset if both are already chosen
     if (!checkIn || (checkIn && checkOut)) {
@@ -316,7 +332,9 @@ export function AvailabilityCalendar({
               !hasBlockedDaysInRange(checkIn, cell.isoDate, daysMap)
 
             // Blocked if unavailable AND cannot be selected as checkout, and not already selected as isEnd
-            const isBlocked = !cell.dayInfo.is_available && !canBeCheckout && !isEnd
+            const isPastDay = cell.isoDate < todayIso
+            const isBlocked =
+              (!cell.dayInfo.is_available && !canBeCheckout && !isEnd) || isPastDay
             const effectivePrice =
               cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
 

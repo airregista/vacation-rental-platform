@@ -92,6 +92,7 @@ export function ReviewsSection({
     try {
       const d = new Date(isoStr)
       return new Intl.DateTimeFormat("fa-IR", {
+        timeZone: "Asia/Tehran",
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -129,7 +130,10 @@ export function ReviewsSection({
             <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
             {averageRating ? (
               <span>
-                {formatRating(averageRating)} · {formatPersian(reviewsCount)} نظر
+                {formatRating(averageRating)} ·{" "}
+                {!isLoading && reviews.length < reviewsCount
+                  ? `نمایش ${formatPersian(reviews.length)} از ${formatPersian(reviewsCount)} نظر`
+                  : `${formatPersian(reviewsCount)} نظر`}
               </span>
             ) : (
               <span>نظرات مهمانان</span>
