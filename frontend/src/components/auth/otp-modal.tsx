@@ -333,7 +333,6 @@ export function OtpModal() {
       setTimer(120)
       setCanResend(false)
       setOtpDigits(["", "", "", ""])
-      otpRefs.current[0]?.focus()
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setError(err.detail)
@@ -344,6 +343,12 @@ export function OtpModal() {
       }
     } finally {
       setIsSubmitting(false)
+      // Focus only after the inputs are re-enabled (disabled={isSubmitting});
+      // focusing a disabled input is a no-op. Same 100ms pattern as
+      // handlePhoneSubmit so the re-render has landed first.
+      setTimeout(() => {
+        otpRefs.current[0]?.focus()
+      }, 100)
     }
   }
 
