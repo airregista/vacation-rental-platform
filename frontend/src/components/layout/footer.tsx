@@ -15,44 +15,46 @@ import { Button } from "@/components/ui/button"
 
 interface FooterSection {
   title: string
-  links: { label: string; href: string }[]
+  // href is set only for links with a real route; links without one render
+  // as plain text until their page exists (no dead #anchor links).
+  links: { label: string; href?: string }[]
 }
 
 const FOOTER_SECTIONS: FooterSection[] = [
   {
     title: "درباره آشیانک",
     links: [
-      { label: "معرفی آشیانک", href: "#about" },
-      { label: "فرصت‌های شغلی", href: "#careers" },
-      { label: "تماس با ما", href: "#contact" },
-      { label: "مجله گردشگری و بوم‌گردی", href: "#blog" },
+      { label: "معرفی آشیانک" },
+      { label: "فرصت‌های شغلی" },
+      { label: "تماس با ما" },
+      { label: "مجله گردشگری و بوم‌گردی" },
     ],
   },
   {
     title: "راهنمای مهمانان",
     links: [
-      { label: "راهنمای رزرو اقامتگاه", href: "#guide-booking" },
-      { label: "شیوه‌های پرداخت و درگاه بانکی", href: "#payment-methods" },
-      { label: "شرایط و قوانین لغو رزرو", href: "#cancellation-rules" },
-      { label: "پوشش بیمه و ایمنی سفر", href: "#insurance" },
+      { label: "راهنمای رزرو اقامتگاه" },
+      { label: "شیوه‌های پرداخت و درگاه بانکی" },
+      { label: "شرایط و قوانین لغو رزرو" },
+      { label: "پوشش بیمه و ایمنی سفر" },
     ],
   },
   {
     title: "خدمات میزبانان",
     links: [
-      { label: "ثبت اقامتگاه در آشیانک", href: "#become-host" },
-      { label: "استانداردها و اصول میزبانی", href: "#host-standards" },
-      { label: "روش و زمان‌بندی تسویه مالی", href: "#host-payout" },
-      { label: "پرسش‌های پرتکرار میزبانان", href: "#host-faq" },
+      { label: "ثبت اقامتگاه در آشیانک", href: "/host/new" },
+      { label: "استانداردها و اصول میزبانی" },
+      { label: "روش و زمان‌بندی تسویه مالی" },
+      { label: "پرسش‌های پرتکرار میزبانان" },
     ],
   },
   {
     title: "اعتماد و امنیت",
     links: [
-      { label: "ضمانت تحویل قطعی اقامتگاه", href: "#delivery-guarantee" },
-      { label: "قوانین و مقررات سامانه", href: "#terms" },
-      { label: "حفظ حریم خصوصی کاربران", href: "#privacy" },
-      { label: "رسیدگی به شکایات", href: "#complaints" },
+      { label: "ضمانت تحویل قطعی اقامتگاه" },
+      { label: "قوانین و مقررات سامانه" },
+      { label: "حفظ حریم خصوصی کاربران" },
+      { label: "رسیدگی به شکایات" },
     ],
   },
 ]
@@ -109,17 +111,21 @@ export function Footer() {
             const isOpen = !!openSections[section.title]
             return (
               <div key={section.title} className="border-b md:border-b-0 border-border/50 pb-4 md:pb-0">
+                {/* Desktop section heading (plain text, not a button) */}
+                <h3 className="hidden md:block font-bold text-sm text-foreground text-right">
+                  {section.title}
+                </h3>
                 {/* Mobile Accordion Header */}
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => toggleSection(section.title)}
-                  className="flex items-center justify-between w-full md:cursor-default p-0 h-auto hover:bg-transparent text-right font-bold text-sm text-foreground focus-visible:ring-0 rounded-none cursor-pointer"
+                  className="flex md:hidden items-center justify-between w-full p-0 h-auto hover:bg-transparent text-right font-bold text-sm text-foreground focus-visible:ring-0 rounded-none cursor-pointer"
                 >
                   <span>{section.title}</span>
                   <ChevronDown
                     className={cn(
-                      "size-4 text-muted-foreground transition-transform duration-200 md:hidden",
+                      "size-4 text-muted-foreground transition-transform duration-200",
                       isOpen && "rotate-180"
                     )}
                   />
@@ -134,12 +140,16 @@ export function Footer() {
                 >
                   {section.links.map((link) => (
                     <li key={link.label}>
-                      <Link
-                        href={link.href}
-                        className="hover:text-primary transition-colors inline-block py-0.5"
-                      >
-                        {link.label}
-                      </Link>
+                      {link.href ? (
+                        <Link
+                          href={link.href}
+                          className="hover:text-primary transition-colors inline-block py-0.5"
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <span className="inline-block py-0.5">{link.label}</span>
+                      )}
                     </li>
                   ))}
                 </ul>

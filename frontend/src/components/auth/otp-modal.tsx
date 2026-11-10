@@ -107,6 +107,11 @@ export function OtpModal() {
   const [canResend, setCanResend] = useState<boolean>(false)
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+  // In-flight flag for OTP verification: the isSubmitting state guard
+  // reads a stale render closure, so a rapid double-click (quick-fill
+  // button, or 4th-digit auto-submit + immediate Enter) can pass it
+  // twice before React re-renders. The ref updates synchronously.
+  const verifyInFlightRef = useRef<boolean>(false)
 
   // 120-Second Resend Timer
   useEffect(() => {
@@ -129,6 +134,7 @@ export function OtpModal() {
     setOtpDigits(["", "", "", ""])
     setError(null)
     setIsSubmitting(false)
+    verifyInFlightRef.current = false
     setTimer(120)
     setCanResend(false)
     closeOtpModal()
@@ -174,11 +180,13 @@ export function OtpModal() {
 
   const handleVerifySubmit = useCallback(
     async (codeToVerify?: string) => {
-      if (isSubmitting) return
+      if (verifyInFlightRef.current || isSubmitting) return
+      verifyInFlightRef.current = true
       setError(null)
       const rawCode = codeToVerify ?? otpDigits.join("")
       const normalizedCode = toEnglishDigits(rawCode)
       if (normalizedCode.length !== 4) {
+        verifyInFlightRef.current = false
         setError("لطفاً کد تایید ۴ رقمی را به طور کامل وارد نمایید.")
         return
       }
@@ -196,6 +204,7 @@ export function OtpModal() {
           setError("کد تایید وارد شده اشتباه یا منقضی شده است.")
         }
       } finally {
+        verifyInFlightRef.current = false
         setIsSubmitting(false)
       }
     },
