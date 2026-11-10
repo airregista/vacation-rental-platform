@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-primary/20 pb-20 md:pb-0 safe-pb flex flex-col">
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-primary/20 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 flex flex-col">
         <AuthProvider>
           <Header />
           <main className="flex-1">{children}</main>

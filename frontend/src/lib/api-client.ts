@@ -10,12 +10,23 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(
+  /\/+$/,
+  ""
+)
 
 function serializeBody(body?: unknown): BodyInit | null | undefined {
   if (body === undefined || body === null) return undefined
   if (typeof body === "string" || body instanceof FormData) return body
   return JSON.stringify(body)
+}
+
+// Error payloads are untyped at runtime: `message` / validation `msg` may be
+// an object or number, which would render as "[object Object]" if assigned
+// to the string-typed `ApiError.detail`. Coerce non-strings to readable JSON.
+function toErrorText(value: unknown): string {
+  if (typeof value === "string") return value
+  return JSON.stringify(value) ?? "خطای سرور رخ داده است"
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -50,9 +61,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       if (typeof errorJson.detail === "string") {
         errorDetail = errorJson.detail
       } else if (Array.isArray(errorJson.detail) && errorJson.detail.length > 0) {
-        errorDetail = errorJson.detail[0]?.msg || JSON.stringify(errorJson.detail)
+        const firstMsg = errorJson.detail[0]?.msg
+        errorDetail = firstMsg ? toErrorText(firstMsg) : JSON.stringify(errorJson.detail)
       } else if (errorJson.message) {
-        errorDetail = errorJson.message
+        errorDetail = toErrorText(errorJson.message)
       }
     } catch {
       errorDetail = response.statusText || errorDetail
