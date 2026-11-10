@@ -28,11 +28,13 @@ import { ReservationSummary } from "@/components/checkout/reservation-summary"
 import { PaymentGatewayModal } from "@/components/checkout/payment-gateway-modal"
 import { InvoiceModal } from "@/components/checkout/invoice-modal"
 import { cn } from "@/lib/utils"
-import type {
-  ReservationDetail,
-  CheckoutAccommodationInfo,
-  PaymentResponse,
-  InvoiceData,
+import {
+  type ReservationDetail,
+  type CheckoutAccommodationInfo,
+  type PaymentResponse,
+  type InvoiceData,
+  formatFaPrice,
+  getPersianYear,
 } from "@/types/checkout"
 
 interface CheckoutPageProps {
@@ -178,17 +180,16 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     setReloadTrigger((prev) => prev + 1)
   }
 
-  // Timer expiration handler
+  // Timer expiration handler (strictly guarded against overwriting confirmed/completed reservations)
   const handleExpired = React.useCallback(() => {
-    setReservation((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "cancelled",
-            cancellation_reason: "Payment session expired (TTL timeout)",
-          }
-        : null
-    )
+    setReservation((prev) => {
+      if (!prev || prev.status !== "pending") return prev
+      return {
+        ...prev,
+        status: "cancelled",
+        cancellation_reason: "Payment session expired (TTL timeout)",
+      }
+    })
   }, [])
 
   // Payment success handler
@@ -220,29 +221,32 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     []
   )
 
-  // Fallback InvoiceData builder
+  // InvoiceData builder (strictly produced only when reservation is confirmed/completed)
   const invoiceData: InvoiceData | null = React.useMemo(() => {
-    if (!reservation) return null
+    if (!reservation || (reservation.status !== "confirmed" && reservation.status !== "completed")) {
+      return null
+    }
     const confirmedAt = latestPayment?.paid_at || reservation.updated_at || reservation.created_at
+    const solarYear = getPersianYear(confirmedAt)
     return {
-      invoice_number: `INV-1403-${reservation.id.toString().padStart(5, "0")}`,
+      invoice_number: `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`,
       issuance_date: confirmedAt,
       reservation,
       accommodation,
       payment: latestPayment || {
         id: reservation.id,
         reservation_id: reservation.id,
-        amount: Number(reservation.total_price),
+        amount: Math.max(0, Number(reservation.total_price) || 0),
         tracking_code: "SHP-CONFIRMED",
         status: "success",
         paid_at: confirmedAt,
         created_at: reservation.created_at,
       },
       guest: {
-        full_name: guestName || "مهمان آشیانک",
-        phone: guestPhone || "",
-        national_code: guestNationalCode || "",
-        email: guestEmail || "",
+        full_name: guestName || "-",
+        phone: guestPhone || "-",
+        national_code: guestNationalCode || "-",
+        email: guestEmail || "-",
       },
     }
   }, [reservation, accommodation, latestPayment, guestName, guestPhone, guestNationalCode, guestEmail])
@@ -724,7 +728,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                 >
                   <Lock className="size-5" />
                   انتقال به درگاه امن بانکی و پرداخت (
-                  {new Intl.NumberFormat("fa-IR").format(Number(reservation.total_price))} تومان)
+                  {formatFaPrice(reservation.total_price)} تومان)
                 </Button>
                 {!isFormValid && (
                   <p className="text-center text-xs text-muted-foreground mt-2">
@@ -752,7 +756,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           <div>
             <span className="text-[11px] text-muted-foreground block">مبلغ کل قابل پرداخت:</span>
             <div className="font-black text-primary font-mono text-base">
-              {new Intl.NumberFormat("fa-IR").format(Number(reservation.total_price))} تومان
+              {formatFaPrice(reservation.total_price)} تومان
             </div>
           </div>
           <Button
@@ -767,8 +771,8 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         </div>
       )}
 
-      {/* Payment Gateway Simulation Modal */}
-      {reservation && (
+      {/* Payment Gateway Simulation Modal (strictly mounted only for pending reservations) */}
+      {reservation && isPending && (
         <PaymentGatewayModal
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
@@ -780,8 +784,8 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         />
       )}
 
-      {/* Printable Tax Invoice Modal */}
-      {invoiceData && (
+      {/* Printable Tax Invoice Modal (strictly gated to confirmed/completed reservations) */}
+      {invoiceData && (isConfirmed || isCompleted) && (
         <InvoiceModal
           isOpen={isInvoiceModalOpen}
           onClose={() => setIsInvoiceModalOpen(false)}

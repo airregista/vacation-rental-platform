@@ -11,10 +11,15 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { InvoiceModalProps } from "@/types/checkout"
+import {
+  type InvoiceModalProps,
+  computeCheckoutBreakdown,
+  formatFaPrice,
+  getPersianYear,
+} from "@/types/checkout"
 
-function formatFaNumber(num: number | string): string {
-  return new Intl.NumberFormat("fa-IR").format(Number(num) || 0)
+function formatFaNumber(num: number | string | null | undefined): string {
+  return formatFaPrice(num)
 }
 
 function formatPersianLongDate(dateStr?: string): string {
@@ -61,26 +66,11 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
   const payment = data.payment
   const guest = data.guest
 
-  const totalPayable = Number(payment.amount || reservation.total_price || 0)
-  const cleaningFee = accommodation?.cleaning_fee ?? 0
-  const basePrice = accommodation?.base_price ?? 0
+  const { totalPayable, cleaningFee, baseTotal, discountAmount } =
+    computeCheckoutBreakdown(reservation, accommodation, payment.amount)
 
-  // When no coupon is present, stay total is (totalPayable - cleaningFee) to strictly
-  // reflect extra guest fees, weekend pricing exceptions, and preserve line item sum.
-  // When coupon is present, clamp baseTotal to at least (totalPayable - cleaningFee)
-  // so surcharge exceptions don't cause line items to sum to less than totalPayable.
-  const baseTotal = !reservation.coupon_code
-    ? Math.max(0, totalPayable - cleaningFee)
-    : Math.max(
-        basePrice > 0 ? basePrice * reservation.total_nights : 0,
-        Math.max(0, totalPayable - cleaningFee)
-      )
-
-  const discountAmount = reservation.coupon_code
-    ? Math.max(0, baseTotal + cleaningFee - totalPayable)
-    : 0
-
-  const invoiceNumber = data.invoice_number || `INV-1403-${reservation.id.toString().padStart(5, "0")}`
+  const solarYear = getPersianYear(data.issuance_date || payment.paid_at)
+  const invoiceNumber = data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
   const reservationCode = `MHM-${reservation.id.toString().padStart(5, "0")}`
 
   return (
@@ -273,7 +263,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
               <div className="space-y-1 text-muted-foreground">
                 <p>
                   <strong className="text-foreground">نام و نام خانوادگی: </strong>
-                  <span>{guest?.full_name || "مهمان آشیانک"}</span>
+                  <span>{guest?.full_name || "-"}</span>
                 </p>
                 <p>
                   <strong className="text-foreground">شماره تماس: </strong>

@@ -26,10 +26,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
-import type {
-  ReservationDetail,
-  PaymentInitiateResponse,
-  PaymentResponse,
+import {
+  type ReservationDetail,
+  type PaymentInitiateResponse,
+  type PaymentResponse,
+  formatFaPrice,
 } from "@/types/checkout"
 
 export interface PaymentGatewayModalProps {
@@ -98,51 +99,48 @@ export function PaymentGatewayModal({
     }
   }, [])
 
-  // Initiate payment session on dialog open
+  // Memoized initiate payment handler (strictly guarded to pending reservations)
+  const initiatePayment = React.useCallback(async () => {
+    if (reservation.status !== "pending") return
+    setIsInitiating(true)
+    setInitiateError(null)
+    try {
+      const response = await apiClient.post<PaymentInitiateResponse>("/payments/checkout", {
+        reservation_id: reservation.id,
+      })
+      setPaymentData(response)
+      hasInitiatedRef.current = reservation.id
+    } catch (err) {
+      hasInitiatedRef.current = null
+      if (err instanceof ApiError) {
+        setInitiateError(err.detail)
+        if (err.status === 409 || (err.status === 400 && err.detail.toLowerCase().includes("expire"))) {
+          onStatusChange?.("cancelled", err.detail)
+        }
+      } else {
+        setInitiateError("خطا در برقراری ارتباط با درگاه شاپرک. لطفا مجددا تلاش کنید.")
+      }
+    } finally {
+      setIsInitiating(false)
+    }
+  }, [reservation.id, reservation.status, onStatusChange])
+
+  // Initiate payment session on dialog open (resets on close or error)
   React.useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen || reservation.status !== "pending") {
+      if (!isOpen) {
+        hasInitiatedRef.current = null
+      }
+      return
+    }
 
     // If already initiated for this reservation, do not re-post
     if (hasInitiatedRef.current === reservation.id) {
       return
     }
 
-    let isCancelled = false
-    const initiatePayment = async () => {
-      setIsInitiating(true)
-      setInitiateError(null)
-      try {
-        const response = await apiClient.post<PaymentInitiateResponse>("/payments/checkout", {
-          reservation_id: reservation.id,
-        })
-        if (!isCancelled) {
-          setPaymentData(response)
-          hasInitiatedRef.current = reservation.id
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          if (err instanceof ApiError) {
-            setInitiateError(err.detail)
-            if (err.status === 409 || (err.status === 400 && err.detail.toLowerCase().includes("expire"))) {
-              onStatusChange?.("cancelled", err.detail)
-            }
-          } else {
-            setInitiateError("خطا در برقراری ارتباط با درگاه شاپرک. لطفا مجددا تلاش کنید.")
-          }
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsInitiating(false)
-        }
-      }
-    }
-
     initiatePayment()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [isOpen, reservation.id, onStatusChange])
+  }, [isOpen, reservation.id, reservation.status, initiatePayment])
 
   // OTP cooldown timer
   React.useEffect(() => {
@@ -215,8 +213,8 @@ export function PaymentGatewayModal({
     expYear.length === 2 &&
     otp.length >= 5
 
-  const formatToman = (amount: number | string) => {
-    return `${new Intl.NumberFormat("fa-IR").format(Number(amount))} تومان`
+  const formatToman = (amount: number | string | null | undefined) => {
+    return `${formatFaPrice(amount)} تومان`
   }
 
   return (
@@ -343,9 +341,22 @@ export function PaymentGatewayModal({
                   <AlertTitle>خطا در اتصال به درگاه پرداخت</AlertTitle>
                   <AlertDescription className="text-sm mt-1">{initiateError}</AlertDescription>
                 </Alert>
-                <Button variant="outline" onClick={onClose} className="w-full">
-                  بازگشت
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={onClose} className="flex-1">
+                    بازگشت
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      hasInitiatedRef.current = null
+                      setInitiateError(null)
+                      initiatePayment()
+                    }}
+                    className="flex-1 bg-primary text-primary-foreground font-bold"
+                  >
+                    تلاش مجدد
+                  </Button>
+                </div>
               </div>
             )}
 

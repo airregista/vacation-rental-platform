@@ -6,7 +6,12 @@ import { Home, Calendar, Users, MapPin, ShieldCheck, Headphones, Lock, Tag } fro
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import type { ReservationDetail, CheckoutAccommodationInfo } from "@/types/checkout"
+import {
+  type ReservationDetail,
+  type CheckoutAccommodationInfo,
+  computeCheckoutBreakdown,
+  formatFaPrice,
+} from "@/types/checkout"
 
 export interface ReservationSummaryProps {
   reservation: ReservationDetail
@@ -31,8 +36,8 @@ function formatPersianDate(dateStr: string): string {
   }
 }
 
-function formatToman(amount: number): string {
-  return `${new Intl.NumberFormat("fa-IR").format(amount)} تومان`
+function formatToman(amount: number | string | null | undefined): string {
+  return `${formatFaPrice(amount)} تومان`
 }
 
 export function ReservationSummary({
@@ -49,24 +54,8 @@ export function ReservationSummary({
     ? `${accommodation.city.name}${accommodation.city.province ? ` • ${accommodation.city.province.name}` : ""}`
     : null
 
-  const totalPayable = Number(reservation.total_price || 0)
-  const cleaningFee = accommodation?.cleaning_fee ?? 0
-  const basePrice = accommodation?.base_price ?? 0
-
-  // When no coupon is present, stay total is (totalPayable - cleaningFee) to strictly
-  // reflect extra guest fees, weekend pricing exceptions, and preserve line item sum.
-  // When coupon is present, clamp baseTotal to at least (totalPayable - cleaningFee)
-  // so surcharge exceptions don't cause line items to sum to less than totalPayable.
-  const baseTotal = !reservation.coupon_code
-    ? Math.max(0, totalPayable - cleaningFee)
-    : Math.max(
-        basePrice > 0 ? basePrice * reservation.total_nights : 0,
-        Math.max(0, totalPayable - cleaningFee)
-      )
-
-  const discountAmount = reservation.coupon_code
-    ? Math.max(0, baseTotal + cleaningFee - totalPayable)
-    : 0
+  const { totalPayable, cleaningFee, baseTotal, discountAmount } =
+    computeCheckoutBreakdown(reservation, accommodation)
 
   return (
     <Card className={cn("border border-border/70 shadow-sm rounded-2xl overflow-hidden", className)}>

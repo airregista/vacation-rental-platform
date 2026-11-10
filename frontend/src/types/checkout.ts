@@ -104,3 +104,58 @@ export interface InvoiceModalProps {
   data: InvoiceData
 }
 
+export interface CheckoutPriceBreakdown {
+  totalPayable: number
+  cleaningFee: number
+  basePrice: number
+  baseTotal: number
+  discountAmount: number
+}
+
+export function computeCheckoutBreakdown(
+  reservation: { total_price?: number | string | null; total_nights: number; coupon_code?: string | null },
+  accommodation?: { cleaning_fee?: number | null; base_price?: number | null } | null,
+  overrideAmount?: number | string | null
+): CheckoutPriceBreakdown {
+  const rawTotal = overrideAmount !== undefined && overrideAmount !== null
+    ? overrideAmount
+    : reservation.total_price
+  const totalPayable = Math.max(0, typeof rawTotal === "string" ? Number(rawTotal.replace(/,/g, "")) || 0 : Number(rawTotal) || 0)
+  const cleaningFee = Math.max(0, Number(accommodation?.cleaning_fee) || 0)
+  const basePrice = Math.max(0, Number(accommodation?.base_price) || 0)
+
+  const baseTotal = !reservation.coupon_code
+    ? Math.max(0, totalPayable - cleaningFee)
+    : Math.max(
+        basePrice > 0 ? basePrice * reservation.total_nights : 0,
+        Math.max(0, totalPayable - cleaningFee)
+      )
+
+  const discountAmount = reservation.coupon_code
+    ? Math.max(0, baseTotal + cleaningFee - totalPayable)
+    : 0
+
+  return { totalPayable, cleaningFee, basePrice, baseTotal, discountAmount }
+}
+
+export function formatFaPrice(v: number | string | null | undefined): string {
+  if (v === null || v === undefined) return "-"
+  const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v)
+  if (!Number.isFinite(n) || n < 0) return "-"
+  return new Intl.NumberFormat("fa-IR").format(Math.round(n))
+}
+
+export function getPersianYear(dateStr?: string | null): string {
+  try {
+    const d = dateStr ? new Date(dateStr) : new Date()
+    if (isNaN(d.getTime())) return "1403"
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian-nu-latn", {
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(d)
+  } catch {
+    return "1403"
+  }
+}
+
+

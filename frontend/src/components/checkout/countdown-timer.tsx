@@ -58,12 +58,16 @@ export function CountdownTimer({
     }
 
     const timer = setInterval(() => {
+      if (!isPending) {
+        clearInterval(timer)
+        return
+      }
       const left = Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000))
       setRemainingSeconds(left)
 
       if (left <= 0) {
         clearInterval(timer)
-        if (!expiredCalledRef.current) {
+        if (!expiredCalledRef.current && isPending) {
           expiredCalledRef.current = true
           onExpired?.()
         }
