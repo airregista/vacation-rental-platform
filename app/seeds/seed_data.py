@@ -1,8 +1,11 @@
+import argparse
 import asyncio
-from datetime import date, timedelta
+import json
+from datetime import date, time, timedelta
 from decimal import Decimal
+from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.core.security import get_password_hash
@@ -11,6 +14,12 @@ from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
 from app.models.geo import City, Province
 from app.models.user import User
+from app.schemas.accommodation import AccommodationCreate
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
+JABAMA_LISTINGS_PATH = SCRIPTS_DIR / "jabama-listings.json"
+JABAMA_MANIFEST_PATH = SCRIPTS_DIR / "jabama-seed-manifest.json"
+SEED_ADMIN_PHONE = "09120000000"
 
 
 async def seed():
@@ -300,5 +309,286 @@ async def seed():
         print("Database seeded with sample data successfully!")
 
 
+def _quantize_coord(value):
+    """Quantize a lat/lng float to Numeric(10, 7) precision."""
+    if value is None:
+        return None
+    return Decimal(str(value)).quantize(Decimal("0.0000001"))
+
+
+async def seed_jabama_listings() -> dict:
+    """Load real Jabama listings from scripts/jabama-listings.json.
+
+    Opt-in only: invoked by ``python -m app.seeds.seed_data --jabama``.
+    It never runs inside the default ``seed()`` (the test suite's
+    ``conftest.py`` calls ``seed()`` on setup, and the Jabama import must
+    stay opt-in so the shared test DB is not polluted by default).
+
+    Host is the seed admin (phone 09120000000, role admin) on every insert,
+    satisfying the plan-035 R1 rule (assignee must be host or admin).
+    Idempotent: a stay is skipped when its Jabama ID is already in
+    scripts/jabama-seed-manifest.json as ingested, or when an accommodation
+    with the same (title, city_id) already exists. A re-run inserts 0 rows.
+    """
+    if not JABAMA_LISTINGS_PATH.exists():
+        raise FileNotFoundError(
+            f"{JABAMA_LISTINGS_PATH} not found — run "
+            "`node scripts/seed_from_jabama.mjs --dry-run` first"
+        )
+    payloads = json.loads(JABAMA_LISTINGS_PATH.read_text(encoding="utf-8"))
+    manifest = {}
+    if JABAMA_MANIFEST_PATH.exists():
+        manifest = json.loads(JABAMA_MANIFEST_PATH.read_text(encoding="utf-8"))
+    ingested_ids = {
+        s.get("jabama_id")
+        for s in manifest.get("stays", [])
+        if s.get("accommodation_id") is not None
+    }
+
+    # Ensure the reference data (admin, cities, categories, amenities)
+    # exists first; seed() is idempotent.
+    await seed()
+
+    inserted = 0
+    skipped_manifest = 0
+    skipped_duplicate = 0
+    ingested_now: dict[int, int] = {}
+
+    async with AsyncSessionLocal() as db:
+        admin = (
+            (await db.execute(select(User).where(User.phone == SEED_ADMIN_PHONE)))
+            .scalars()
+            .first()
+        )
+        if not admin:
+            raise RuntimeError(f"Seed admin {SEED_ADMIN_PHONE} not found after seed()")
+
+        cities = {
+            c.name: c
+            for c in (await db.execute(select(City))).scalars().all()
+        }
+        categories = {
+            cat.slug: cat
+            for cat in (await db.execute(select(Category))).scalars().all()
+        }
+        amenities = {
+            am.icon: am
+            for am in (await db.execute(select(Amenity))).scalars().all()
+            if am.icon
+        }
+
+        for p in payloads:
+            jabama_id = p["jabama_id"]
+            if jabama_id in ingested_ids:
+                skipped_manifest += 1
+                continue
+            city = cities.get(p["city"])
+            if not city:
+                print(f"SKIP stay {jabama_id}: city {p['city']!r} not in DB")
+                continue
+            category = categories.get(p["category_slug"])
+            if not category:
+                print(f"SKIP stay {jabama_id}: category {p['category_slug']!r} not in DB")
+                continue
+
+            existing = (
+                (
+                    await db.execute(
+                        select(Accommodation).where(
+                            Accommodation.title == p["title"],
+                            Accommodation.city_id == city.id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if existing:
+                skipped_duplicate += 1
+                continue
+
+            amenity_ids = []
+            for slug in p.get("amenity_slugs", []):
+                am = amenities.get(slug)
+                if am is None:
+                    # Never insert an unknown amenity_id (FK guard).
+                    print(f"SKIP amenity {slug!r} for stay {jabama_id}: not in DB")
+                    continue
+                amenity_ids.append(am.id)
+
+            validated = AccommodationCreate(
+                category_id=category.id,
+                city_id=city.id,
+                host_id=admin.id,
+                title=p["title"],
+                description=p.get("description"),
+                address=p["address"],
+                latitude=_quantize_coord(p.get("latitude")),
+                longitude=_quantize_coord(p.get("longitude")),
+                base_price=Decimal(p["base_price"]),
+                cleaning_fee=Decimal(p.get("cleaning_fee", 0)),
+                capacity=p["capacity"],
+                max_capacity=p["max_capacity"],
+                extra_guest_fee=Decimal(p.get("extra_guest_fee", 0)),
+                rooms_count=p["rooms_count"],
+                beds_count=p["beds_count"],
+                min_nights=p["min_nights"],
+                check_in_time=time.fromisoformat(p["check_in_time"]),
+                check_out_time=time.fromisoformat(p["check_out_time"]),
+                rules=p.get("rules"),
+                cancellation_policy=p["cancellation_policy"],
+                is_active=True,
+                amenity_ids=amenity_ids,
+                images=[
+                    {
+                        "image_url": img["image_url"],
+                        "is_cover": img["is_cover"],
+                        "sort_order": img["sort_order"],
+                    }
+                    for img in p["images"]
+                ],
+            )
+
+            acc = Accommodation(
+                host_id=validated.host_id,
+                category_id=validated.category_id,
+                city_id=validated.city_id,
+                title=validated.title,
+                description=validated.description,
+                address=validated.address,
+                latitude=validated.latitude,
+                longitude=validated.longitude,
+                base_price=validated.base_price,
+                cleaning_fee=validated.cleaning_fee,
+                capacity=validated.capacity,
+                max_capacity=validated.max_capacity,
+                extra_guest_fee=validated.extra_guest_fee,
+                rooms_count=validated.rooms_count,
+                beds_count=validated.beds_count,
+                min_nights=validated.min_nights,
+                check_in_time=validated.check_in_time,
+                check_out_time=validated.check_out_time,
+                rules=validated.rules,
+                cancellation_policy=validated.cancellation_policy,
+                is_active=validated.is_active,
+            )
+            db.add(acc)
+            await db.flush()
+            for img in validated.images:
+                db.add(
+                    AccommodationImage(
+                        accommodation_id=acc.id,
+                        image_url=img.image_url,
+                        is_cover=img.is_cover,
+                        sort_order=img.sort_order,
+                    )
+                )
+            for amenity_id in validated.amenity_ids:
+                db.add(
+                    AccommodationAmenity(
+                        accommodation_id=acc.id, amenity_id=amenity_id
+                    )
+                )
+            ingested_now[jabama_id] = acc.id
+            inserted += 1
+
+        await db.commit()
+
+    # Record the ingested rows in the manifest (idempotency + cleanup).
+    from datetime import datetime, timezone
+
+    stays = manifest.get("stays", [])
+    by_id = {s.get("jabama_id"): s for s in stays}
+    for jabama_id, acc_id in ingested_now.items():
+        entry = by_id.get(jabama_id)
+        if entry is None:
+            entry = {"jabama_id": jabama_id, "accommodation_id": acc_id}
+            stays.append(entry)
+            by_id[jabama_id] = entry
+        entry["accommodation_id"] = acc_id
+        entry["ingested_at"] = datetime.now(timezone.utc).isoformat()
+    manifest["stays"] = stays
+    JABAMA_MANIFEST_PATH.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+    result = {
+        "inserted": inserted,
+        "skipped_manifest": skipped_manifest,
+        "skipped_duplicate": skipped_duplicate,
+        "total_payloads": len(payloads),
+    }
+    print(f"Jabama seed: {result}")
+    return result
+
+
+async def cleanup_jabama_listings() -> int:
+    """Delete exactly the rows imported by seed_jabama_listings().
+
+    Uses the accommodation IDs recorded in scripts/jabama-seed-manifest.json
+    and verifies each title matches before deleting, so nothing else is
+    touched. Resets the manifest entries so a later --jabama re-inserts.
+    """
+    if not JABAMA_MANIFEST_PATH.exists():
+        print("No Jabama manifest found — nothing to clean up")
+        return 0
+    manifest = json.loads(JABAMA_MANIFEST_PATH.read_text(encoding="utf-8"))
+    entries = [
+        s for s in manifest.get("stays", []) if s.get("accommodation_id") is not None
+    ]
+    if not entries:
+        print("Manifest has no ingested rows — nothing to clean up")
+        return 0
+
+    deleted = 0
+    async with AsyncSessionLocal() as db:
+        for entry in entries:
+            acc_id = entry["accommodation_id"]
+            acc = (
+                (await db.execute(select(Accommodation).where(Accommodation.id == acc_id)))
+                .scalars()
+                .first()
+            )
+            if acc is None:
+                print(f"Cleanup: accommodation {acc_id} already gone")
+                continue
+            if entry.get("title") and acc.title != entry["title"]:
+                print(
+                    f"Cleanup: SKIP id {acc_id} — title mismatch "
+                    f"({acc.title!r} != {entry['title']!r})"
+                )
+                continue
+            await db.execute(delete(Accommodation).where(Accommodation.id == acc_id))
+            deleted += 1
+        await db.commit()
+
+    for entry in entries:
+        entry["accommodation_id"] = None
+        entry.pop("ingested_at", None)
+    JABAMA_MANIFEST_PATH.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"Jabama cleanup: deleted {deleted} imported listings")
+    return deleted
+
+
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser(description="Seed the database")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--jabama",
+        action="store_true",
+        help="also ingest real Jabama listings from scripts/jabama-listings.json",
+    )
+    group.add_argument(
+        "--cleanup-jabama",
+        action="store_true",
+        help="delete exactly the rows imported by --jabama (manifest-based)",
+    )
+    args = parser.parse_args()
+    if args.jabama:
+        asyncio.run(seed_jabama_listings())
+    elif args.cleanup_jabama:
+        asyncio.run(cleanup_jabama_listings())
+    else:
+        asyncio.run(seed())

@@ -1,0 +1,905 @@
+{
+  "generated_at": "2026-11-10T20:44:35.323Z",
+  "source": "gw.jabama.com via jagir-mcp adapter endpoints (thejimbow/jagir-mcp a597af7)",
+  "total": 123,
+  "per_city": {
+    "رامسر": 22,
+    "چالوس": 21,
+    "رشت": 20,
+    "تهران": 20,
+    "کیش": 20,
+    "اصفهان": 20
+  },
+  "per_category": {
+    "wooden-cottage": [
+      "رامسر",
+      "رشت",
+      "چالوس"
+    ],
+    "pool-villa": [
+      "رامسر",
+      "رشت",
+      "چالوس"
+    ],
+    "ecolodge": [
+      "اصفهان",
+      "رامسر",
+      "رشت"
+    ],
+    "furnished-apartment": [
+      "اصفهان",
+      "تهران",
+      "رامسر",
+      "رشت",
+      "چالوس",
+      "کیش"
+    ],
+    "mountain-mansion": [
+      "رامسر",
+      "چالوس"
+    ]
+  },
+  "stays": [
+    {
+      "jabama_id": 571060,
+      "title": "کلبه یک خوابه سوئیسی آرتیا",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 470766,
+      "title": "ویلا دوخوابه باغ شهرام 1",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 599881,
+      "title": "آپارتمان سه خوابه دلگشاه",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 538065,
+      "title": "سوئیت یک خوابه السا 1",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 596453,
+      "title": "سوئیت فلت آشیانه عشق",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 779024,
+      "title": "مجتمع اقامتگاهی غزل - واحد 1",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 375120,
+      "title": "ویلا دوخوابه استخردار آبگرم كهكشان",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 799932,
+      "title": "ویلا یک خوابه جکوزی دار کیهان",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 526319,
+      "title": "کلبه دوخوابه جنگلی تراس",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 709750,
+      "title": "کلبه کوکه - واحد درخش",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 777898,
+      "title": "کلبه سوئیسی ولکان",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 399446,
+      "title": "سوئیت فلت گوهر",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 688452,
+      "title": "سوئیت یک خوابه سلوا",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 665751,
+      "title": "ویلا دوخوابه ساحلی زرگریان",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 595153,
+      "title": "آپارتمان دوخوابه دلگشاه",
+      "city": "رامسر",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 636868,
+      "title": "کلبه دوخوابه سوئیسی جکوزی دار نیاوش",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 583949,
+      "title": "ویلا دوخوابه جبرئیل زاده",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 559635,
+      "title": "ویلا باغ کیمیای رامسر",
+      "city": "رامسر",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 108875,
+      "title": "سوئیت فلت  کلبه طلایی 2",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 583553,
+      "title": "کلبه یک خوابه خونه باغ بهشت",
+      "city": "رامسر",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 716664,
+      "title": "بوم گردی کوکه - واحد یاقوت",
+      "city": "رامسر",
+      "category_slug": "ecolodge",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 354738,
+      "title": "ویلا سه خوابه استخردار آبگرم عمارت مادر",
+      "city": "رامسر",
+      "category_slug": "mountain-mansion",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 793601,
+      "title": "ویلا دوخوابه دوبلکس استخردار آبگرم عماد ٢",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 332276,
+      "title": "سوئیت دوخوابه کیهانی",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 103913,
+      "title": "ویلا دوخوابه یزدان مهر",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 391869,
+      "title": "آپارتمان دوخوابه ساحلی رهام",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 621102,
+      "title": "سوئیت فلت رادیو دریا۳",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 681322,
+      "title": "آپارتمان فلت رادیو دریا طبقه ۳",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 334204,
+      "title": "ویلا یک خوابه باران ۱",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 621098,
+      "title": "آپارتمان دوخوابه رادیو دریا طبقه ۱",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 532994,
+      "title": "ویلا یک خوابه کیهانی",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 621100,
+      "title": "سوئیت دوخوابه رادیو دریا  طبقه ۲",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 660288,
+      "title": "ویلا دوخوابه آرامش صادقی",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 480410,
+      "title": "ویلا دوخوابه امیر 7",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 667013,
+      "title": "کلبه یک خوابه دوبلکس چوبی ریحان 1",
+      "city": "چالوس",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 380889,
+      "title": "کلبه یک خوابه جنگلی ماه ثنا",
+      "city": "چالوس",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 561128,
+      "title": "ویلا یک خوابه جنگلی استخردار محمد",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 385001,
+      "title": "آپارتمان دوخوابه استخردار پورامینی 3",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 608169,
+      "title": "کلبه یک خوابه جکوزی دار سوئیسی الیت 2",
+      "city": "چالوس",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 718238,
+      "title": "آپارتمان دوخوابه استخردار آبگرم پورامینی واحد 1",
+      "city": "چالوس",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 688774,
+      "title": "ویلا شهرک مهدی - واحد دوخوابه استخردار آبگرم ۶",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 795073,
+      "title": "ویلا دوخوابه سلیمانی 8",
+      "city": "چالوس",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 382677,
+      "title": "ویلا چهارخوابه استخردار آبگرم عمارت بهرام",
+      "city": "چالوس",
+      "category_slug": "mountain-mansion",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 601977,
+      "title": "کلبه یک خوابه سوئیسی چوبی سبزی",
+      "city": "رشت",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 788957,
+      "title": "کلبه یک خوابه دوبلکس سوییسی طلوع",
+      "city": "رشت",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 745708,
+      "title": "سوئیت یک خوابه لاله 105",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 414693,
+      "title": "ویلا یک خوابه گلساران",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 345177,
+      "title": "آپارتمان یک خوابه نور 3",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 408738,
+      "title": "ویلا دوخوابه پیام",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 378722,
+      "title": "ویلا دوخوابه جنگلی سیلو",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 486747,
+      "title": "آپارتمان دوخوابه آبان 2",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 486524,
+      "title": "بوم گردی دیم - واحد قلعه 1",
+      "city": "رشت",
+      "category_slug": "ecolodge",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 687988,
+      "title": "کلبه یک خوابه آراد 9",
+      "city": "رشت",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 479374,
+      "title": "کلبه یک خوابه سوئیسی دنج 3",
+      "city": "رشت",
+      "category_slug": "wooden-cottage",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 375646,
+      "title": "ویلا یک خوابه دوبلکس شالیزار بومیت",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 591193,
+      "title": "ویلا دوخوابه استخردار خواچکین",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 809759,
+      "title": "مجتمع اقامتگاهی نور گیلان - ۱۰۳",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 347276,
+      "title": "بوم گردی می جان - واحد چیچینی",
+      "city": "رشت",
+      "category_slug": "ecolodge",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 421713,
+      "title": "ویلا سه خوابه افرا 2",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 761183,
+      "title": "آپارتمان دوخوابه وارش1",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 636161,
+      "title": "ویلا دوخوابه استخردار آبگرم مسیبی",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 563937,
+      "title": "ویلا دوخوابه عباس زاده 1",
+      "city": "رشت",
+      "category_slug": "pool-villa",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 89258,
+      "title": "مجتمع اقامتگاهی باغ سالار - واحد 6",
+      "city": "رشت",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 738260,
+      "title": "آپارتمان دوخوابه شانا واحد ۱۴۵۸ اشرفی اصفهانی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 738278,
+      "title": "آپارتمان یک خوابه شانا تیپ ۲ اشرفی اصفهانی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 674558,
+      "title": "آپارتمان دوخوابه سلیمی - واحد 7 فردوس",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 738294,
+      "title": "آپارتمان یک خوابه شانا واحد ۷ اشرفی اصفهانی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 619205,
+      "title": "آپارتمان یک خوابه سرسبز 3 مرزداران",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 674556,
+      "title": "آپارتمان دوخوابه سلیمی - واحد 5 فردوس",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 674560,
+      "title": "آپارتمان دوخوابه سلیمی - واحد 8 فردوس",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 536815,
+      "title": "آپارتمان یک خوابه خانه سبز c6 نیاوران",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 674880,
+      "title": "سوئیت فلت سلیمی واحد ۱۰ ـ فردوس",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 479306,
+      "title": "سوئیت فلت دوتخته زنجان جنوبی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 498789,
+      "title": "آپارتمان یک خوابه فرمانیه",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 609777,
+      "title": "آپارتمان یک خوابه دلا واحد 1 پونک",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 738292,
+      "title": "آپارتمان یک خوابه شانا واحد ۶ اشرفی اصفهانی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 813168,
+      "title": "آپارتمان فلت جنت آباد مرکزی -  واحد ۳",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 401358,
+      "title": "آپارتمان یک خوابه انوشیروان 4 جنت آباد",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 674884,
+      "title": "سوئیت فلت سلیمی واحد ۱۲ ـ فردوس",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 811091,
+      "title": "آپارتمان دوخوابه آرامیس۳ جنت آباد",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 780415,
+      "title": "آپارتمان فلت جکوزی دار بهار",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 738288,
+      "title": "آپارتمان یک خوابه شانا واحد ۳ اشرفی اصفهانی",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 480258,
+      "title": "سوئیت فلت شاین  ۱ نارمک",
+      "city": "تهران",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 527230,
+      "title": "مجتمع اقامتگاهی اکوتل - واحد دوتخته توئین 7",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 527222,
+      "title": "مجتمع اقامتگاهی اکوتل - واحد دوتخته توئین 6",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 108714,
+      "title": "آپارتمان دوخوابه طلوع بوهو",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 527226,
+      "title": "مجتمع اقامتگاهی اکوتل - واحد دوتخته دبل 3",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 552365,
+      "title": "آپارتمان دوخوابه تاک 2",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 552331,
+      "title": "آپارتمان دوخوابه تاک 3",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 395376,
+      "title": "آپارتمان دوخوابه بهشت آسمان 1",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 734924,
+      "title": "آپارتمان یک خوابه خانه آرمانی ۳",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 552385,
+      "title": "آپارتمان دوخوابه تاک 1",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 665841,
+      "title": "آپارتمان دوخوابه همکیش - واحد ۱",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 427859,
+      "title": "آپارتمان دوخوابه ایوان بوتیک",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 519646,
+      "title": "مجتمع اقامتگاهی اکوتل - واحد دوتخته تویین 4",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 324248,
+      "title": "آپارتمان یک خوابه هراز واحد 5",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 355602,
+      "title": "آپارتمان سه خوابه ایوان نوبنیاد 3",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 790621,
+      "title": "آپارتمان دوخوابه دوبلکس ایرن",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 358491,
+      "title": "آپارتمان یک خوابه سرو سپهری",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 108910,
+      "title": "آپارتمان دوخوابه دوبلکس ساقه 1",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 324236,
+      "title": "آپارتمان سه خوابه دوبلکس هراز واحد 4",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 324118,
+      "title": "آپارتمان یک خوابه سدر سپهری",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 106659,
+      "title": "آپارتمان دوخوابه دانیال شهرک صدف",
+      "city": "کیش",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 445585,
+      "title": "آپارتمان یک خوابه اشرفی اصفهانی 2",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 452370,
+      "title": "آپارتمان یک خوابه اشرفی اصفهانی",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 428207,
+      "title": "هاستل چیلا - واحد بانوان",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 483849,
+      "title": "آپارتمان یک خوابه نگین 16",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 437505,
+      "title": "آپارتمان دوخوابه مسیحا 260 - پل خواجو",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 459098,
+      "title": "بوم گردی عمارت نخلستان - واحد عهد جانا ۶",
+      "city": "اصفهان",
+      "category_slug": "ecolodge",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 588030,
+      "title": "آپارتمان دوخوابه چهارباغ عباسی ۳۹",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 428205,
+      "title": "هاستل چیلا - واحد آقایان",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 430632,
+      "title": "آپارتمان یک خوابه سی و سه پل چهارباغ",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 632359,
+      "title": "آپارتمان یک خوابه شریف شرقی",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 445469,
+      "title": "آپارتمان یک خوابه ارشاد 1",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 564313,
+      "title": "آپارتمان یک خوابه بزرگمهر",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 705203,
+      "title": "آپارتمان یک خوابه مسافر سبز چهارباغ عباسی سی و سه پل",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 552467,
+      "title": "آپارتمان یک خوابه همای رحمت",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 371020,
+      "title": "سوئیت فلت نقش جهان ۳",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 812440,
+      "title": "آپارتمان یک خوابه نارنج  ۱",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 429841,
+      "title": "آپارتمان دوخوابه شادیها",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 638641,
+      "title": "آپارتمان یک خوابه عابدینی 1",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 621430,
+      "title": "آپارتمان یک خوابه هرمس 1",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    },
+    {
+      "jabama_id": 745943,
+      "title": "آپارتمان فلت سی و سه پل",
+      "city": "اصفهان",
+      "category_slug": "furnished-apartment",
+      "accommodation_id": null
+    }
+  ]
+}
