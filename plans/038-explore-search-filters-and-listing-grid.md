@@ -680,3 +680,47 @@ Stop and report back (do not improvise) if:
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/038-review-fixes`, from main `438fdc8`. Commit as `fix(explore): second-pass review fixes R1-R7`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 7 Low.
+- **Scope:** `frontend/src/app/page.tsx`, `frontend/src/components/explore/search-pill.tsx`, `frontend/src/components/explore/category-bar.tsx`, `frontend/src/components/explore/accommodation-card.tsx`, `frontend/src/components/explore/filter-dialog.tsx`. (T7 is a plan-text fix, already recorded in this section — the executor makes no plan edit.) Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 109 passed. Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/038-third-pass-fixes`. Commit style: `fix(explore): third-pass review fixes T1-T7`.
+
+### T1 (Low) — Previous user's wishlist hearts can flash during a user switch (R3 residual)
+- **File:** `frontend/src/app/page.tsx:57-76`. R3 clears the set on logout and on fetch failure, but when the token changes from user A to user B (both truthy), the effect starts B's `/wishlists/?limit=100` fetch while `wishlistIds` still holds A's set, and `activeWishlistIds` (`:50-53`) shows it because it keys only on token truthiness. The same effect has no sequence guard, so two rapid user switches could also let the earlier user's response arrive last and overwrite the current user's set (same class as R1).
+- **Fix:** clear `setWishlistIds(new Set())` at the top of the effect before fetching whenever the token changes, and/or add a sequence guard like the accommodations fetch.
+- **Done when:** switching users never shows the previous user's hearts (verify by code inspection + reasoning, documented in the report — no browser in the sandbox).
+
+### T2 (Low) — Desktop search-pill draft diverges from committed filters with no re-sync
+- **File:** `frontend/src/components/explore/search-pill.tsx:33-36`. Draft state is initialised once at mount and only re-synced when the mobile sheet opens (`:161-167`) or on remount via `searchKey` (clear-filters). The mobile flow deliberately re-syncs drafts on open; desktop has no equivalent.
+- **Scenario:** user picks a city in the desktop pill but doesn't press search, then opens the filter dialog and applies a price filter (or taps a category chip) — the grid updates with no city filter, but the pill still displays the uncommitted city as selected, implying an active filter that isn't applied.
+- **Fix:** sync drafts from `currentParams` when the pill's committed params change externally, or remount the pill on any committed-param change, not just clear-filters.
+- **Done when:** after applying a filter elsewhere, the pill shows the committed values, not a stale draft.
+
+### T3 (Low) — Clicking the already-active "همه اقامتگاه‌ها" chip triggers a pointless refetch + skeleton flash
+- **File:** `frontend/src/components/explore/category-bar.tsx:77-83`, `frontend/src/app/page.tsx:115-122`. `onSelectCategory(undefined)` is called unconditionally; `handleSelectCategory` then sets `isLoading(true)` and a new state object even when `category_id` was already `undefined`, so the fetch effect re-runs.
+- **Fix:** early-return in `handleSelectCategory` when the category is unchanged.
+- **Done when:** tapping the active "همه" chip triggers no fetch and no skeleton flash.
+
+### T4 (Low) — First-load URL is not cleaned when invalid params are dropped
+- **File:** `frontend/src/app/page.tsx:37-47`. The URL-sync effect skips the first render, so a shared link like `/?city_id=0&max_price=-5` keeps showing those params in the address bar even though `parseAccommodationQuery` correctly drops them and the grid ignores them. Harmless and self-healing on reload, but the URL misrepresents the applied filters and propagates the invalid params if copied.
+- **Fix:** on mount, if `buildAccommodationQuery(parsed)` differs from the actual query string, `replaceState` once with the canonical URL.
+- **Done when:** loading `/?city_id=0&max_price=-5` ends with the canonical clean URL in the address bar.
+
+### T5 (Low) — Dead `cover_image` URL shows a broken image instead of the "بدون تصویر" placeholder
+- **File:** `frontend/src/components/explore/accommodation-card.tsx:49-65`. The fallback placeholder renders only when `cover_image` is null; there is no `onError` handling on `<Image>`.
+- **Scenario:** the image file is deleted from storage while the DB still references the URL — the card shows a broken-image box.
+- **Fix:** track image-error state in the card and render the existing placeholder when the image fails to load.
+- **Done when:** a dead `cover_image` URL shows the placeholder, not a broken-image box.
+
+### T6 (Low) — Amenities load failure is reported as "no amenities found"
+- **File:** `frontend/src/components/explore/filter-dialog.tsx:242-243`. When the `/amenities/` fetch fails, `isLoadingAmenities` becomes false with an empty list and the UI shows "امکاناتی یافت نشد." — indistinguishable from a genuinely empty amenities table.
+- **Fix:** keep a load-error flag and show a distinct "خطا در بارگذاری امکانات" message (with retry) on failure.
+- **Done when:** a failed amenities fetch shows the error message, not "امکاناتی یافت نشد."
+
+### T7 (Low) — Card governance vs spec mismatch — PLAN TEXT FIX, no code change
+- **File:** `frontend/src/components/explore/accommodation-card.tsx:44`. The plan's governance section requires canonical `Card`/`CardHeader`/`CardContent` for listing display, but Step 5's own concrete spec describes the aspect-ratio container + content divs and never mentions `Card`. The implementation is a custom `div.group` layout (it does use canonical `Badge`, `Button`, and `Skeleton` elsewhere).
+- **Fix (recorded here by the advisor):** the explore accommodation card is EXEMPT from the canonical-`Card` governance rule — Step 5's layout spec is intentional. No code change.
+- **Done when:** this exemption is recorded in the plan (this section); code unchanged.

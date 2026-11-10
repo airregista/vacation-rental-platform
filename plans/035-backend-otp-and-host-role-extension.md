@@ -384,3 +384,27 @@ async def test_become_host_flow(client: AsyncClient):
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/035-review-fixes`, from main `438fdc8`. Commit as `fix(auth): second-pass review fixes R1-R3`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 3 Low.
+- **Scope:** `app/api/v1/endpoints/auth.py`, `app/models/user.py`, `tests/test_auth.py` (extend). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `ruff check app/ tests/test_auth.py` (exit 0); full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 111 passed (109 + 2 new T1/T2 tests). Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/035-third-pass-fixes`. Commit style: `fix(auth): third-pass review fixes T1-T3`.
+
+### T1 (Low) — Concurrent double-verify can replay the same OTP (TOCTOU)
+- **File:** `app/api/v1/endpoints/auth.py:172-219`. Verify reads the row, checks the code, creates/logs in the user, and only then deletes the row, with no row lock.
+- **Scenario:** two `POST /otp/verify` requests for the same phone+code in flight at once (double-submit, client retry) both pass the check before either reaches the delete, so both mint a valid JWT. Sequential replay is correctly blocked; only the concurrent window is open. Impact is limited (both tokens belong to the same phone owner).
+- **Fix:** consume the OTP atomically — e.g. `delete(OTPCode).where(phone==..., code==..., expires_at > now).returning(...)` and treat zero rows deleted as failure, or `SELECT ... FOR UPDATE`.
+- **Done when:** two concurrent verifies with the same code → exactly one succeeds (the other gets 400); sequential replay still blocked; new test proves it.
+
+### T2 (Low) — Concurrent double-send for the same phone can 500
+- **File:** `app/api/v1/endpoints/auth.py:149-157`. Send does select-then-insert (`if existing: update else: db.add(...)`).
+- **Scenario:** user double-taps "send code" — both requests see no row, both `INSERT` the same `phone` PK; one gets an unhandled `IntegrityError` → 500 instead of 200. Transient (a retry succeeds).
+- **Fix:** upsert (`pg_insert(...).on_conflict_do_update(...)`), or catch `IntegrityError` and retry as an update.
+- **Done when:** two concurrent sends for the same phone → both 200, exactly one row; new test proves it.
+
+### T3 (Low) — Stale comment on the role column
+- **File:** `app/models/user.py:26-28` (`# "admin" or "guest"`); "host" is now a legitimate role value and is never mentioned. Cosmetic.
+- **Fix:** update the comment to `"admin", "host" or "guest"`.
+- **Done when:** the comment lists all three roles.

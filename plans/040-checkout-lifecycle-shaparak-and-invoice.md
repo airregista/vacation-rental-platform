@@ -719,3 +719,65 @@ Stop and report back (do not improvise) if:
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/040-review-fixes`, from main `438fdc8`. Commit as `fix(checkout): second-pass review fixes R1-R6`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 1 Medium, 9 Low.
+- **Scope:** `frontend/src/app/checkout/[id]/page.tsx`, `frontend/src/components/checkout/payment-gateway-modal.tsx`, `frontend/src/components/checkout/invoice-modal.tsx`, `frontend/src/components/checkout/countdown-timer.tsx`, `frontend/src/components/checkout/reservation-summary.tsx`, `frontend/src/types/checkout.ts`, `frontend/src/lib/format-fa.ts`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 109 passed. Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/040-third-pass-fixes`. Commit style: `fix(checkout): third-pass review fixes T1-T10`.
+
+### T1 (Medium) — A `completed` reservation can never open its invoice
+- **File:** `frontend/src/app/checkout/[id]/page.tsx:467,487` vs `:807-810`. The invoice button lives only inside the `{isConfirmed && (...)}` banner, but the modal mount gate is `{invoiceData && (isConfirmed || isCompleted)}` and the memo builds `invoiceData` for `completed` too. The advisor verified line 487 is the only `setIsInvoiceModalOpen(true)` call site. This contradicts Step 6, which says the invoice is "strictly produced only when reservation is confirmed/completed".
+- **Scenario:** a guest revisiting `/checkout/[id]` after the stay completes sees the stepper all-checked and the summary, but has no button to open the invoice.
+- **Fix:** render the invoice action for `isCompleted` as well (a completed-state banner reusing the same button). Keep the confirmed banner's text confirmed-only.
+- **Done when:** a completed reservation shows an invoice button that opens the modal.
+
+### T2 (Low) — R3 fix is incomplete: duplicate initiation while the first POST is still in flight
+- **File:** `frontend/src/components/checkout/payment-gateway-modal.tsx:84-94,115-125`. `hasInitiatedRef.current = reservation.id` is set only *after* the `POST /payments/checkout` resolves.
+- **Scenario:** the user closes the modal while initiation is pending (the loading view at `:232` has no Cancel button, but the Dialog ✕ / overlay-click / Esc still closes it) and reopens it before the first request lands — or under React StrictMode double-effect in dev — the guard passes twice. The backend creates a new `Payment` + tracking code unconditionally, so a second orphaned `pending` row appears in payment history. No double charge (verify uses only the latest code), same impact class as R3.
+- **Fix:** set the ref (or a separate in-flight ref) synchronously *before* the `await`, and clear it only on error; or check `isInitiating` in the effect guard.
+- **Done when:** closing + reopening the modal mid-initiation cannot start a second POST.
+
+### T3 (Low) — Stale accommodation shown if its fetch fails after navigating between checkouts
+- **File:** `frontend/src/app/checkout/[id]/page.tsx:123,127-136`. `fetchData` clears `latestPayment` at `:123` but never clears `accommodation`; the accommodation fetch failure is swallowed silently (`catch { /* Fallback gracefully */ }`).
+- **Scenario:** on SPA navigation from checkout A to checkout B, if B's `/accommodations/{id}` request fails (transient network / deleted listing), the summary keeps showing A's title, cover photo, `cleaning_fee` and `base_price` — and the price breakdown is computed from A's fees against B's total. First load is unaffected (`accommodation` starts `null`).
+- **Fix:** `setAccommodation(null)` at the start of `fetchData`, alongside `setLatestPayment(null)`.
+- **Done when:** navigating A→B with a failed B fetch shows no stale A data.
+
+### T4 (Low) — Countdown `expiredCalledRef` is never reset when `createdAt` changes
+- **File:** `frontend/src/components/checkout/countdown-timer.tsx:35,53-54,70-71`. The timer is mounted unkeyed at `page.tsx:462`.
+- **Scenario (narrow):** the timer instance is reused across reservations (no `key`). If reservation A's timer already expired (ref latched `true`), then a different pending reservation B renders in the same instance, the ref stays `true`, so when B's countdown reaches 0 the interval's `onExpired` call is suppressed. The timer shows the expired alert while the parent still thinks the reservation is `pending` and the pay button stays live (the backend would then reject checkout with 400, so no wrongful payment — just a stuck UI).
+- **Fix:** reset `expiredCalledRef.current = false` when `createdAt` changes, or key the timer by reservation id in the page.
+- **Done when:** a second pending reservation's expiry fires `onExpired`.
+
+### T5 (Low) — `paymentData` is not scoped to the reservation id (same reuse shape as T4)
+- **File:** `frontend/src/components/checkout/payment-gateway-modal.tsx:50,120`. The effect guard is `hasInitiatedRef.current === reservation.id || paymentData` — the `paymentData` check does not verify `paymentData.reservation_id === reservation.id`.
+- **Scenario (narrow):** if the modal stays mounted while the `reservation` prop changes to a different id, initiation is skipped and verify would POST the *old* reservation's `payment_id`/`tracking_code`. Trigger requires navigating to another checkout while the modal is open.
+- **Fix:** guard on `paymentData?.reservation_id === reservation.id`, and clear `paymentData` when `reservation.id` changes.
+- **Done when:** the modal never verifies with another reservation's payment.
+
+### T6 (Low) — Negative UTC offsets are mishandled by the `Z`-append pattern (latent)
+- **File:** `frontend/src/types/checkout.ts:154-168`, `frontend/src/components/checkout/countdown-timer.tsx:27,44`, `frontend/src/components/checkout/invoice-modal.tsx:30`, `frontend/src/lib/format-fa.ts:9`. The check is only `endsWith("Z") || includes("+")`, so a timestamp with a negative offset (e.g. `…T10:00:00-05:00`) gets `Z` appended, parses as `Invalid Date`, and falls back to the current Persian year (invoice number) or 0 seconds remaining (countdown shows the expired alert). Not triggered in practice — the backend returns UTC `Z`/`+00:00` timestamps — so this is latent, not a live bug.
+- **Fix:** detect an offset with a regex such as `/[+-]\d{2}:\d{2}$/` instead of `includes("+")` at all 4 sites (or extract one shared `parseApiDate` helper if that is smaller).
+- **Done when:** a `…T10:00:00-05:00` timestamp parses correctly (no `Invalid Date` fallback) at all 4 sites.
+
+### T7 (Low) — Gateway form ships pre-filled with a test card
+- **File:** `frontend/src/components/checkout/payment-gateway-modal.tsx:61-64`. `cardNumber` defaults to `6104 3378 9821 4452`, CVV2 `345`, expiry `08/06`. The form looks complete except for the OTP, so a guest can submit without entering their own card. Harmless financially — this is a simulation and verify ignores the card fields entirely (per plan) — but the prefill isn't in the plan and invites confusion about what was charged.
+- **Fix:** leave the card fields blank (verify ignores them; testers type any card).
+- **Done when:** no prefilled card number / CVV2 / expiry in the modal.
+
+### T8 (Low) — Invoice presents a hardcoded fake signature hash as a digital seal
+- **File:** `frontend/src/components/checkout/invoice-modal.tsx:375`. On an "official" fiscal invoice, a truncated static string (`SIGN-SHA256: 4f8a...9c12`) is displayed as the tax-system digital signature. It verifies nothing. (Seller registration details are likewise static template data, which the plan's template prescribes; the seal string is the misleading part.)
+- **Fix:** label it clearly as a sample/placeholder (e.g. "نمونه") rather than a verification hash. Render the real signature when one exists (none exists today — so label it).
+- **Done when:** no unverifiable "digital seal" is presented as real on the invoice.
+
+### T9 (Low) — Guest phone / national code are not validated before reaching the invoice
+- **File:** `frontend/src/app/checkout/[id]/page.tsx` (`isFormValid`). It only checks `guestPhone.trim()` is non-empty; `guestNationalCode` is free text passed straight into `invoiceData`. Any non-empty string (e.g. `x`) enables payment, and a malformed national code is printed verbatim on the official invoice. The plan doesn't specify validation, so this is a polish gap, not a deviation.
+- **Fix:** validate phone format and a 10-digit national code (when provided) before enabling the pay CTA, with a Persian error.
+- **Done when:** an `x` phone or malformed national code blocks payment with a Persian error.
+
+### T10 (Low) — Price breakdown uses live accommodation fees, not the booking snapshot (plan-prescribed; display-level fix)
+- **File:** `frontend/src/types/checkout.ts` (`computeCheckoutBreakdown`), `frontend/src/components/checkout/reservation-summary.tsx`, `frontend/src/components/checkout/invoice-modal.tsx`. `cleaningFee`/`basePrice` are read from the *current* accommodation. If the host edits those fees after the booking, the ledger rows can sum to something other than `totalPayable` (e.g. `cleaningFee > totalPayable` yields stay = 0 plus a cleaning row larger than the total). The plan's Step 3 formula mandates exactly this derivation, so the implementation is faithful — the limitation is in the plan's data model (no fee snapshot on the reservation).
+- **Fix (minimal, display-level):** clamp the displayed cleaning fee to `totalPayable` so ledger rows can never sum past the total. A reservation fee snapshot is a future schema change, not this round — record that here.
+- **Done when:** with host-edited fees, the breakdown never shows cleaning > total.

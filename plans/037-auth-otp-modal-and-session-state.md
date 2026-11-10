@@ -442,3 +442,40 @@ Stop and report back (do not improvise) if:
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/037-review-fixes`, from main `438fdc8`. Commit as `fix(auth): second-pass review fix R1 (OTP resend focus)`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 1 Medium, 4 Low (+ H1 kept by user decision, see below).
+- **Scope:** `app/api/v1/endpoints/auth.py`, `frontend/src/components/auth/otp-modal.tsx`, `frontend/src/context/auth-context.tsx`, `frontend/src/components/layout/footer.tsx`, `tests/test_auth.py` (extend). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `ruff check app/ tests/test_auth.py` (exit 0); `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 110 passed (109 + 1 new T1 test). Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/037-third-pass-fixes`. Commit style: `fix(auth): third-pass review fixes T1-T5`.
+
+### H1 — Static OTP `1234` — KEPT by user decision, no code change
+- **Decision (user, 2026-11-11):** "we're still in testing — keep the 1234 code for now, and mention it in the frontend too." The advisor verified the test code IS already displayed in the frontend OTP modal (`frontend/src/components/auth/otp-modal.tsx:498-517`): an alert titled "کد تایید آزمایشی سیستم" with "جهت بررسی و ارزیابی سامانه، کد آزمایشی ۱۲۳۴ را وارد نمایید." plus the "درج خودکار ۱۲۳۴" quick-fill button. Nothing to add.
+- **Recorded requirement (NOT this round):** gate the static code and `dev_code` behind a non-production flag before any production deploy. Do not implement that here.
+
+### T1 (Medium) — `POST /auth/otp/send` has no rate limiting
+- **File:** `app/api/v1/endpoints/auth.py:140-164`. Unauthenticated; every call runs a `DELETE` of expired rows plus an upsert + commit, with no per-phone or per-IP throttle. Low impact while no real SMS is sent; it becomes SMS-cost abuse the moment a real provider is wired.
+- **Fix:** per-phone 60s cooldown using the existing `OTPCode` row's `created_at` (if a row exists and `now - created_at < 60s` → 429 with a retry message). No migration. Note: an hourly cap would need a send-log table — out of scope, flag it in the report.
+- **Done when:** two sends within 60s → the second is 429; after 60s → 200; new test proves it.
+
+### T2 (Low) — Double-submit can fire two parallel OTP verifications via a stale `isSubmitting` closure
+- **File:** `frontend/src/components/auth/otp-modal.tsx` (`handleVerifySubmit`). The `useCallback` is gated on `isSubmitting` from its render closure. A rapid double-click on the quick-fill button or 4th-digit auto-submit + immediate Enter can both pass the guard before React re-renders.
+- **Scenario consequence (benign):** the first request deletes the OTP row, the second gets 400 and sets an error on the already-closed modal; no duplicate user is created.
+- **Fix:** use a `useRef` in-flight flag instead of (or in addition to) the state guard.
+- **Done when:** a rapid double-click fires exactly one verification request.
+
+### T3 (Low) — Rehydration leaves an inconsistent state on non-401/403 `/auth/me` failure
+- **File:** `frontend/src/context/auth-context.tsx:31`. `token` is set from storage *before* the `/auth/me` call; on a network error or 5xx the catch only evicts on 401/403, so `token` stays non-null while `user` is null (`isAuthenticated=false`).
+- **Fix:** only `setToken(storedToken)` after `/auth/me` succeeds, or clear it in the non-401/403 branch too.
+- **Done when:** on an `/auth/me` network/5xx failure, `token` is null and `isAuthenticated` is false.
+
+### T4 (Low) — `PUT /auth/me` can never clear a field back to null
+- **File:** `app/api/v1/endpoints/auth.py:106,118-125`. Sending `email: null` / `first_name: null` is silently treated as "no change". Arguably intended partial-update semantics; the fix is small, so do it.
+- **Fix:** use Pydantic `model_fields_set` to distinguish "omitted" from "explicitly null", so an explicit null clears the field.
+- **Done when:** sending `email: null` clears the email; omitting `email` leaves it unchanged.
+
+### T5 (Low) — Footer links are all dead anchors; desktop accordion header is a no-op button
+- **File:** `frontend/src/components/layout/footer.tsx`. All 16 links are `href="#about"`, `"#careers"`, etc. with no matching element ids, so clicks do nothing. The section header is a `Button` on desktop too (`md:cursor-default`) but the list is forced visible via `hidden md:block`, so clicking it toggles state with no visible effect.
+- **Fix:** point links at real routes where they exist, else render them as plain text until then; on desktop render the section header as a non-button element.
+- **Done when:** no dead `#anchor` links remain and no no-op buttons exist in the footer.

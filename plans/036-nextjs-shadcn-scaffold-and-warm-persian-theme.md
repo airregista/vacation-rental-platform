@@ -1082,3 +1082,27 @@ npm --prefix frontend run build
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/036-review-fixes`, from main `438fdc8`. Commit as `fix(theme): second-pass review fixes R1-R5`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 3 Low.
+- **Scope:** `frontend/src/components/ui/button.tsx`, `frontend/src/app/globals.css`, `frontend/public/fonts/` (new). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 109 passed. Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/036-third-pass-fixes`. Commit style: `fix(frontend): third-pass review fixes T1-T3`.
+
+### T1 (Low) — `Button` has no default `type="button"`, so it submits enclosing forms
+- **File:** `frontend/src/components/ui/button.tsx:41-48`. The component renders a bare `<button>` with no `type` prop, so HTML defaults it to `type="submit"`.
+- **Scenario:** any non-submit `Button` (Cancel, Close, toggle) placed inside a `<form>` without an explicit `type` submits the form instead of doing its own action. No in-repo instance currently breaks — callers defensively pass `type="button"` everywhere, which is itself evidence the footgun is live. This is the plan-prescribed canonical shadcn code, so it is latent, not an active bug.
+- **Fix:** default `type="button"` in the component, letting submit buttons opt in with `type="submit"`. Audit callers that rely on implicit submit; if any exist, add `type="submit"` to them explicitly.
+- **Done when:** a `Button` without a `type` inside a form does not submit it; existing submit buttons still work; tsc/lint/build 0.
+
+### T2 (Low) — `Vazirmatn` is named but never actually loaded
+- **File:** `frontend/src/app/globals.css:26`. The font stack lists `'Vazirmatn'` first, but there is no `@font-face`, no font file under `frontend/public/`, and no `next/font` usage anywhere in `frontend/src` (verified by the advisor).
+- **Scenario:** on any machine without Vazirmatn installed locally, all Persian text silently renders in the system fallback (Tahoma/Segoe UI), so the plan's "Vazirmatn font stack" done criterion is satisfied only as a name in a stack.
+- **Fix:** bundle Vazirmatn woff2 files under `frontend/public/fonts/` with an `@font-face` rule (or `next/font/local`). Source: the Vazirmatn GitHub releases (`rastikerdar/vazirmatn`). Do NOT use `next/font/google` (the plan's ban on the build-time fetch was about offline builds, not local fonts).
+- **Done when:** the built CSS contains an `@font-face` for Vazirmatn and the font files are bundled in the repo; tsc/lint/build 0.
+
+### T3 (Low) — `.safe-pt` is defined but never used
+- **File:** `frontend/src/app/globals.css:66-68`. A repo-wide grep finds zero usages (unlike `.safe-pb`, which has two legitimate users). Harmless dead CSS.
+- **Fix:** delete the unused `.safe-pt` rule.
+- **Done when:** no `.safe-pt` remains in `globals.css`; build passes.

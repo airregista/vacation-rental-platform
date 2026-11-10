@@ -653,3 +653,66 @@ Stop and report back (do not improvise) if:
 
 ### Git workflow
 - Work in the isolated worktree on branch `advisor/039-review-fixes`, from main `438fdc8`. Commit as `fix(detail): second-pass review fixes R1-R6`.
+
+## Third-pass review fixes (2026-11-11)
+
+- **Planned at:** `f1cc407` (main, post-035–040 merge). **Source:** advisor review of plans 035–043 (2026-11-10): coordinator + 9 workers; advisor verified all High/Medium against live code and spot-checked the tricky Lows. This plan: 11 Low.
+- **Scope:** `frontend/src/components/accommodation/booking-widget.tsx`, `frontend/src/components/accommodation/host-card.tsx`, `frontend/src/components/accommodation/availability-calendar.tsx`, `frontend/src/components/accommodation/reviews-section.tsx`, `frontend/src/app/accommodations/[id]/page.tsx`. Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
+- **Gates:** `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 109 passed. Run pytest only when no other suite is running (shared test DB).
+- **Branch:** `advisor/039-third-pass-fixes`. Commit style: `fix(booking): third-pass review fixes T1-T11`.
+
+### T1 (Low) — Date boxes inside the mobile sheet are dead taps
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:249-252,602-633`. `scrollToCalendar` is wired to the date boxes rendered inside the bottom `Sheet`. While the sheet is open, body scroll is locked and the sheet covers the page, so tapping a date box scrolls nothing visible. The same sheet has a working "مشاهده تقویم و انتخاب تاریخ" button (`:621`) that closes the sheet then scrolls.
+- **Fix:** in the sheet copy, make the date boxes close the sheet first (like that button) and then scroll to the calendar.
+- **Done when:** tapping a date box in the sheet closes it and scrolls to the calendar (verify by code inspection + reasoning, documented in the report — no browser in the sandbox).
+
+### T2 (Low) — `isCalculating` can stick `true` after dates are cleared mid-flight
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:85-86,111,164`. When dates become invalid the effect returns early without touching `isCalculating`; the in-flight request's `setIsCalculating(false)` is skipped because cleanup set `isCurrent=false`.
+- **Scenario:** price calc in flight → user hits "پاک کردن تاریخ‌ها" in the calendar → book button label stays "در حال محاسبه قیمت..." (with spinner) instead of "تاریخ سفر را انتخاب کنید" until new dates are picked (which self-heals it).
+- **Fix:** reset `isCalculating` in the early-return branch / effect cleanup, or track the in-flight request with an abort/sequence id.
+- **Done when:** clearing dates mid-flight restores the "تاریخ سفر را انتخاب کنید" label.
+
+### T3 (Low) — Invalid coupon still fires `calculate-price` twice (R3 residual)
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:131,140-146`. Clearing `appliedCoupon` (`:131`) re-triggers the effect for a no-coupon calc *and* the catch block manually fetches a no-coupon fallback (`:140-146`). Both requests go out; the fallback's result is normally discarded by the `isCurrent` cleanup, so the price is correct — it's one wasted request per invalid coupon.
+- **Fix:** drop the manual fallback fetch and let the effect re-run do it.
+- **Done when:** one `calculate-price` request per invalid coupon.
+
+### T4 (Low) — Flexible/moderate policy text still omits the short-notice outcome (R1 fixed only strict)
+- **File:** `frontend/src/components/accommodation/host-card.tsx:20-27`. Backend: flexible <24h refunds everything except first night + cleaning (`cancellation_service.py:47-56`); moderate <5d refunds only 50% (`:58-64`). The card states only the full-refund window, so a guest cancelling a moderate listing 3 days out has no idea they lose half. Less misleading than the old strict text (it doesn't state a wrong refund), but the same class of omission.
+- **Fix:** add one clause each — flexible: less than 24h refunds everything except the first night + cleaning; moderate: less than 5 days refunds 50%.
+- **Done when:** the card states the short-notice outcome for all three policies.
+
+### T5 (Low) — User-facing errors show the `ApiError` prefix in English
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:152,158,221`. These lines use `err.message` (`"API Error (400): …"` from `api-client.ts`), so coupon min-subtotal/usage-limit and booking failures render as e.g. `API Error (400): Booking subtotal must be at least …` to a Persian-speaking guest.
+- **Fix:** use `err.detail` (the bare backend message) for displayed errors.
+- **Done when:** no `"API Error (400):"` prefix appears in UI errors in this widget.
+
+### T6 (Low) — No past-date guard in the calendar; relies entirely on the backend's `date.today()`
+- **File:** `frontend/src/components/accommodation/availability-calendar.tsx`. The calendar never rejects a cell dated before today — past days are only excluded because the backend starts its 60-day window at `date.today()` (`accommodations.py:446-451`). The advisor verified nothing in `pricing_service.py` / `reservation_service.py` rejects a past check-in either. Uncertain edge: if the API server runs on UTC, between 00:00–03:30 Tehran time its "today" is yesterday in Tehran, so yesterday renders as a selectable available cell.
+- **Fix:** disable cells with `isoDate <` today's date in the client's date (frontend only; no backend change).
+- **Done when:** past days are not selectable in the calendar.
+
+### T7 (Low) — Host join date and review dates are formatted without a timezone
+- **File:** `frontend/src/components/accommodation/host-card.tsx:54-63`, `frontend/src/components/accommodation/reviews-section.tsx:91-101`. Both use `Intl.DateTimeFormat("fa-IR", …)` with no `timeZone`, unlike the calendar which correctly pins UTC. A `created_at` near midnight UTC can render as the previous/next day (or month, for the host join date) depending on the viewer's timezone.
+- **Fix:** add `timeZone: "Asia/Tehran"` to both formatters.
+- **Done when:** near-midnight UTC dates render on the Tehran day.
+
+### T8 (Low) — Reviews beyond 100 are still unreachable (known R2 limitation)
+- **File:** `frontend/src/components/accommodation/reviews-section.tsx:36,132,277`. The section fetches `limit=100`, but the header (`:132`) shows the true `reviewsCount` from the detail endpoint, and the "show more" remainder (`:277`) counts only within the fetched 100. A listing with 150 reviews shows "۱۵۰ نظر" while at most 100 are ever listed. Full pagination was explicitly out of scope for R2 and stays out of scope here.
+- **Fix (minimal, honest label):** show "showing X of Y" (e.g. "نمایش ۱۰۰ از ۱۵۰ نظر") when the fetched count is less than the total.
+- **Done when:** the header never claims more reviews are listed than are shown.
+
+### T9 (Low) — Expired token at booking time shows a cryptic error instead of the login modal
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:198-221`. `handleBook` checks `isAuthenticated` before the request, but if the token expired since page load, the 401 from `POST /reservations/` clears the user via the `auth:unauthorized` listener and `handleBook` only sets `submitError` ("API Error (401)…"). The user must click "رزرو" a second time to get the OTP modal.
+- **Fix:** in `handleBook`'s catch, call `openOtpModal()` when `err instanceof ApiError && err.status === 401`.
+- **Done when:** an expired token opens the login modal on the first click.
+
+### T10 (Low) — Stale total lingers in the mobile bottom bar while recalculating
+- **File:** `frontend/src/components/accommodation/booking-widget.tsx:81,92`. The widget keeps the old `priceData` while a new calc is in flight (`isCalculating=true`), and the mobile bar renders `effectivePriceData.total_price` with no spinner, while the desktop breakdown correctly shows a spinner (`:461`). Transient (cleared on success/failure), but a guest changing guests/dates briefly sees the old total.
+- **Fix:** clear `priceData` (or gate the mobile bar on `!isCalculating`) at calc start.
+- **Done when:** the mobile bar shows a spinner/blank, not the old total, while recalculating.
+
+### T11 (Low) — Non-integer id shows a generic error instead of 404
+- **File:** `frontend/src/app/accommodations/[id]/page.tsx:36-38`. `Number("1.5")` is `1.5`, which passes the guard, so `/accommodations/1.5` hits the API, gets a 422, and renders the generic error page rather than "یافت نشد". Trivial.
+- **Fix:** add `!Number.isInteger(accommodationId)` to `isInvalidId`.
+- **Done when:** `/accommodations/1.5` renders "یافت نشد".
