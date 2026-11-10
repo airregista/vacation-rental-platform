@@ -344,8 +344,9 @@ Build a robust Persian countdown timer component:
    - Runs a `1000ms` `setInterval` updating seconds when `isPending` is true and `remainingSeconds > 0`.
    - When `remainingSeconds === 0`, invokes `onExpired?.()` callback once and ceases timer.
    - If `!isPending` (reservation already cancelled, confirmed, or completed), returns `null` immediately and does not render or trigger timer callbacks.
-2. **Persian Number Formatting**:
+2. **Persian Number Formatting & Direction**:
    - Formats `minutes` and `seconds` as two-digit Persian numerals (e.g. `۲۹:۴۵` or `۰۴:۱۲`) using `new Intl.NumberFormat("fa-IR", { minimumIntegerDigits: 2 })`.
+   - Explicitly sets `dir="ltr"` on timer digits and badges to prevent bidirectional flipping in RTL layouts.
 3. **Visual Hierarchy & States**:
    - **Inactive State (`!isPending`)**: Returns `null` (suppresses countdown UI on confirmed or completed bookings).
    - **Normal State (> 5 minutes)**: Renders a clean banner with timer icon, secondary badge, and message: "این رزرو موقت به مدت ۲۸:۴۵ دقیقه برای شما نگهداری شده است."
@@ -382,7 +383,7 @@ Build the financial breakdown and order summary card based on `template/_3/code.
    - `totalPayable = Number(reservation.total_price || 0)`
    - `cleaningFee = accommodation?.cleaning_fee ?? 0`
    - `basePrice = accommodation?.base_price ?? 0`
-   - `baseTotal = !reservation.coupon_code ? Math.max(0, totalPayable - cleaningFee) : basePrice > 0 ? basePrice * reservation.total_nights : Math.max(0, totalPayable - cleaningFee)` (ensures line items strictly sum to total payable when extra guests or pricing exceptions exist).
+   - `baseTotal = !reservation.coupon_code ? Math.max(0, totalPayable - cleaningFee) : Math.max(basePrice > 0 ? basePrice * reservation.total_nights : 0, Math.max(0, totalPayable - cleaningFee))` (ensures line items strictly sum to total payable when extra guests, weekend surcharges, or coupon discounts are present).
    - `discountAmount = reservation.coupon_code ? Math.max(0, (baseTotal + cleaningFee) - totalPayable) : 0`
    - Displays nights stay amount: `new Intl.NumberFormat("fa-IR").format(baseTotal) + " تومان"`
    - Displays cleaning fee: `new Intl.NumberFormat("fa-IR").format(cleaningFee) + " تومان"` (only if `cleaningFee > 0`)
@@ -417,7 +418,7 @@ Implement the payment gateway modal with adaptive responsive design:
 
 1. **Payment Initiation & Duplicate Guard**:
    - When opened (`isOpen === true`), calls `POST /api/v1/payments/checkout` with `{ reservation_id: reservation.id }`.
-   - Uses an initiation ref guard (`hasInitiatedRef`) or checks if `paymentData` is already initialized for this reservation to prevent duplicate POST requests under React 19 `StrictMode` double-mounting.
+   - Uses an initiation ref guard (`hasInitiatedRef`) checking `hasInitiatedRef.current === reservation.id` to prevent duplicate POST requests under React 19 `StrictMode` double-mounting. The effect depends strictly on `[isOpen, reservation.id, onStatusChange]`, omitting `paymentData` to avoid duplicate re-initiation storms upon verification failure.
    - Cleans up OTP `setTimeout` timers on modal unmount.
    - Stores returned `payment_id`, `tracking_code`, and `amount`.
 2. **Shaparak Gateway Form Simulation**:
@@ -444,7 +445,7 @@ Implement the payment gateway modal with adaptive responsive design:
        - Fires `onSuccess(paymentResponse)` callback to update reservation status in parent view.
    - On failure:
      - Shows error alert with server error details (`err.message`).
-     - If HTTP 409 Conflict occurs (overlapping booking confirmed concurrently) or session expired (HTTP 400), notifies the parent view via `onStatusChange?.("cancelled", reason)` and resets cached session refs so stale failed transactions are not retried.
+     - If HTTP 409 Conflict occurs (overlapping booking confirmed concurrently) or session expired (HTTP 400), notifies the parent view via `onStatusChange?.("cancelled", reason)` and retains the verify error description on the form for guest awareness without clearing `paymentData`.
      - Cancel button allows closing modal.
 
 ```typescript
@@ -483,7 +484,7 @@ Build the official printable tax invoice modal matching `template/pdf/code.html`
      - Row 4: Platform commission & VAT tax notice.
      - Total: Net paid amount in Toman (`new Intl.NumberFormat("fa-IR").format(Number(data.payment.amount || data.reservation.total_price))`) and Persian words description.
    - Digital Seal Badge: "تاییدشده در سامانه مودیان مالیاتی / معتبر با امضای دیجیتال".
-   - Safe Date Formatting: uses `isoStr` defensive check (`dateStr.includes("T") ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z``) to avoid double-appending `T`.
+   - Safe Date Formatting: uses `isoStr` defensive check (`dateStr.includes("T") ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z``) across all formatting functions (`formatPersianDate` and `formatPersianLongDate`) to prevent Safari/WebKit `Invalid Date` parsing errors, and hides dialog close button (`.printable-dialog-content > button { display: none !important; }`) in `@media print`.
 2. **Print Handling (`@media print`)**:
    - Top action bar includes: "چاپ فاکتور رسمی" (`window.print()`) and "بستن" (`onClose`).
    - Encapsulated `@media print` CSS ensures clean A4 portrait printing by suppressing dialog backdrops, resetting color variables for dark-mode compatibility, and body overflow locks:
@@ -557,7 +558,7 @@ Assemble the complete responsive checkout page:
 2. **Data Fetching & Guest Pre-filling**:
    - Fetches reservation: `apiClient.get<ReservationDetail>(`/reservations/${reservationId}`)`.
    - Effect guard checks `if (isAuthLoading || !isAuthenticated || !reservationId || isNaN(reservationId)) return` and depends on `[reservationId, isAuthLoading, isAuthenticated, reloadTrigger]`, seamlessly fetching reservation data upon OTP login completion without stale 401 errors.
-   - Fetches accommodation detail: `apiClient.get<CheckoutAccommodationInfo>(`/accommodations/${reservation.accommodation_id}`)` to populate cover photo, address, and host details.
+   - Fetches accommodation detail: `apiClient.get<CheckoutAccommodationInfo>(`/accommodations/${reservation.accommodation_id}`)` to populate cover photo, address, and host details, and queries `GET /payments/my` for confirmed/completed reservations to load authentic payment record and Shaparak tracking code.
    - Guest contact details pre-filled from `user` (`[user?.first_name, user?.last_name].filter(Boolean).join(" ")`, `user?.phone`, `user?.email`), with national code state.
 3. **State Management**:
    - Handles `loading`, `error`, `pending`, `confirmed`, and `cancelled/expired` states.
@@ -574,7 +575,7 @@ Assemble the complete responsive checkout page:
      - Success banner with booking confirmation code.
      - Buttons to open Invoice Modal (passing assembled `guest` info and preserving actual historical timestamp from `latestPayment?.paid_at || reservation.updated_at || reservation.created_at`) or navigate to `/trips`.
    - **Expired / Cancelled State**:
-     - Friendly alert informing guest that the booking hold has expired.
+     - Friendly alert informing guest that the booking hold has expired, with Persian translation helper (`formatCancellationReason`) mapping backend TTL and conflict reasons to clear Persian explanations.
      - Button to browse other listings (`/`) or return to property (`/accommodations/${reservation.accommodation_id}`).
 
 **Verify**:
