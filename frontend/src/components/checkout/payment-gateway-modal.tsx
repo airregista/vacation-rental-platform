@@ -1,16 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import {
   CreditCard,
   Lock,
   ShieldCheck,
-  CheckCircle2,
   AlertCircle,
   Loader2,
-  FileText,
-  Luggage,
 } from "lucide-react"
 import {
   Dialog,
@@ -27,21 +23,11 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import {
-  type ReservationDetail,
+  type PaymentGatewayModalProps,
   type PaymentInitiateResponse,
   type PaymentResponse,
   formatFaPrice,
 } from "@/types/checkout"
-
-export interface PaymentGatewayModalProps {
-  isOpen: boolean
-  onClose: () => void
-  reservation: ReservationDetail
-  onSuccess: (payment: PaymentResponse) => void
-  onOpenInvoice?: (payment: PaymentResponse) => void
-  initialGateway?: string
-  onStatusChange?: (status: "cancelled", reason: string) => void
-}
 
 function formatCardNumber(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 16)
@@ -57,11 +43,9 @@ export function PaymentGatewayModal({
   onClose,
   reservation,
   onSuccess,
-  onOpenInvoice,
   initialGateway = "mellat",
   onStatusChange,
 }: PaymentGatewayModalProps) {
-  const router = useRouter()
 
   const [paymentData, setPaymentData] = React.useState<PaymentInitiateResponse | null>(null)
   const [isInitiating, setIsInitiating] = React.useState(false)
@@ -84,8 +68,6 @@ export function PaymentGatewayModal({
 
   const [isVerifying, setIsVerifying] = React.useState(false)
   const [verifyError, setVerifyError] = React.useState<string | null>(null)
-  const [isSuccess, setIsSuccess] = React.useState(false)
-  const [completedPayment, setCompletedPayment] = React.useState<PaymentResponse | null>(null)
 
   const hasInitiatedRef = React.useRef<number | null>(null)
   const otpTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -125,22 +107,22 @@ export function PaymentGatewayModal({
     }
   }, [reservation.id, reservation.status, onStatusChange])
 
-  // Initiate payment session on dialog open (resets on close or error)
+  // Initiate payment session on dialog open. The initiation is NOT reset on
+  // close: reopening the gateway must reuse the existing payment session,
+  // otherwise every reopen creates a duplicate pending Payment row (R3).
+  // The ref is only cleared on initiation error (and by the manual retry).
   React.useEffect(() => {
     if (!isOpen || reservation.status !== "pending") {
-      if (!isOpen) {
-        hasInitiatedRef.current = null
-      }
       return
     }
 
-    // If already initiated for this reservation, do not re-post
-    if (hasInitiatedRef.current === reservation.id) {
+    // If a payment session already exists for this reservation, do not re-post
+    if (hasInitiatedRef.current === reservation.id || paymentData) {
       return
     }
 
     initiatePayment()
-  }, [isOpen, reservation.id, reservation.status, initiatePayment])
+  }, [isOpen, reservation.id, reservation.status, paymentData, initiatePayment])
 
   // OTP cooldown timer
   React.useEffect(() => {
@@ -178,8 +160,10 @@ export function PaymentGatewayModal({
       })
 
       if (response.status === "success") {
-        setCompletedPayment(response)
-        setIsSuccess(true)
+        // The parent flips the reservation to confirmed in the same batch and
+        // unmounts this modal (it only mounts for pending reservations), so
+        // there is no in-modal success view — the parent's confirmed banner
+        // offers the invoice/trips actions (R2).
         onSuccess(response)
       } else {
         setVerifyError("تراکنش بانکی تایید نشد یا در وضعیت ناموفق قرار دارد.")
@@ -220,88 +204,6 @@ export function PaymentGatewayModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
-        {/* Success View */}
-        {isSuccess && completedPayment ? (
-          <div className="py-4 space-y-6 text-center">
-            <div className="mx-auto size-16 sm:size-20 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 animate-in zoom-in-75">
-              <CheckCircle2 className="size-10 sm:size-12" />
-            </div>
-
-            <div className="space-y-1.5">
-              <DialogTitle className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-400">
-                پرداخت شما با موفقیت انجام شد
-              </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                رزرو شما نهایی شد و اطلاعات تاییدیه برای شما ثبت گردید.
-              </DialogDescription>
-            </div>
-
-            {/* Receipt Summary Card */}
-            <div className="bg-muted/50 border border-border/80 rounded-2xl p-4 sm:p-5 text-right space-y-3 text-xs sm:text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">شماره پیگیری شاپرک:</span>
-                <span className="font-mono font-bold text-foreground text-sm">
-                  {completedPayment.tracking_code || paymentData?.tracking_code}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">شناسه پرداخت:</span>
-                <span className="font-mono font-medium text-foreground">
-                  {completedPayment.id}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">مبلغ پرداختی:</span>
-                <span className="font-bold text-primary font-mono text-sm sm:text-base">
-                  {formatToman(completedPayment.amount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">درگاه پذیرنده:</span>
-                <span className="font-medium text-foreground">
-                  {gateway === "mellat"
-                    ? "به‌پرداخت ملت"
-                    : gateway === "sep"
-                    ? "سامان کیش (سپ)"
-                    : "اسنپ‌پی (اقساطی)"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">وضعیت رزرو:</span>
-                <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
-                  تایید و نهایی‌شده
-                </Badge>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              {onOpenInvoice && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenInvoice(completedPayment)}
-                  className="flex-1 gap-2 rounded-xl h-11"
-                >
-                  <FileText className="size-4" />
-                  مشاهده فاکتور رسمی
-                </Button>
-              )}
-              <Button
-                type="button"
-                onClick={() => {
-                  onClose()
-                  router.push("/trips")
-                }}
-                className="flex-1 gap-2 rounded-xl h-11 bg-primary text-primary-foreground font-bold"
-              >
-                <Luggage className="size-4" />
-                مشاهده سفرهای من
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* Payment Form View */
           <div className="space-y-5">
             {/* Header */}
             <DialogHeader className="text-right space-y-1">
@@ -590,7 +492,6 @@ export function PaymentGatewayModal({
               </form>
             )}
           </div>
-        )}
       </DialogContent>
     </Dialog>
   )

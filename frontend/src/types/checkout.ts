@@ -93,7 +93,6 @@ export interface PaymentGatewayModalProps {
   onClose: () => void
   reservation: ReservationDetail
   onSuccess: (payment: PaymentResponse) => void
-  onOpenInvoice?: (payment: PaymentResponse) => void
   initialGateway?: string
   onStatusChange?: (status: "cancelled", reason: string) => void
 }
@@ -145,16 +144,31 @@ export function formatFaPrice(v: number | string | null | undefined): string {
   return new Intl.NumberFormat("fa-IR").format(Math.round(n))
 }
 
+function formatPersianYear(date: Date): string {
+  return new Intl.DateTimeFormat("fa-IR-u-ca-persian-nu-latn", {
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date)
+}
+
 export function getPersianYear(dateStr?: string | null): string {
+  // Fallback is the current Persian year, derived from now — never hardcoded (R5).
+  const fallbackYear = () => formatPersianYear(new Date())
   try {
-    const d = dateStr ? new Date(dateStr) : new Date()
-    if (isNaN(d.getTime())) return "1403"
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian-nu-latn", {
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(d)
+    if (!dateStr) return fallbackYear()
+    // Same naive-timestamp normalisation as countdown-timer / invoice-modal:
+    // a bare timestamp is UTC, so append "Z" before parsing — otherwise a
+    // timestamp near the Nowruz boundary can yield the wrong Persian year (R5).
+    const isoStr = dateStr.includes("T")
+      ? dateStr.endsWith("Z") || dateStr.includes("+")
+        ? dateStr
+        : `${dateStr}Z`
+      : `${dateStr}T00:00:00Z`
+    const d = new Date(isoStr)
+    if (isNaN(d.getTime())) return fallbackYear()
+    return formatPersianYear(d)
   } catch {
-    return "1403"
+    return fallbackYear()
   }
 }
 
