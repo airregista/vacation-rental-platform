@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { formatPersianDate } from "@/lib/format-fa"
 import {
   type InvoiceModalProps,
   computeCheckoutBreakdown,
@@ -31,24 +32,6 @@ function formatPersianLongDate(dateStr?: string): string {
     const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
       dateStyle: "long",
-      timeZone: "UTC",
-    }).format(d)
-  } catch {
-    return dateStr
-  }
-}
-
-function formatPersianDate(dateStr?: string): string {
-  if (!dateStr) return "-"
-  try {
-    const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
-      : `${dateStr}T00:00:00Z`
-    const d = new Date(isoStr)
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
       timeZone: "UTC",
     }).format(d)
   } catch {

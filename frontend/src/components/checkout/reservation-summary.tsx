@@ -6,6 +6,7 @@ import { Home, Calendar, Users, MapPin, ShieldCheck, Headphones, Lock, Tag } fro
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { formatPersianDate } from "@/lib/format-fa"
 import {
   type ReservationDetail,
   type CheckoutAccommodationInfo,
@@ -17,23 +18,6 @@ export interface ReservationSummaryProps {
   reservation: ReservationDetail
   accommodation?: CheckoutAccommodationInfo | null
   className?: string
-}
-
-function formatPersianDate(dateStr: string): string {
-  if (!dateStr) return ""
-  try {
-    const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
-      : `${dateStr}T00:00:00Z`
-    const d = new Date(isoStr)
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(d)
-  } catch {
-    return dateStr
-  }
 }
 
 function formatToman(amount: number | string | null | undefined): string {
