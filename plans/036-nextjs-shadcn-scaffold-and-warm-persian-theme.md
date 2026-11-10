@@ -1089,6 +1089,7 @@ npm --prefix frontend run build
 - **Scope:** `frontend/src/components/ui/button.tsx`, `frontend/src/app/globals.css`, `frontend/public/fonts/` (new). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
 - **Gates:** `npx tsc --noEmit` (exit 0), `npx eslint src/` (exit 0), `npm run build` (exit 0) from `frontend/`; full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 109 passed. Run pytest only when no other suite is running (shared test DB).
 - **Branch:** `advisor/036-third-pass-fixes`. Commit style: `fix(frontend): third-pass review fixes T1-T3`.
+- **Outcome (2026-11-11): APPROVED.** Executor commit `0e95148` — Button default `type="button"` (asChild exempt), Vazirmatn variable font bundled (`public/fonts/Vazirmatn-Variable.woff2`, 111,152 bytes) + `@font-face`, `.safe-pt` deleted. Reviewer re-ran tsc + eslint: exit 0; executor's build 0 (8/8 pages, @font-face verified in built CSS). Suite 108/109 under default env, single failure the known TZ flake (fix on 044 branch `2ea24a3`).
 
 ### T1 (Low) — `Button` has no default `type="button"`, so it submits enclosing forms
 - **File:** `frontend/src/components/ui/button.tsx:41-48`. The component renders a bare `<button>` with no `type` prop, so HTML defaults it to `type="submit"`.

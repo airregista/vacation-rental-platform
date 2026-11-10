@@ -391,6 +391,7 @@ async def test_become_host_flow(client: AsyncClient):
 - **Scope:** `app/api/v1/endpoints/auth.py`, `app/models/user.py`, `tests/test_auth.py` (extend). Nothing else. SKIP `plans/README.md` — the reviewer maintains it.
 - **Gates:** `ruff check app/ tests/test_auth.py` (exit 0); full suite `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy -u no_proxy -u NO_PROXY ~/workspace/.test-venv/bin/python -m pytest -q` → 111 passed (109 + 2 new T1/T2 tests). Run pytest only when no other suite is running (shared test DB).
 - **Branch:** `advisor/035-third-pass-fixes`. Commit style: `fix(auth): third-pass review fixes T1-T3`.
+- **Outcome (2026-11-11): APPROVED.** Executor commit `16c0cb6` — T1 atomic OTP consume (`delete...returning`), T2 upsert, T3 comment; 2 new race tests (negative control verified: both fail with the fix reverted). Reviewer re-ran the full suite in the worktree with `TZ=Asia/Tehran`: **111 passed** (109 + 2 new); ruff 0. Suite under default env reads 110/111 only because of the known pre-existing TZ flake (fix on 044 branch `2ea24a3`).
 
 ### T1 (Low) — Concurrent double-verify can replay the same OTP (TOCTOU)
 - **File:** `app/api/v1/endpoints/auth.py:172-219`. Verify reads the row, checks the code, creates/logs in the user, and only then deletes the row, with no row lock.
