@@ -1,7 +1,8 @@
 import asyncio
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -409,6 +410,10 @@ async def test_review_before_checkout_time_rejected(
     admin_token: str,
     guest_token: str,
 ):
+    # Tehran-anchored "today": the review endpoint compares against Tehran
+    # now, so the test must use the Tehran date, not the process-local date
+    # (which is yesterday in Tehran during 00:00-03:30 under a UTC process).
+    today_tehran = datetime.now(ZoneInfo("Asia/Tehran")).date()
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
         json={
@@ -431,8 +436,8 @@ async def test_review_before_checkout_time_rejected(
         f"{settings.API_V1_STR}/reservations/",
         json={
             "accommodation_id": acc_id,
-            "check_in": (date.today() + timedelta(days=40)).isoformat(),
-            "check_out": (date.today() + timedelta(days=42)).isoformat(),
+            "check_in": (today_tehran + timedelta(days=40)).isoformat(),
+            "check_out": (today_tehran + timedelta(days=42)).isoformat(),
             "guests_count": 2,
         },
         headers={"Authorization": f"Bearer {guest_token}"},
@@ -459,8 +464,8 @@ async def test_review_before_checkout_time_rejected(
     async with AsyncSessionLocal() as session:
         db_res = await session.get(Reservation, res_id)
         assert db_res is not None
-        db_res.check_in = date.today() - timedelta(days=2)
-        db_res.check_out = date.today()
+        db_res.check_in = today_tehran - timedelta(days=2)
+        db_res.check_out = today_tehran
         await session.commit()
 
     review_res = await client.post(
