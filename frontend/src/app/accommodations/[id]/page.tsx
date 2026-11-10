@@ -50,6 +50,25 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   const [isCopied, setIsCopied] = React.useState(false)
   const [isWishlisted, setIsWishlisted] = React.useState(false)
 
+  // Reset page-level booking state when the [id] param changes client-side
+  // (key={accommodationId} below remounts the children; this resets the
+  // state owned by this page itself so dates/wishlist never carry over).
+  // Adjusting state during render is the documented pattern for "reset
+  // state when a prop changes" — an effect would cascade re-renders.
+  const [prevAccommodationId, setPrevAccommodationId] =
+    React.useState(accommodationId)
+  if (prevAccommodationId !== accommodationId) {
+    setPrevAccommodationId(accommodationId)
+    setCheckIn(null)
+    setCheckOut(null)
+    setIsWishlisted(false)
+    setIsCopied(false)
+    setData(null)
+    setErrorStatus(null)
+    setErrorMessage(null)
+    setIsLoading(!isInvalidId)
+  }
+
   React.useEffect(() => {
     if (isInvalidId) return
 
@@ -184,7 +203,10 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12 space-y-6">
+    <main
+      key={accommodationId}
+      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12 space-y-6"
+    >
       {/* Breadcrumb Navigation */}
       <nav aria-label="مسیریابی" className="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto">
         <Link href="/" className="hover:text-foreground transition flex-shrink-0">
@@ -368,7 +390,6 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
             accommodation={data}
             checkIn={checkIn}
             checkOut={checkOut}
-            onDateRangeChange={handleDateRangeChange}
           />
         </div>
       </div>

@@ -44,6 +44,8 @@ export function AvailabilityCalendar({
 }: AvailabilityCalendarProps) {
   const [calendarDays, setCalendarDays] = React.useState<CalendarDayInfo[]>([])
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
+  const [fetchError, setFetchError] = React.useState<boolean>(false)
+  const [retryCount, setRetryCount] = React.useState(0)
   const [errorNotice, setErrorNotice] = React.useState<string | null>(null)
   const [mobileMonthIndex, setMobileMonthIndex] = React.useState(0)
   const [desktopMonthIndex, setDesktopMonthIndex] = React.useState(0)
@@ -59,6 +61,8 @@ export function AvailabilityCalendar({
     let isCurrent = true
 
     const fetchCalendar = async () => {
+      setIsLoading(true)
+      setFetchError(false)
       try {
         const data = await apiClient.get<CalendarDayInfo[]>(
           `/accommodations/${accommodationId}/calendar?days=60`
@@ -70,6 +74,7 @@ export function AvailabilityCalendar({
       } catch {
         if (isCurrent) {
           setCalendarDays([])
+          setFetchError(true)
           setIsLoading(false)
         }
       }
@@ -80,7 +85,7 @@ export function AvailabilityCalendar({
     return () => {
       isCurrent = false
     }
-  }, [accommodationId])
+  }, [accommodationId, retryCount])
 
   // Fast map lookup for date availability and price
   const daysMap = React.useMemo(() => {
@@ -416,6 +421,22 @@ export function AvailabilityCalendar({
       {isLoading ? (
         <div className="h-64 rounded-2xl bg-muted/30 animate-pulse flex items-center justify-center text-muted-foreground text-sm">
           در حال بارگذاری تقویم...
+        </div>
+      ) : fetchError ? (
+        <div className="p-8 text-center border rounded-2xl bg-card space-y-3">
+          <p className="text-sm font-medium text-foreground">خطا در بارگذاری تقویم</p>
+          <p className="text-xs text-muted-foreground">
+            ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryCount((prev) => prev + 1)}
+            className="text-xs"
+          >
+            تلاش مجدد
+          </Button>
         </div>
       ) : months.length === 0 ? (
         <div className="p-8 text-center text-sm text-muted-foreground border rounded-2xl bg-muted/20">

@@ -45,14 +45,12 @@ export interface BookingWidgetProps {
   accommodation: AccommodationDetailData
   checkIn: string | null
   checkOut: string | null
-  onDateRangeChange: (checkIn: string | null, checkOut: string | null) => void
 }
 
 export function BookingWidget({
   accommodation,
   checkIn,
   checkOut,
-  onDateRangeChange,
 }: BookingWidgetProps) {
   const router = useRouter()
   const { isAuthenticated, openOtpModal } = useAuth()
@@ -115,8 +113,20 @@ export function BookingWidget({
       } catch (err: unknown) {
         if (!isCurrent) return
 
-        // Isolate coupon error
-        if (appliedCoupon && err instanceof ApiError && err.status === 400) {
+        // Only an invalid/expired coupon is a coupon error: clear it and
+        // retry without it. Any other 400 (e.g. minimum-subtotal or
+        // usage-limit) means the coupon is valid but inapplicable, so keep
+        // it and surface the backend message instead.
+        const INVALID_COUPON_DETAILS = [
+          "Invalid or inactive coupon code",
+          "Coupon code has expired or is not yet valid",
+        ]
+        if (
+          appliedCoupon &&
+          err instanceof ApiError &&
+          err.status === 400 &&
+          INVALID_COUPON_DETAILS.includes(err.detail)
+        ) {
           setCouponError("کد تخفیف معتبر نیست یا منقضی شده است.")
           setAppliedCoupon(null)
 
@@ -134,8 +144,15 @@ export function BookingWidget({
             if (isCurrent) {
               setPriceData(fallbackRes)
             }
-          } catch {
-            if (isCurrent) setPriceData(null)
+          } catch (fallbackErr: unknown) {
+            if (isCurrent) {
+              setPriceData(null)
+              setSubmitError(
+                fallbackErr instanceof ApiError
+                  ? fallbackErr.message
+                  : "خطا در محاسبه قیمت. لطفاً مجدداً تلاش کنید."
+              )
+            }
           }
         } else if (err instanceof ApiError) {
           setSubmitError(err.message)
@@ -227,6 +244,14 @@ export function BookingWidget({
 
   const extraGuestsCount = Math.max(0, guestsCount - accommodation.capacity)
 
+  // Scroll to the calendar so the guest can (re)pick dates there. The
+  // existing selection is preserved: clicking a date box never wipes it.
+  const scrollToCalendar = () => {
+    document
+      .getElementById("availability-calendar")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   // Booking Card Body renderer
   const renderBookingContent = () => {
     return (
@@ -271,11 +296,12 @@ export function BookingWidget({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  onDateRangeChange(null, null)
+                  scrollToCalendar()
                 }
               }}
+              title="مشاهده تقویم برای تغییر تاریخ ورود"
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
-              onClick={() => onDateRangeChange(null, null)}
+              onClick={scrollToCalendar}
             >
               <span className="block text-[10px] text-muted-foreground mb-0.5">تاریخ ورود</span>
               <span className="font-semibold text-foreground">
@@ -288,11 +314,12 @@ export function BookingWidget({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  onDateRangeChange(checkIn, null)
+                  scrollToCalendar()
                 }
               }}
+              title="مشاهده تقویم برای تغییر تاریخ خروج"
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
-              onClick={() => onDateRangeChange(checkIn, null)}
+              onClick={scrollToCalendar}
             >
               <span className="block text-[10px] text-muted-foreground mb-0.5">تاریخ خروج</span>
               <span className="font-semibold text-foreground">
