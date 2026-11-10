@@ -40,14 +40,14 @@ export function BottomNav() {
     setHostError(null)
     if (isHost) {
       setIsProfileDrawerOpen(false)
-      router.push("/host")
+      router.push("/host/dashboard")
       return
     }
     setIsPromoting(true)
     try {
       await becomeHost()
       setIsProfileDrawerOpen(false)
-      router.push("/host")
+      router.push("/host/dashboard")
     } catch (err: unknown) {
       const message =
         err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
