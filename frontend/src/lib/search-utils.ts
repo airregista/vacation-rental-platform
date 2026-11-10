@@ -36,36 +36,82 @@ export interface SearchParamsGetter {
   getAll(name: string): string[]
 }
 
+// Strict parsers: the backend rejects invalid values with 422, which the
+// page surfaces as a generic error screen, so drop anything invalid here.
+
+function parsePositiveInt(raw: string | null): number | undefined {
+  if (raw === null || raw === "") return undefined
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n <= 0) return undefined
+  return n
+}
+
+function parseNonNegativeNumber(raw: string | null): number | undefined {
+  if (raw === null || raw === "") return undefined
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0) return undefined
+  return n
+}
+
+function parseSkip(raw: string | null): number | undefined {
+  if (raw === null || raw === "") return undefined
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 0) return undefined
+  return n
+}
+
+function parseLimit(raw: string | null): number | undefined {
+  if (raw === null || raw === "") return undefined
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1 || n > 100) return undefined
+  return n
+}
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+function isRealDate(value: string): boolean {
+  if (!DATE_PATTERN.test(value)) return false
+  const [y, m, d] = value.split("-").map(Number)
+  const dt = new Date(y, m - 1, d)
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+}
+
 export function parseAccommodationQuery(searchParams: SearchParamsGetter): AccommodationSearchParams {
   const params: AccommodationSearchParams = {}
 
-  const cityId = searchParams.get("city_id")
-  if (cityId && !isNaN(Number(cityId))) params.city_id = Number(cityId)
+  const cityId = parsePositiveInt(searchParams.get("city_id"))
+  if (cityId !== undefined) params.city_id = cityId
 
-  const provinceId = searchParams.get("province_id")
-  if (provinceId && !isNaN(Number(provinceId))) params.province_id = Number(provinceId)
+  const provinceId = parsePositiveInt(searchParams.get("province_id"))
+  if (provinceId !== undefined) params.province_id = provinceId
 
-  const categoryId = searchParams.get("category_id")
-  if (categoryId && !isNaN(Number(categoryId))) params.category_id = Number(categoryId)
+  const categoryId = parsePositiveInt(searchParams.get("category_id"))
+  if (categoryId !== undefined) params.category_id = categoryId
 
-  const guestsCount = searchParams.get("guests_count")
-  if (guestsCount && Number(guestsCount) > 0) params.guests_count = Number(guestsCount)
+  const guestsCount = parsePositiveInt(searchParams.get("guests_count"))
+  if (guestsCount !== undefined) params.guests_count = guestsCount
 
-  const minRooms = searchParams.get("min_rooms")
-  if (minRooms && Number(minRooms) > 0) params.min_rooms = Number(minRooms)
+  const minRooms = parsePositiveInt(searchParams.get("min_rooms"))
+  if (minRooms !== undefined) params.min_rooms = minRooms
 
-  const minBeds = searchParams.get("min_beds")
-  if (minBeds && Number(minBeds) > 0) params.min_beds = Number(minBeds)
+  const minBeds = parsePositiveInt(searchParams.get("min_beds"))
+  if (minBeds !== undefined) params.min_beds = minBeds
 
-  const minPrice = searchParams.get("min_price")
-  if (minPrice && Number(minPrice) > 0) params.min_price = Number(minPrice)
+  const minPrice = parseNonNegativeNumber(searchParams.get("min_price"))
+  if (minPrice !== undefined) params.min_price = minPrice
 
-  const maxPrice = searchParams.get("max_price")
-  if (maxPrice && !isNaN(Number(maxPrice))) params.max_price = Number(maxPrice)
+  const maxPrice = parseNonNegativeNumber(searchParams.get("max_price"))
+  if (maxPrice !== undefined) params.max_price = maxPrice
 
   const checkIn = searchParams.get("check_in")
   const checkOut = searchParams.get("check_out")
-  if (checkIn && checkOut && checkOut > checkIn) {
+  if (
+    checkIn &&
+    checkOut &&
+    isRealDate(checkIn) &&
+    isRealDate(checkOut) &&
+    checkOut > checkIn
+  ) {
     params.check_in = checkIn
     params.check_out = checkOut
   }
@@ -75,9 +121,17 @@ export function parseAccommodationQuery(searchParams: SearchParamsGetter): Accom
     params.sort_by = sortBy
   }
 
+  const skip = parseSkip(searchParams.get("skip"))
+  if (skip !== undefined) params.skip = skip
+
+  const limit = parseLimit(searchParams.get("limit"))
+  if (limit !== undefined) params.limit = limit
+
   const amenityIds = searchParams.getAll("amenity_ids")
   if (amenityIds.length > 0) {
-    const parsed = amenityIds.map(Number).filter((n) => !isNaN(n) && n > 0)
+    const parsed = amenityIds
+      .map(Number)
+      .filter((n) => Number.isInteger(n) && n > 0)
     if (parsed.length > 0) params.amenity_ids = parsed
   }
 

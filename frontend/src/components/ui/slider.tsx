@@ -7,9 +7,17 @@ import { cn } from "@/lib/utils"
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => {
-  const value = props.value || props.defaultValue
-  const thumbs = Array.isArray(value) ? value : [value]
+>(({ className, value, defaultValue, ...props }, ref) => {
+  // `??` (not `||`) so a controlled value of 0 stays controlled instead of
+  // falling through to defaultValue; an empty array still renders one thumb.
+  const normalize = (v: number | number[] | undefined): number[] | undefined => {
+    if (v === undefined) return undefined
+    if (Array.isArray(v)) return v.length > 0 ? v : [0]
+    return [v]
+  }
+  const normalizedValue = normalize(value)
+  const normalizedDefaultValue = normalize(defaultValue)
+  const thumbs = normalizedValue ?? normalizedDefaultValue ?? [0]
 
   return (
     <SliderPrimitive.Root
@@ -17,6 +25,8 @@ const Slider = React.forwardRef<
       dir="rtl"
       className={cn("relative flex w-full touch-none select-none items-center", className)}
       {...props}
+      value={normalizedValue}
+      defaultValue={normalizedDefaultValue}
     >
       <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
         <SliderPrimitive.Range className="absolute h-full bg-primary" />

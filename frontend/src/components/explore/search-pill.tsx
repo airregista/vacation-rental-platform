@@ -45,7 +45,7 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
     let isMounted = true
     async function loadCities() {
       try {
-        const res = await apiClient.get<City[]>("/geo/cities?limit=50")
+        const res = await apiClient.get<City[]>("/geo/cities?limit=100")
         if (isMounted) {
           setCities(res || [])
         }
