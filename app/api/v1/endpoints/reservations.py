@@ -11,6 +11,7 @@ from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
 from app.core.config import settings
 from app.models.accommodation import Accommodation
 from app.models.coupon import Coupon
+from app.models.geo import City
 from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation, ReservationMessage
 from app.schemas.reservation import (
@@ -168,8 +169,26 @@ async def create_reservation(
 
 def _serialize_reservation(r: Reservation) -> ReservationResponse:
     item = ReservationResponse.model_validate(r)
-    item.accommodation_title = r.accommodation.title if r.accommodation else None
+    acc = r.accommodation
+    item.accommodation_title = acc.title if acc else None
+    if acc:
+        # Cover image first, falling back to the first image — same rule as
+        # the accommodation list / wishlist serializers.
+        cover = next((img.image_url for img in acc.images if img.is_cover), None)
+        if not cover and acc.images:
+            cover = acc.images[0].image_url
+        item.accommodation_image = cover
+        item.city = acc.city.name if acc.city else None
+        item.province = acc.city.province.name if acc.city and acc.city.province else None
     return item
+
+
+# Eager loads backing _serialize_reservation: async sessions cannot lazy-load
+# accommodation images / city / province after the query returns.
+_RESERVATION_ACCOMMODATION_LOAD = (
+    selectinload(Reservation.accommodation).selectinload(Accommodation.images),
+    selectinload(Reservation.accommodation).selectinload(Accommodation.city).selectinload(City.province),
+)
 
 
 @router.get("/my", response_model=list[ReservationResponse])
@@ -181,7 +200,7 @@ async def list_my_reservations(
 ) -> list[ReservationResponse]:
     stmt = (
         select(Reservation)
-        .options(selectinload(Reservation.accommodation))
+        .options(*_RESERVATION_ACCOMMODATION_LOAD)
         .where(Reservation.user_id == current_user.id)
         .order_by(Reservation.created_at.desc(), Reservation.id.desc())
         .offset(skip)
@@ -203,7 +222,7 @@ async def list_host_reservations(
     stmt = (
         select(Reservation)
         .join(Reservation.accommodation)
-        .options(selectinload(Reservation.accommodation))
+        .options(*_RESERVATION_ACCOMMODATION_LOAD)
         .where(Accommodation.host_id == current_user.id)
         .order_by(Reservation.created_at.desc(), Reservation.id.desc())
         .offset(skip)
@@ -223,7 +242,7 @@ async def get_reservation(
 ) -> ReservationResponse:
     stmt = (
         select(Reservation)
-        .options(selectinload(Reservation.accommodation))
+        .options(*_RESERVATION_ACCOMMODATION_LOAD)
         .where(Reservation.id == id)
     )
     res = await db.execute(stmt)
@@ -521,7 +540,7 @@ async def list_all_reservations(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[ReservationResponse]:
-    stmt = select(Reservation).options(selectinload(Reservation.accommodation))
+    stmt = select(Reservation).options(*_RESERVATION_ACCOMMODATION_LOAD)
     if status_filter:
         stmt = stmt.where(Reservation.status == status_filter)
     stmt = (

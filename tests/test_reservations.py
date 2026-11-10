@@ -1113,3 +1113,57 @@ async def test_host_payout_settlement_retained_on_penalty_cancellation(
     assert settle_res.json()["status"] == "completed"
 
 
+@pytest.mark.asyncio
+async def test_my_reservations_include_accommodation_image_city_province(
+    client: AsyncClient, guest_token: str
+):
+    # T3: trip cards render photo + city chip from these fields; they were
+    # absent from ReservationResponse, so every card showed the fallback.
+    # Pick a seeded accommodation with a cover image and a city from the
+    # public list — the same source the card data must match.
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    assert acc_res.status_code == 200
+    acc = next(
+        (a for a in acc_res.json() if a.get("cover_image") and a.get("city")),
+        None,
+    )
+    assert acc is not None, "seed data must include an accommodation with cover + city"
+
+    day_offset = 450 + (uuid.uuid4().int % 50)
+    check_in = date.today() + timedelta(days=day_offset)
+    check_out = date.today() + timedelta(days=day_offset + 2)
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc["id"],
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 201
+    reservation_id = booking_res.json()["id"]
+
+    # /my list path — what the trips page renders.
+    my_res = await client.get(
+        f"{settings.API_V1_STR}/reservations/my",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert my_res.status_code == 200
+    item = next(r for r in my_res.json() if r["id"] == reservation_id)
+    assert item["accommodation_title"] == acc["title"]
+    assert item["accommodation_image"] == acc["cover_image"]
+    assert item["city"] == acc["city"]["name"]
+    assert item["province"] == acc["city"]["province"]["name"]
+
+    # Single-reservation path uses the same serializer.
+    single = await client.get(
+        f"{settings.API_V1_STR}/reservations/{reservation_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert single.status_code == 200
+    assert single.json()["accommodation_image"] == acc["cover_image"]
+    assert single.json()["city"] == acc["city"]["name"]
+    assert single.json()["province"] == acc["city"]["province"]["name"]

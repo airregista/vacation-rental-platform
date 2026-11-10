@@ -71,6 +71,9 @@ class ReservationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     accommodation_title: str | None = None
+    accommodation_image: str | None = None
+    city: str | None = None
+    province: str | None = None
 
 
 class CalendarDayInfo(BaseModel):

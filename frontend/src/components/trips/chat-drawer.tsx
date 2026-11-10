@@ -91,12 +91,21 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     // window-focus refetch. A successful fetch clears any earlier error
     // banner; only the initial load reports failures (background polls
     // stay silent).
+    // Poll results MERGE by id instead of replacing the list: a message
+    // sent just before a poll tick lands must neither duplicate (poll
+    // already contains it, then the POST resolution appends it again) nor
+    // vanish (a poll started before the persist overwrites the appended
+    // message). Incoming rows win per id; local-only rows are preserved.
     const refreshMessages = (isInitial: boolean) => {
       apiClient
         .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
         .then((data) => {
           if (isMounted) {
-            setMessages(data)
+            setMessages((prev) => {
+              const byId = new Map(prev.map((m) => [m.id, m]))
+              for (const m of data) byId.set(m.id, m)
+              return [...byId.values()]
+            })
             setErrorMessage(null)
             if (isInitial) setHasLoadedInitially(true)
           }
@@ -140,7 +149,11 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
         `/reservations/${trip.id}/messages`,
         { message: trimmed }
       )
-      setMessages((prev) => [...prev, sent])
+      // Dedupe on append: a poll tick that landed between the persist and
+      // this POST resolution already contains the sent message.
+      setMessages((prev) =>
+        prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]
+      )
       setInputText("")
       textareaRef.current?.focus()
     } catch (err: unknown) {
