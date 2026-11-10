@@ -136,25 +136,29 @@ export function WishlistGrid({
 
               {/* Heart toggle + add-to-folder buttons (top-left) */}
               <div className="absolute top-3 left-3 flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={(e) => handleRemoveClick(e, item.accommodation_id)}
                   disabled={removingId !== null}
                   aria-label="حذف از علاقه‌مندی‌ها"
-                  className="w-9 h-9 rounded-full bg-card/85 backdrop-blur-md flex items-center justify-center shadow-md hover:scale-110 active:scale-90 transition-all text-primary disabled:opacity-50 disabled:pointer-events-none"
+                  className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
                 >
                   <Heart className="w-5 h-5 fill-primary text-primary transition-colors" />
-                </button>
+                </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       aria-label="افزودن به پوشه"
-                      className="w-9 h-9 rounded-full bg-card/85 backdrop-blur-md flex items-center justify-center shadow-md hover:scale-110 active:scale-90 transition-all text-primary"
+                      className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
                     >
                       <FolderPlus className="w-5 h-5" />
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-56">
                     {folders

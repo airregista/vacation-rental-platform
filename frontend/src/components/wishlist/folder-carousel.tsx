@@ -79,13 +79,15 @@ export function FolderCarousel({
               : folder.accommodation_ids?.length || 0
 
           return (
-            <button
+            <Button
               key={folder.id}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onSelectFolder(folder.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs sm:text-sm flex items-center gap-1.5 transition-all active:scale-95 ${
+              className={`flex-shrink-0 h-auto min-h-0 px-4 py-2 rounded-full text-xs sm:text-sm gap-1.5 active:scale-95 ${
                 isActive
-                  ? "bg-foreground text-background font-bold shadow-sm"
+                  ? "bg-foreground text-background font-bold shadow-sm hover:bg-foreground hover:text-background"
                   : "bg-card border border-border text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -94,18 +96,20 @@ export function FolderCarousel({
               <span className={`text-[11px] font-medium opacity-80 ${isActive ? "text-background" : "text-muted-foreground"}`}>
                 ({formatCount(count)})
               </span>
-            </button>
+            </Button>
           )
         })}
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setIsCreateOpen(true)}
-          className="flex-shrink-0 px-3.5 py-2 rounded-full border border-dashed border-primary text-primary bg-primary/5 hover:bg-primary/10 text-xs sm:text-sm font-medium flex items-center gap-1 transition-all active:scale-95"
+          className="flex-shrink-0 h-auto min-h-0 px-3.5 py-2 rounded-full border border-dashed border-primary text-primary bg-primary/5 hover:bg-primary/10 hover:text-primary text-xs sm:text-sm font-medium gap-1 active:scale-95"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>پوشه جدید</span>
-        </button>
+        </Button>
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
