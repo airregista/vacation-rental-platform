@@ -38,6 +38,15 @@ function HomeContent() {
   React.useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
+      // Clean invalid params from a shared link on mount: parse drops them
+      // from state, but without this the address bar would keep showing
+      // e.g. /?city_id=0&max_price=-5 and propagate them if copied.
+      if (typeof window !== "undefined") {
+        const canonicalQuery = buildAccommodationQuery(searchParams)
+        if (canonicalQuery !== window.location.search) {
+          window.history.replaceState(null, "", canonicalQuery ? `/${canonicalQuery}` : "/")
+        }
+      }
       return
     }
     const queryString = buildAccommodationQuery(searchParams)
@@ -53,24 +62,28 @@ function HomeContent() {
     [token, wishlistIds]
   )
 
+  // Sequence number so a stale (superseded) wishlist response can never
+  // overwrite the current user's set when users switch in quick succession.
+  const wishlistSeqRef = React.useRef(0)
+
   // Load wishlists if user is logged in
   React.useEffect(() => {
+    const seq = ++wishlistSeqRef.current
     let isMounted = true
+    // Clear the previous user's set immediately, before fetching: when the
+    // token changes from user A to user B the effect starts B's fetch while
+    // wishlistIds still holds A's set, and activeWishlistIds would show it
+    // because it keys only on token truthiness.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWishlistIds(new Set())
     if (!token) {
-      // Clear stale IDs from a previous user so their favourites never
-      // leak into a logged-out session or a different user's session.
-      // Syncing this state to the external auth state on logout is the
-      // effect's job; the derived activeWishlistIds memo only hides the
-      // stale set while logged out, it does not clear the source of truth.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWishlistIds(new Set())
       return
     }
 
     apiClient
       .get<Array<{ accommodation_id: number }>>("/wishlists/?limit=100")
       .then((data) => {
-        if (isMounted && Array.isArray(data)) {
+        if (isMounted && seq === wishlistSeqRef.current && Array.isArray(data)) {
           setWishlistIds(new Set(data.map((w) => w.accommodation_id)))
         }
       })
@@ -78,7 +91,7 @@ function HomeContent() {
         console.error("Failed to load wishlist items:", err)
         // A failed refetch (e.g. after a user switch) must not leave the
         // previous user's favourites displayed as the new user's.
-        if (isMounted) {
+        if (isMounted && seq === wishlistSeqRef.current) {
           setWishlistIds(new Set())
         }
       })
@@ -124,6 +137,10 @@ function HomeContent() {
 
   // Handlers
   const handleSelectCategory = (categoryId?: number) => {
+    // Tapping the already-active chip must not refetch or flash skeletons.
+    if (searchParams.category_id === categoryId) {
+      return
+    }
     setIsLoading(true)
     setSearchParams((prev) => ({
       ...prev,
