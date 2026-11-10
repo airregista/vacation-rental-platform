@@ -834,6 +834,11 @@ async def create_accommodation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Host user with ID {acc_in.host_id} not found",
             )
+        if host_user.role not in ("host", "admin"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User with ID {acc_in.host_id} is not a host or admin",
+            )
         host_id = acc_in.host_id
     elif (
         current_user.role != "admin"

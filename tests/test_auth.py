@@ -1,11 +1,16 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.otp_code import OTPCode
 
 
 @pytest.mark.asyncio
@@ -454,3 +459,189 @@ async def test_become_host_flow(client: AsyncClient):
     created_acc = host_create.json()
     assert created_acc["host_id"] == user_id
     assert created_acc["title"] == acc_payload["title"]
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_assign_listing_to_guest(client: AsyncClient, admin_token: str):
+    """R1: admin assigning a listing to a plain guest gets 400; to a host/admin gets 201."""
+    # Create a plain guest user via the OTP flow
+    guest_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": guest_phone},
+    )
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": guest_phone, "code": "1234"},
+    )
+    assert verify_res.status_code == 200
+    guest_id = verify_res.json()["user"]["id"]
+    assert verify_res.json()["user"]["role"] == "guest"
+
+    # Admin's own id for the positive case
+    me_res = await client.get(
+        f"{settings.API_V1_STR}/auth/me",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert me_res.status_code == 200
+    admin_id = me_res.json()["id"]
+
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    acc_payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": "ویلا تست انتساب هاست",
+        "description": "توضیحات تست انتساب",
+        "address": "گیلان، رشت",
+        "base_price": 2000000,
+        "cleaning_fee": 150000,
+        "capacity": 3,
+        "max_capacity": 5,
+        "extra_guest_fee": 100000,
+        "rooms_count": 1,
+        "beds_count": 2,
+        "rules": "قوانین تست",
+        "is_active": True,
+        "images": [{"image_url": "https://example.com/r1.jpg", "is_cover": True, "sort_order": 1}],
+    }
+
+    # 1. Admin assigning to a guest -> 400
+    guest_payload = dict(acc_payload)
+    guest_payload["host_id"] = guest_id
+    guest_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=guest_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert guest_res.status_code == 400
+
+    # 2. Admin assigning to an admin -> 201
+    admin_payload = dict(acc_payload)
+    admin_payload["host_id"] = admin_id
+    admin_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json=admin_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert admin_res.status_code == 201
+    assert admin_res.json()["host_id"] == admin_id
+
+
+@pytest.mark.asyncio
+async def test_otp_persisted_in_database(client: AsyncClient):
+    """R2: the OTP lives in the otp_codes table (no in-process cache), so a
+    verify in a fresh process still succeeds; expired codes still fail."""
+    from app.api.v1.endpoints import auth as auth_module
+
+    assert not hasattr(auth_module, "_OTP_CACHE")
+
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    send_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert send_res.status_code == 200
+
+    # The code is durably stored in PostgreSQL, not module-level memory
+    async with AsyncSessionLocal() as session:
+        row = (
+            (await session.execute(select(OTPCode).where(OTPCode.phone == random_phone)))
+            .scalars()
+            .first()
+        )
+        assert row is not None
+        assert row.code == "1234"
+        assert row.expires_at > datetime.now(timezone.utc)
+
+    # Verify succeeds against the DB row
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    assert verify_res.status_code == 200
+
+    # The row is evicted after successful verification (no replay)
+    async with AsyncSessionLocal() as session:
+        row = (
+            (await session.execute(select(OTPCode).where(OTPCode.phone == random_phone)))
+            .scalars()
+            .first()
+        )
+        assert row is None
+
+    # Expired codes still fail
+    expired_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    async with AsyncSessionLocal() as session:
+        session.add(
+            OTPCode(
+                phone=expired_phone,
+                code="1234",
+                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+            )
+        )
+        await session.commit()
+    expired_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": expired_phone, "code": "1234"},
+    )
+    assert expired_res.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_otp_usable_after_commit_failure(client: AsyncClient, monkeypatch):
+    """R3: if user creation fails with a non-IntegrityError commit failure,
+    the OTP row stays so the code can be retried while unexpired."""
+    random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    send_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send",
+        json={"phone": random_phone},
+    )
+    assert send_res.status_code == 200
+
+    real_commit = AsyncSession.commit
+    calls = {"n": 0}
+
+    async def failing_commit(self):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise SQLAlchemyError("simulated commit failure")
+        return await real_commit(self)
+
+    monkeypatch.setattr(AsyncSession, "commit", failing_commit)
+
+    # First verify attempt fails at commit (500 response, or the server
+    # error re-raised by the ASGI transport)
+    try:
+        fail_res = await client.post(
+            f"{settings.API_V1_STR}/auth/otp/verify",
+            json={"phone": random_phone, "code": "1234"},
+        )
+    except SQLAlchemyError:
+        fail_res = None
+    assert calls["n"] == 1
+    if fail_res is not None:
+        assert fail_res.status_code == 500
+
+    # No user was created by the failed attempt
+    async with AsyncSessionLocal() as session:
+        from app.models.user import User
+
+        user = (
+            (await session.execute(select(User).where(User.phone == random_phone)))
+            .scalars()
+            .first()
+        )
+        assert user is None
+
+    # The OTP row survived the failure, so a retry with the same code works
+    monkeypatch.undo()
+    retry_res = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": random_phone, "code": "1234"},
+    )
+    assert retry_res.status_code == 200
+    assert retry_res.json()["user"]["phone"] == random_phone

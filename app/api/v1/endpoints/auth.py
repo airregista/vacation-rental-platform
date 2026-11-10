@@ -2,11 +2,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.security import create_access_token, get_password_hash, verify_password
+from app.models.otp_code import OTPCode
 from app.models.user import User
 from app.schemas.user import (
     OTPResponse,
@@ -135,22 +136,26 @@ async def update_me(
     return UserResponse.model_validate(current_user)
 
 
-
-_OTP_CACHE: dict[str, tuple[str, datetime]] = {}
-
-
 @router.post("/otp/send", response_model=OTPResponse)
-async def send_otp(req: UserOTPRequest) -> OTPResponse:
-    # Prune expired keys to avoid unbounded memory growth
+async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
+    # Prune expired codes to avoid unbounded table growth. OTP codes live
+    # in PostgreSQL (not in-process memory) so a code sent by one worker
+    # can be verified by another and survives restarts.
     now = datetime.now(timezone.utc)
-    expired = [k for k, (_, exp) in _OTP_CACHE.items() if exp < now]
-    for k in expired:
-        _OTP_CACHE.pop(k, None)
+    await db.execute(delete(OTPCode).where(OTPCode.expires_at < now))
 
     # Test OTP code as requested by user
     code = "1234"
     expiry = now + timedelta(minutes=5)
-    _OTP_CACHE[req.phone] = (code, expiry)
+    existing = (
+        (await db.execute(select(OTPCode).where(OTPCode.phone == req.phone))).scalars().first()
+    )
+    if existing:
+        existing.code = code
+        existing.expires_at = expiry
+    else:
+        db.add(OTPCode(phone=req.phone, code=code, expires_at=expiry))
+    await db.commit()
     return OTPResponse(
         message="کد تایید یکبار مصرف ارسال شد",
         dev_code=code,
@@ -163,28 +168,25 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
     phone = payload.phone
     code = payload.code
 
-    # Require prior OTP request in cache and active expiry
-    cached = _OTP_CACHE.get(phone)
-    if not cached:
+    # Require prior OTP request in the database and active expiry
+    otp_row = (await db.execute(select(OTPCode).where(OTPCode.phone == phone))).scalars().first()
+    if not otp_row:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="کد تایید منقضی شده یا درخواستی ثبت نشده است",
         )
-    cached_code, expiry = cached
-    if datetime.now(timezone.utc) > expiry:
-        _OTP_CACHE.pop(phone, None)
+    if datetime.now(timezone.utc) > otp_row.expires_at:
+        await db.delete(otp_row)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="کد تایید منقضی شده است (کد آزمایشی: 1234)",
         )
-    if code != cached_code:
+    if code != otp_row.code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="کد تایید وارد شده نامعتبر است (کد آزمایشی: 1234)",
         )
-
-    # Evict on successful verification to prevent replay attacks
-    _OTP_CACHE.pop(phone, None)
 
     stmt = select(User).where(User.phone == phone)
     result = await db.execute(stmt)
@@ -211,6 +213,11 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="خطا در ایجاد حساب کاربری",
                 )
+
+    # Evict the OTP only after the user is successfully persisted, so a
+    # failed commit leaves the code usable for a retry while unexpired.
+    await db.delete(otp_row)
+    await db.commit()
 
     token = create_access_token(subject=user.id)
     return Token(

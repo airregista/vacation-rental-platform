@@ -4,6 +4,7 @@ from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
 from app.models.coupon import Coupon
 from app.models.geo import City, Province
+from app.models.otp_code import OTPCode
 from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation, ReservationMessage
 from app.models.review import Review
@@ -22,6 +23,7 @@ __all__ = [
     "Accommodation",
     "AccommodationImage",
     "PricingException",
+    "OTPCode",
     "Reservation",
     "ReservationMessage",
     "Payment",
