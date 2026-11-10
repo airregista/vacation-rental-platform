@@ -40,6 +40,19 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
   const [guests, setGuests] = React.useState<number>(currentParams.guests_count || 1)
   const [dateError, setDateError] = React.useState<string | null>(null)
 
+  // Re-sync drafts when the committed params change elsewhere (filter
+  // dialog, category chip, clear-filters): the desktop pill has no open
+  // event to re-sync on, so without this it keeps showing a stale
+  // uncommitted draft as if it were applied.
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCityId(currentParams.city_id)
+    setCheckIn(currentParams.check_in || "")
+    setCheckOut(currentParams.check_out || "")
+    setGuests(currentParams.guests_count || 1)
+    setDateError(null)
+  }, [currentParams.city_id, currentParams.check_in, currentParams.check_out, currentParams.guests_count])
+
   // Fetch cities on mount
   React.useEffect(() => {
     let isMounted = true

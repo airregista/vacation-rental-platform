@@ -40,6 +40,12 @@ export function AccommodationCard({
     return "جدید"
   }, [item.average_rating])
 
+  // URL of the cover image that failed to load, if any. Kept as the URL
+  // (not a boolean) so a changed cover_image automatically retries instead
+  // of sticking on the placeholder.
+  const [failedImageSrc, setFailedImageSrc] = React.useState<string | null>(null)
+  const imageFailed = failedImageSrc !== null && failedImageSrc === item.cover_image
+
   return (
     <div className="group flex flex-col rounded-2xl bg-card transition-all duration-200">
       {/* 4:3 Aspect Ratio Photo Container */}
@@ -50,12 +56,13 @@ export function AccommodationCard({
           tabIndex={-1}
           aria-hidden="true"
         >
-          {item.cover_image ? (
+          {item.cover_image && !imageFailed ? (
             <Image
               src={item.cover_image}
               alt={item.title}
               fill
               unoptimized
+              onError={() => setFailedImageSrc(item.cover_image)}
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (

@@ -45,6 +45,8 @@ interface FilterFormProps {
   setSortBy: (s: "newest" | "price_asc" | "price_desc") => void
   amenities: Amenity[]
   isLoadingAmenities: boolean
+  amenitiesError: boolean
+  onRetryAmenities: () => void
   onApply: (filters: Partial<AccommodationSearchParams>) => void
 }
 
@@ -61,6 +63,8 @@ function FilterForm({
   setSortBy,
   amenities,
   isLoadingAmenities,
+  amenitiesError,
+  onRetryAmenities,
   onApply,
 }: FilterFormProps) {
   const handleReset = () => {
@@ -241,6 +245,20 @@ function FilterForm({
           <span className="text-sm font-bold text-foreground block">امکانات اقامتگاه</span>
           {isLoadingAmenities ? (
             <p className="text-xs text-muted-foreground">در حال بارگذاری امکانات...</p>
+          ) : amenitiesError ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive font-medium">خطا در بارگذاری امکانات</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onRetryAmenities}
+                className="gap-1.5 text-xs font-semibold shrink-0"
+              >
+                <RotateCcw className="size-3.5" />
+                <span>تلاش مجدد</span>
+              </Button>
+            </div>
           ) : amenities.length === 0 ? (
             <p className="text-xs text-muted-foreground">امکاناتی یافت نشد.</p>
           ) : (
@@ -301,6 +319,8 @@ export function FilterDialog({
   const [isDesktop, setIsDesktop] = React.useState(true)
   const [amenities, setAmenities] = React.useState<Amenity[]>([])
   const [isLoadingAmenities, setIsLoadingAmenities] = React.useState(true)
+  const [amenitiesError, setAmenitiesError] = React.useState(false)
+  const [amenitiesRetry, setAmenitiesRetry] = React.useState(0)
 
   // Draft filter state lives here — not inside FilterForm — so switching
   // between the desktop Dialog and mobile Sheet branches on window resize
@@ -351,9 +371,13 @@ export function FilterDialog({
         const res = await apiClient.get<Amenity[]>("/amenities/")
         if (isMounted) {
           setAmenities(res || [])
+          setAmenitiesError(false)
         }
       } catch (err) {
         console.error("Failed to load amenities:", err)
+        if (isMounted) {
+          setAmenitiesError(true)
+        }
       } finally {
         if (isMounted) {
           setIsLoadingAmenities(false)
@@ -364,7 +388,12 @@ export function FilterDialog({
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [amenitiesRetry])
+
+  const handleRetryAmenities = () => {
+    setIsLoadingAmenities(true)
+    setAmenitiesRetry((n) => n + 1)
+  }
 
   const handleApply = (filters: Partial<AccommodationSearchParams>) => {
     onApplyFilters(filters)
@@ -396,6 +425,8 @@ export function FilterDialog({
               setSortBy={setSortBy}
               amenities={amenities}
               isLoadingAmenities={isLoadingAmenities}
+              amenitiesError={amenitiesError}
+              onRetryAmenities={handleRetryAmenities}
               onApply={handleApply}
             />
           )}
@@ -428,6 +459,8 @@ export function FilterDialog({
             setSortBy={setSortBy}
             amenities={amenities}
             isLoadingAmenities={isLoadingAmenities}
+            amenitiesError={amenitiesError}
+            onRetryAmenities={handleRetryAmenities}
             onApply={handleApply}
           />
         )}
