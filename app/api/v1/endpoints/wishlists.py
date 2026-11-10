@@ -1,13 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
 from app.models.geo import City
+from app.models.review import Review
 from app.models.wishlist import Wishlist
 from app.schemas.accommodation import AccommodationListItem
 from app.schemas.category import CategoryResponse
@@ -92,6 +93,25 @@ async def list_my_wishlist(
     result = await db.execute(stmt)
     items = result.scalars().all()
 
+    acc_ids = [item.accommodation_id for item in items]
+    ratings_map: dict[int, tuple[float | None, int]] = {}
+    if acc_ids:
+        agg_stmt = (
+            select(
+                Review.accommodation_id,
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("count_rating"),
+            )
+            .where(Review.accommodation_id.in_(acc_ids))
+            .group_by(Review.accommodation_id)
+        )
+        agg_res = await db.execute(agg_stmt)
+        for row in agg_res.all():
+            ratings_map[row.accommodation_id] = (
+                float(row.avg_rating) if row.avg_rating is not None else None,
+                int(row.count_rating),
+            )
+
     resp_items: list[WishlistItemResponse] = []
     for item in items:
         acc = item.accommodation
@@ -113,6 +133,8 @@ async def list_my_wishlist(
 
         cat_resp = CategoryResponse.model_validate(acc.category) if acc.category else None
 
+        avg_rat, count_rat = ratings_map.get(acc.id, (None, 0))
+
         acc_summary = AccommodationListItem(
             id=acc.id,
             title=acc.title,
@@ -124,8 +146,8 @@ async def list_my_wishlist(
             rooms_count=acc.rooms_count,
             beds_count=acc.beds_count,
             cover_image=cover,
-            average_rating=None,
-            reviews_count=0,
+            average_rating=round(avg_rat, 1) if avg_rat is not None else None,
+            reviews_count=count_rat,
             is_active=acc.is_active,
         )
 

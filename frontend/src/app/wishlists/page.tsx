@@ -25,6 +25,26 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
+const FOLDERS_STORAGE_KEY = "jabama_wishlist_folders"
+
+const DEFAULT_FOLDERS: WishlistFolder[] = [
+  { id: "all", name: "همه نشان‌شده‌ها", accommodation_ids: [] },
+  { id: "summer-north", name: "سفرهای تابستانه شمال", accommodation_ids: [] },
+  { id: "masal-cabins", name: "کلبه‌های جنگلی ماسال", accommodation_ids: [] },
+  { id: "yazd-traditional", name: "خانه‌های سنتی یزد", accommodation_ids: [] },
+]
+
+function isValidStoredFolder(entry: unknown): entry is WishlistFolder {
+  if (typeof entry !== "object" || entry === null) return false
+  const folder = entry as Record<string, unknown>
+  return (
+    typeof folder.id === "string" &&
+    typeof folder.name === "string" &&
+    Array.isArray(folder.accommodation_ids) &&
+    folder.accommodation_ids.every((id) => typeof id === "number")
+  )
+}
+
 function WishlistPageSkeleton() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8" dir="rtl">
@@ -76,15 +96,67 @@ export default function WishlistsPage() {
   const [removingId, setRemovingId] = useState<number | null>(null)
 
   const [activeFolderId, setActiveFolderId] = useState<string>("all")
-  const [folders, setFolders] = useState<WishlistFolder[]>([])
+  const [folders, setFolders] = useState<WishlistFolder[]>(DEFAULT_FOLDERS)
+  const [foldersHydrated, setFoldersHydrated] = useState(false)
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
 
-  const fetchWishlists = useCallback(async () => {
+  // Load folders from localStorage once on mount (validated; invalid
+  // entries are discarded, and the default "all" folder is restored
+  // when missing). Deferred via setTimeout so the state updates happen
+  // after mount (see react-hooks/set-state-in-effect).
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(FOLDERS_STORAGE_KEY)
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter(isValidStoredFolder)
+            if (valid.length > 0) {
+              if (!valid.some((f) => f.id === "all")) {
+                valid.unshift(DEFAULT_FOLDERS[0])
+              }
+              setFolders(valid)
+            }
+          }
+        }
+      } catch {
+        // Fall back to the default folders on JSON parse failure
+      } finally {
+        setFoldersHydrated(true)
+      }
+    }, 0)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Persist folders on change (only after the initial load, so the
+  // mount-time defaults never overwrite stored folders).
+  useEffect(() => {
+    if (!foldersHydrated) return
+    try {
+      localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders))
+    } catch {
+      // Handle localStorage quota errors safely
+    }
+  }, [folders, foldersHydrated])
+
+  const fetchAllWishlists = useCallback(async () => {
     setIsFetching(true)
     setFetchError(null)
     try {
-      const data = await apiClient.get<WishlistItemResponse[]>("/wishlists/")
-      setItems(Array.isArray(data) ? data : [])
+      const allItems: WishlistItemResponse[] = []
+      let skip = 0
+      for (;;) {
+        const page = await apiClient.get<WishlistItemResponse[]>(
+          `/wishlists/?skip=${skip}&limit=100`
+        )
+        const batch = Array.isArray(page) ? page : []
+        allItems.push(...batch)
+        if (batch.length < 100) break
+        skip += 100
+      }
+      setItems(allItems)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setFetchError(err.detail)
@@ -97,35 +169,17 @@ export default function WishlistsPage() {
   }, [])
 
   useEffect(() => {
-    let isMounted = true
     if (!token) {
       return
     }
+    // Deferred via setTimeout so the fetch's state updates happen after
+    // mount (see react-hooks/set-state-in-effect).
+    const timer = setTimeout(() => {
+      void fetchAllWishlists()
+    }, 0)
 
-    apiClient
-      .get<WishlistItemResponse[]>("/wishlists/")
-      .then((data) => {
-        if (isMounted) {
-          setItems(Array.isArray(data) ? data : [])
-          setFetchError(null)
-          setIsFetching(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          if (err instanceof ApiError) {
-            setFetchError(err.detail)
-          } else {
-            setFetchError("بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
-          }
-          setIsFetching(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [token])
+    return () => clearTimeout(timer)
+  }, [token, fetchAllWishlists])
 
   const handleRemove = async (accommodationId: number) => {
     setRemovingId(accommodationId)
@@ -136,7 +190,27 @@ export default function WishlistsPage() {
     setItems((prev) => prev.filter((item) => item.accommodation_id !== accommodationId))
 
     try {
-      await apiClient.post<WishlistToggleResponse>(`/wishlists/${accommodationId}/toggle`)
+      const response = await apiClient.post<WishlistToggleResponse>(
+        `/wishlists/${accommodationId}/toggle`
+      )
+      if (response.is_favorite) {
+        // The toggle re-added the item (it was already removed
+        // elsewhere): roll back and tell the user the removal failed.
+        setItems(previousItems)
+        setActionError(
+          "حذف انجام نشد؛ این اقامتگاه دوباره به علاقه‌مندی‌ها اضافه شد. لطفاً دوباره تلاش کنید."
+        )
+        return
+      }
+      // Successful removal: drop the item from every folder as well.
+      setFolders((prev) =>
+        prev.map((folder) => ({
+          ...folder,
+          accommodation_ids: (folder.accommodation_ids || []).filter(
+            (id) => id !== accommodationId
+          ),
+        }))
+      )
     } catch (err: unknown) {
       // Rollback state on failure
       setItems(previousItems)
@@ -148,6 +222,21 @@ export default function WishlistsPage() {
     } finally {
       setRemovingId(null)
     }
+  }
+
+  const handleToggleFolder = (folderId: string, accommodationId: number) => {
+    setFolders((prev) =>
+      prev.map((folder) => {
+        if (folder.id !== folderId) return folder
+        const ids = folder.accommodation_ids || []
+        return {
+          ...folder,
+          accommodation_ids: ids.includes(accommodationId)
+            ? ids.filter((id) => id !== accommodationId)
+            : [...ids, accommodationId],
+        }
+      })
+    )
   }
 
   // Filtered items based on active folder
@@ -162,10 +251,12 @@ export default function WishlistsPage() {
 
   // Summary Metrics
   const totalCount = items.length
-  const instantCount = useMemo(() => {
+  const activeCount = useMemo(() => {
     return items.filter((i) => i.accommodation.is_active).length
   }, [items])
-  const customFoldersCount = folders.length
+  const customFoldersCount = folders.filter((f) =>
+    f.id.startsWith("folder_")
+  ).length
 
   const formatPersianNumber = (num: number) => {
     return new Intl.NumberFormat("fa-IR").format(num)
@@ -259,10 +350,10 @@ export default function WishlistsPage() {
         <div className="bg-card p-4 rounded-2xl border border-border/70 flex items-center justify-between shadow-xs">
           <div className="space-y-1">
             <span className="text-xs font-medium text-muted-foreground">
-              اقامتگاه‌های رزرو فوری
+              اقامتگاه‌های فعال
             </span>
             <div className="text-2xl font-black text-foreground font-price">
-              {formatPersianNumber(instantCount)}
+              {formatPersianNumber(activeCount)}
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -288,17 +379,18 @@ export default function WishlistsPage() {
 
       {/* Folders Carousel */}
       <FolderCarousel
+        folders={folders}
+        onFoldersChange={setFolders}
         activeFolderId={activeFolderId}
         onSelectFolder={setActiveFolderId}
         totalItemsCount={totalCount}
-        onFoldersChange={setFolders}
       />
 
       {/* Fetch Error or Wishlist Grid */}
       {fetchError ? (
         <div className="text-center py-12 space-y-4">
           <p className="text-sm text-destructive">{fetchError}</p>
-          <Button variant="outline" onClick={fetchWishlists}>
+          <Button variant="outline" onClick={fetchAllWishlists} disabled={isFetching}>
             تلاش مجدد
           </Button>
         </div>
@@ -318,6 +410,8 @@ export default function WishlistsPage() {
           items={filteredItems}
           onRemove={handleRemove}
           isRemoving={removingId}
+          folders={folders}
+          onToggleFolder={handleToggleFolder}
           emptyTitle={
             activeFolderId !== "all" && currentFolder
               ? `هیچ اقامتگاهی در پوشه «${currentFolder.name}» ذخیره نشده است`

@@ -3,16 +3,24 @@
 import * as React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { Heart, Star, MapPin, Compass, Zap, Sparkles } from "lucide-react"
-import type { WishlistItemResponse } from "@/types/wishlist"
+import { Heart, Star, MapPin, Compass, Sparkles, Check, FolderPlus } from "lucide-react"
+import type { WishlistFolder, WishlistItemResponse } from "@/types/wishlist"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export interface WishlistGridProps {
   items: WishlistItemResponse[]
   onRemove: (accommodationId: number) => Promise<void> | void
   isRemoving?: number | null
+  folders: WishlistFolder[]
+  onToggleFolder: (folderId: string, accommodationId: number) => void
   emptyTitle?: string
   emptyDescription?: string
 }
@@ -21,6 +29,8 @@ export function WishlistGrid({
   items,
   onRemove,
   isRemoving: externalRemovingId,
+  folders,
+  onToggleFolder,
   emptyTitle = "هیچ اقامتگاهی در این بخش ذخیره نشده است",
   emptyDescription = "اقامتگاه‌های مورد علاقه خود را با زدن روی آیکون قلب ذخیره کنید تا برای سفرهای آینده به راحتی به آن‌ها دسترسی داشته باشید.",
 }: WishlistGridProps) {
@@ -70,7 +80,6 @@ export function WishlistGrid({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 my-6">
       {items.map((item) => {
         const acc = item.accommodation
-        const isRemoving = removingId === item.accommodation_id
         const hasImgError = imgErrors[item.accommodation_id] || !acc.cover_image
 
         const locationText =
@@ -125,16 +134,64 @@ export function WishlistGrid({
                 )}
               </Link>
 
-              {/* Heart toggle button (top-left) */}
-              <button
-                type="button"
-                onClick={(e) => handleRemoveClick(e, item.accommodation_id)}
-                disabled={isRemoving}
-                aria-label="حذف از علاقه‌مندی‌ها"
-                className="absolute top-3 left-3 w-9 h-9 rounded-full bg-card/85 backdrop-blur-md flex items-center justify-center shadow-md hover:scale-110 active:scale-90 transition-all text-primary disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <Heart className="w-5 h-5 fill-primary text-primary transition-colors" />
-              </button>
+              {/* Heart toggle + add-to-folder buttons (top-left) */}
+              <div className="absolute top-3 left-3 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => handleRemoveClick(e, item.accommodation_id)}
+                  disabled={removingId !== null}
+                  aria-label="حذف از علاقه‌مندی‌ها"
+                  className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
+                >
+                  <Heart className="w-5 h-5 fill-primary text-primary transition-colors" />
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="افزودن به پوشه"
+                      className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
+                    >
+                      <FolderPlus className="w-5 h-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    {folders
+                      .filter((folder) => folder.id !== "all")
+                      .map((folder) => {
+                        const isInFolder = (folder.accommodation_ids || []).includes(
+                          item.accommodation_id
+                        )
+                        return (
+                          <DropdownMenuItem
+                            key={folder.id}
+                            onClick={() =>
+                              onToggleFolder(folder.id, item.accommodation_id)
+                            }
+                            className="gap-2 cursor-pointer"
+                          >
+                            {isInFolder ? (
+                              <Check className="w-4 h-4 text-primary" />
+                            ) : (
+                              <span className="w-4 h-4" />
+                            )}
+                            <span className="line-clamp-1">{folder.name}</span>
+                          </DropdownMenuItem>
+                        )
+                      })}
+                    {folders.filter((folder) => folder.id !== "all").length === 0 && (
+                      <DropdownMenuItem disabled>
+                        هنوز پوشه‌ای نساخته‌اید
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               {/* Badges (top-right) */}
               <div className="absolute top-3 right-3 flex flex-wrap items-center gap-1.5 pointer-events-none">
@@ -145,16 +202,6 @@ export function WishlistGrid({
                   >
                     <Sparkles className="w-3 h-3 fill-amber-500 text-amber-500" />
                     <span>سوپرمیزبان</span>
-                  </Badge>
-                )}
-
-                {acc.is_active && (
-                  <Badge
-                    variant="outline"
-                    className="bg-card/90 text-foreground backdrop-blur-sm text-[11px] font-bold gap-1 shadow-xs"
-                  >
-                    <Zap className="w-3 h-3 fill-primary text-primary" />
-                    <span>رزرو فوری</span>
                   </Badge>
                 )}
               </div>

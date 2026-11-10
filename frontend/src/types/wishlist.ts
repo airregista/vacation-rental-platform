@@ -25,6 +25,8 @@ export interface DatePollOption {
   id: string
   title: string
   date_range: string
+  check_in: string
+  check_out: string
   nights_count: number
   votes: number
   voted: boolean
