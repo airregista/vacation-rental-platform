@@ -63,6 +63,11 @@ export function PhotoGallery({
 
   const totalImages = sortedImages.length
 
+  // Clamp: the image list can shrink (e.g. navigating to a listing with
+  // fewer photos) while this index persists, so never index out of range.
+  const safeActivePhotoIndex =
+    totalImages > 0 ? Math.min(activePhotoIndex, totalImages - 1) : 0
+
   const openLightbox = (index: number) => {
     setActivePhotoIndex(index)
     setIsLightboxOpen(true)
@@ -165,15 +170,15 @@ export function PhotoGallery({
         <div
           className="relative h-full w-full cursor-pointer"
           onClick={() => {
-            if (!isSwiping.current) openLightbox(activePhotoIndex)
+            if (!isSwiping.current) openLightbox(safeActivePhotoIndex)
           }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <Image
-            src={sortedImages[activePhotoIndex].image_url}
-            alt={`${title} - تصویر ${activePhotoIndex + 1}`}
+            src={sortedImages[safeActivePhotoIndex].image_url}
+            alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
             fill
             unoptimized
             priority
@@ -210,7 +215,7 @@ export function PhotoGallery({
         {/* Counter Badge */}
         <div className="absolute bottom-3 left-3 z-10">
           <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm px-2.5 py-0.5 text-xs">
-            {formatPersian(activePhotoIndex + 1)} از {formatPersian(totalImages)}
+            {formatPersian(safeActivePhotoIndex + 1)} از {formatPersian(totalImages)}
           </Badge>
         </div>
       </div>
@@ -343,7 +348,7 @@ export function PhotoGallery({
               مشاهده تصاویر اقامتگاه در اندازه بزرگ
             </DialogDescription>
             <Badge variant="outline" className="text-xs">
-              {formatPersian(activePhotoIndex + 1)} / {formatPersian(totalImages)}
+              {formatPersian(safeActivePhotoIndex + 1)} / {formatPersian(totalImages)}
             </Badge>
           </DialogHeader>
 
@@ -351,8 +356,8 @@ export function PhotoGallery({
           <div className="relative flex-1 w-full my-4 bg-black/5 rounded-xl overflow-hidden flex items-center justify-center select-none">
             <div className="relative h-full w-full">
               <Image
-                src={sortedImages[activePhotoIndex].image_url}
-                alt={`${title} - تصویر ${activePhotoIndex + 1}`}
+                src={sortedImages[safeActivePhotoIndex].image_url}
+                alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
                 fill
                 unoptimized
                 className="object-contain"
@@ -395,7 +400,7 @@ export function PhotoGallery({
                   key={img.id}
                   onClick={() => setActivePhotoIndex(idx)}
                   className={`relative flex-shrink-0 w-20 h-16 rounded-md overflow-hidden border-2 transition ${
-                    activePhotoIndex === idx
+                    safeActivePhotoIndex === idx
                       ? "border-primary ring-2 ring-primary/30"
                       : "border-transparent opacity-60 hover:opacity-100"
                   }`}

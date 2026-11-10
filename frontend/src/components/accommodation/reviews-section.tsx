@@ -21,15 +21,19 @@ export function ReviewsSection({
 }: ReviewsSectionProps) {
   const [reviews, setReviews] = React.useState<ReviewItem[]>([])
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
+  const [fetchError, setFetchError] = React.useState<boolean>(false)
+  const [retryCount, setRetryCount] = React.useState(0)
   const [visibleCount, setVisibleCount] = React.useState(6)
 
   React.useEffect(() => {
     let isCurrent = true
 
     const fetchReviews = async () => {
+      setIsLoading(true)
+      setFetchError(false)
       try {
         const data = await apiClient.get<ReviewItem[]>(
-          `/accommodations/${accommodationId}/reviews`
+          `/accommodations/${accommodationId}/reviews?limit=100`
         )
         if (isCurrent) {
           setReviews(data || [])
@@ -38,6 +42,7 @@ export function ReviewsSection({
       } catch {
         if (isCurrent) {
           setReviews([])
+          setFetchError(true)
           setIsLoading(false)
         }
       }
@@ -48,7 +53,7 @@ export function ReviewsSection({
     return () => {
       isCurrent = false
     }
-  }, [accommodationId])
+  }, [accommodationId, retryCount])
 
   // Derive cleanliness and accuracy averages client-side
   const subRatings = React.useMemo(() => {
@@ -183,6 +188,23 @@ export function ReviewsSection({
       {isLoading ? (
         <div className="h-40 rounded-xl bg-muted/30 animate-pulse flex items-center justify-center text-xs text-muted-foreground">
           در حال بارگذاری نظرات...
+        </div>
+      ) : fetchError ? (
+        <div className="p-8 text-center border rounded-2xl bg-card text-muted-foreground space-y-3">
+          <MessageSquare className="h-8 w-8 mx-auto stroke-1 text-muted-foreground/60" />
+          <p className="text-sm font-medium">خطا در بارگذاری نظرات</p>
+          <p className="text-xs text-muted-foreground/80">
+            ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryCount((prev) => prev + 1)}
+            className="text-xs"
+          >
+            تلاش مجدد
+          </Button>
         </div>
       ) : reviews.length === 0 ? (
         <div className="p-8 text-center border rounded-2xl bg-card text-muted-foreground space-y-2">
