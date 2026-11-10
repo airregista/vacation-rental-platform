@@ -27,7 +27,7 @@ function formatPersianLongDate(dateStr?: string): string {
   if (!dateStr) return "-"
   try {
     const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`)
+      ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
       : `${dateStr}T00:00:00Z`
     const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
@@ -372,7 +372,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 تایید مالیاتی سامانه
               </div>
               <span className="text-[10px] text-muted-foreground block font-mono">
-                SIGN-SHA256: 4f8a...9c12
+                SIGN-SHA256 (نمونه): 4f8a...9c12
               </span>
             </div>
 

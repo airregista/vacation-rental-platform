@@ -120,7 +120,14 @@ export function computeCheckoutBreakdown(
     ? overrideAmount
     : reservation.total_price
   const totalPayable = Math.max(0, typeof rawTotal === "string" ? Number(rawTotal.replace(/,/g, "")) || 0 : Number(rawTotal) || 0)
-  const cleaningFee = Math.max(0, Number(accommodation?.cleaning_fee) || 0)
+  // Display-level clamp (T10): fees are read from the live accommodation, not
+  // a booking snapshot, so a host edit after booking could otherwise show a
+  // cleaning fee larger than the total payable. A reservation fee snapshot is
+  // a future schema change, not this round.
+  const cleaningFee = Math.min(
+    totalPayable,
+    Math.max(0, Number(accommodation?.cleaning_fee) || 0)
+  )
   const basePrice = Math.max(0, Number(accommodation?.base_price) || 0)
 
   const baseTotal = !reservation.coupon_code
@@ -160,7 +167,7 @@ export function getPersianYear(dateStr?: string | null): string {
     // a bare timestamp is UTC, so append "Z" before parsing — otherwise a
     // timestamp near the Nowruz boundary can yield the wrong Persian year (R5).
     const isoStr = dateStr.includes("T")
-      ? dateStr.endsWith("Z") || dateStr.includes("+")
+      ? dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr)
         ? dateStr
         : `${dateStr}Z`
       : `${dateStr}T00:00:00Z`

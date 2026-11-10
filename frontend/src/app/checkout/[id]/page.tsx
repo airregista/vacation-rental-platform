@@ -65,6 +65,23 @@ function getPolicyText(policy?: string): { title: string; description: string } 
   }
 }
 
+function normalizeFaDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/[\s-]/g, "")
+}
+
+function isValidIranianMobile(phone: string): boolean {
+  const digits = normalizeFaDigits(phone).replace(/^(?:\+98|0098)/, "0")
+  return /^09\d{9}$/.test(digits)
+}
+
+function isValidNationalCode(code: string): boolean {
+  const trimmed = code.trim()
+  return trimmed === "" || /^\d{10}$/.test(normalizeFaDigits(trimmed))
+}
+
 function formatCancellationReason(reason?: string | null): string {
   if (!reason) return "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."
   const lower = reason.toLowerCase()
@@ -120,6 +137,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
     let isCancelled = false
     const fetchData = async () => {
+      setAccommodation(null)
       setLatestPayment(null)
       setPaymentLookupError(null)
       try {
@@ -366,7 +384,23 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   const isCompleted = reservation.status === "completed"
 
   const policyInfo = getPolicyText(accommodation?.cancellation_policy)
-  const isFormValid = Boolean(guestName.trim()) && Boolean(guestPhone.trim()) && agreedToTerms
+  const isPhoneValid = isValidIranianMobile(guestPhone)
+  const isNationalCodeValid = isValidNationalCode(guestNationalCode)
+  const isFormValid =
+    Boolean(guestName.trim()) && isPhoneValid && isNationalCodeValid && agreedToTerms
+  // Specific Persian error for the first invalid guest field (T9); null when
+  // the form is valid or the reservation is no longer pending.
+  const guestFormError = !isPending
+    ? null
+    : !guestName.trim()
+      ? "نام و نام خانوادگی را وارد کنید."
+      : !isPhoneValid
+        ? "شماره موبایل معتبر نیست؛ شماره باید ۱۱ رقم و با ۰۹ شروع شود."
+        : !isNationalCodeValid
+          ? "کد ملی باید ۱۰ رقم باشد."
+          : !agreedToTerms
+            ? "لطفا قوانین و شرایط را مطالعه و تایید کنید."
+            : null
 
   return (
     <div className="min-h-screen bg-background pb-28 sm:pb-16 pt-4 sm:pt-8">
@@ -457,6 +491,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         {/* Countdown Timer Banner */}
         {isPending && (
           <CountdownTimer
+            key={reservation.id}
             createdAt={reservation.created_at}
             isPending={isPending}
             onExpired={handleExpired}
@@ -477,6 +512,52 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   </h2>
                   <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
                     کد پیگیری و اطلاعات ورود برای شماره همراه شما پیامک شد.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  disabled={!invoiceData}
+                  onClick={() => setIsInvoiceModalOpen(true)}
+                  className="flex-1 sm:flex-none gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 text-xs sm:text-sm font-bold"
+                >
+                  <FileText className="size-4" />
+                  مشاهده و چاپ فاکتور رسمی
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/trips")}
+                  className="flex-1 sm:flex-none rounded-xl h-11 text-xs sm:text-sm border-emerald-600/40 text-emerald-900 dark:text-emerald-200"
+                >
+                  سفرهای من
+                </Button>
+              </div>
+            </div>
+            {paymentLookupError && (
+              <p className="text-xs sm:text-sm text-destructive font-medium mt-3 text-center sm:text-right">
+                {paymentLookupError}
+              </p>
+            )}
+          </Card>
+        )}
+
+        {/* Completed State Banner (T1): a completed reservation has no
+            confirmed banner, but its invoice must still be reachable. */}
+        {isCompleted && (
+          <Card className="border-emerald-500/40 bg-emerald-500/10 p-5 sm:p-6 rounded-2xl">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+              <div className="flex items-center gap-3">
+                <div className="size-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="size-7" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-emerald-950 dark:text-emerald-100">
+                    اقامت شما با موفقیت به پایان رسید
+                  </h2>
+                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
+                    فاکتور رسمی این رزرو در دسترس است.
                   </p>
                 </div>
               </div>
@@ -614,6 +695,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                     />
                   </div>
                 </div>
+                {isPending && guestFormError && (
+                  <p className="text-xs text-destructive font-medium">{guestFormError}</p>
+                )}
               </CardContent>
             </Card>
 
@@ -750,9 +834,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   انتقال به درگاه امن بانکی و پرداخت (
                   {formatFaPrice(reservation.total_price)} تومان)
                 </Button>
-                {!isFormValid && (
+                {!isFormValid && guestFormError && (
                   <p className="text-center text-xs text-muted-foreground mt-2">
-                    لطفا اطلاعات مهمان را کامل کرده و تیک موافقت با قوانین را فعال نمایید.
+                    {guestFormError}
                   </p>
                 )}
               </div>
