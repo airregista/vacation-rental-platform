@@ -112,6 +112,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = React.useState(false)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false)
   const [latestPayment, setLatestPayment] = React.useState<PaymentResponse | null>(null)
+  const [paymentLookupError, setPaymentLookupError] = React.useState<string | null>(null)
 
   // Fetch reservation and accommodation details
   React.useEffect(() => {
@@ -119,6 +120,8 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
     let isCancelled = false
     const fetchData = async () => {
+      setLatestPayment(null)
+      setPaymentLookupError(null)
       try {
         const res = await apiClient.get<ReservationDetail>(`/reservations/${reservationId}`)
         if (!isCancelled) {
@@ -133,16 +136,38 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           }
 
           if (res.status === "confirmed" || res.status === "completed") {
+            // Paginate /payments/my (newest-first) until this reservation's
+            // successful payment is found — a plain limit=50 lookup misses it
+            // for frequent guests with 50+ newer payments (R1).
             try {
-              const myPayments = await apiClient.get<PaymentResponse[]>("/payments/my?limit=50")
-              const match = myPayments.find(
-                (p) => p.reservation_id === res.id && p.status === "success"
-              )
-              if (match && !isCancelled) {
-                setLatestPayment(match)
+              const PAGE_SIZE = 100
+              let skip = 0
+              let found: PaymentResponse | null = null
+              for (let page = 0; page < 10 && !found; page += 1) {
+                const myPayments = await apiClient.get<PaymentResponse[]>(
+                  `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`
+                )
+                found =
+                  myPayments.find((p) => p.reservation_id === res.id && p.status === "success") ||
+                  null
+                if (myPayments.length < PAGE_SIZE) break
+                skip += PAGE_SIZE
+              }
+              if (!isCancelled) {
+                if (found) {
+                  setLatestPayment(found)
+                } else {
+                  setPaymentLookupError(
+                    "پرداخت موفق این رزرو یافت نشد؛ فاکتور رسمی در دسترس نیست. در صورت کسر وجه، با پشتیبانی تماس بگیرید."
+                  )
+                }
               }
             } catch {
-              // Fallback is handled by memo
+              if (!isCancelled) {
+                setPaymentLookupError(
+                  "دریافت اطلاعات پرداخت ناموفق بود؛ فاکتور رسمی در دسترس نیست. لطفا دوباره تلاش کنید."
+                )
+              }
             }
           }
         }
@@ -198,13 +223,6 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     setReservation((prev) => (prev ? { ...prev, status: "confirmed" } : null))
   }, [])
 
-  // Open invoice handler
-  const handleOpenInvoice = React.useCallback((payment?: PaymentResponse) => {
-    if (payment) setLatestPayment(payment)
-    setIsPaymentModalOpen(false)
-    setIsInvoiceModalOpen(true)
-  }, [])
-
   // Handle terminal status change from payment gateway (e.g. 409 conflict or expiration)
   const handleReservationStatusChange = React.useCallback(
     (status: "cancelled", reason: string) => {
@@ -221,27 +239,23 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     []
   )
 
-  // InvoiceData builder (strictly produced only when reservation is confirmed/completed)
+  // InvoiceData builder (strictly produced only when reservation is confirmed/completed
+  // AND a real successful payment was found — never fabricate a payment (R1))
   const invoiceData: InvoiceData | null = React.useMemo(() => {
     if (!reservation || (reservation.status !== "confirmed" && reservation.status !== "completed")) {
       return null
     }
-    const confirmedAt = latestPayment?.paid_at || reservation.updated_at || reservation.created_at
+    if (!latestPayment) {
+      return null
+    }
+    const confirmedAt = latestPayment.paid_at || reservation.updated_at || reservation.created_at
     const solarYear = getPersianYear(confirmedAt)
     return {
       invoice_number: `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`,
       issuance_date: confirmedAt,
       reservation,
       accommodation,
-      payment: latestPayment || {
-        id: reservation.id,
-        reservation_id: reservation.id,
-        amount: Math.max(0, Number(reservation.total_price) || 0),
-        tracking_code: "SHP-CONFIRMED",
-        status: "success",
-        paid_at: confirmedAt,
-        created_at: reservation.created_at,
-      },
+      payment: latestPayment,
       guest: {
         full_name: guestName || "-",
         phone: guestPhone || "-",
@@ -469,6 +483,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
+                  disabled={!invoiceData}
                   onClick={() => setIsInvoiceModalOpen(true)}
                   className="flex-1 sm:flex-none gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 text-xs sm:text-sm font-bold"
                 >
@@ -485,6 +500,11 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                 </Button>
               </div>
             </div>
+            {paymentLookupError && (
+              <p className="text-xs sm:text-sm text-destructive font-medium mt-3 text-center sm:text-right">
+                {paymentLookupError}
+              </p>
+            )}
           </Card>
         )}
 
@@ -779,7 +799,6 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           reservation={reservation}
           initialGateway={gateway}
           onSuccess={handlePaymentSuccess}
-          onOpenInvoice={handleOpenInvoice}
           onStatusChange={handleReservationStatusChange}
         />
       )}

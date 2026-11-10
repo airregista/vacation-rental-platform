@@ -89,6 +89,8 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 top: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
+                max-height: none !important;
+                overflow: visible !important;
                 transform: none !important;
                 border: none !important;
                 box-shadow: none !important;
