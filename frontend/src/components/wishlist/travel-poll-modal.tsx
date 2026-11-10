@@ -37,19 +37,23 @@ const STORAGE_KEY = "jabama_travel_date_poll"
 const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   {
     id: "opt-1",
-    title: "۲۴ تا ۲۷ مرداد • ۳ شب",
-    date_range: "۱۴۰۳/۰۵/۲۴ تا ۱۴۰۳/۰۵/۲۷",
+    title: "۲۶ تا ۲۹ آذر ۱۴۰۵ • ۳ شب",
+    date_range: "۱۴۰۵/۰۹/۲۶ تا ۱۴۰۵/۰۹/۲۹",
+    check_in: "2026-12-17",
+    check_out: "2026-12-20",
     nights_count: 3,
     votes: 3,
     voted: true,
     holiday_tag: "شامل ۲ روز تعطیل رسمی (پنجشنبه و جمعه)",
     is_holiday: true,
-    voters: ["سارا", "علی", "مهسا"],
+    voters: ["شما", "سارا", "علی"],
   },
   {
     id: "opt-2",
-    title: "۷ تا ۱۰ شهریور • ۳ شب",
-    date_range: "۱۴۰۳/۰۶/۰۷ تا ۱۴۰۳/۰۶/۱۰",
+    title: "۱۰ تا ۱۳ دی ۱۴۰۵ • ۳ شب",
+    date_range: "۱۴۰۵/۱۰/۱۰ تا ۱۴۰۵/۱۰/۱۳",
+    check_in: "2026-12-31",
+    check_out: "2027-01-03",
     nights_count: 3,
     votes: 2,
     voted: false,
@@ -59,8 +63,10 @@ const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   },
   {
     id: "opt-3",
-    title: "۱۵ تا ۱۹ شهریور • ۴ شب",
-    date_range: "۱۴۰۳/۰۶/۱۵ تا ۱۴۰۳/۰۶/۱۹",
+    title: "۲۷ اسفند ۱۴۰۵ تا ۲ فروردین ۱۴۰۶ • ۴ شب",
+    date_range: "۱۴۰۵/۱۲/۲۷ تا ۱۴۰۶/۰۱/۰۲",
+    check_in: "2027-03-18",
+    check_out: "2027-03-22",
     nights_count: 4,
     votes: 1,
     voted: false,
@@ -104,8 +110,11 @@ export function TravelPollModal({
 
   const [options, setOptions] = useState<DatePollOption[]>(INITIAL_POLL_OPTIONS)
   const [isCopied, setIsCopied] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
   const [isProposing, setIsProposing] = useState(false)
   const [newTitle, setNewTitle] = useState("")
+  const [newCheckIn, setNewCheckIn] = useState("")
+  const [newCheckOut, setNewCheckOut] = useState("")
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -114,7 +123,18 @@ export function TravelPollModal({
         if (stored) {
           const parsed = JSON.parse(stored) as DatePollOption[]
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setOptions(parsed)
+            // Stored options from before the date fields existed cannot
+            // be navigated to — discard them and keep the seeded ones.
+            const valid = parsed.filter(
+              (opt) =>
+                typeof opt.check_in === "string" &&
+                typeof opt.check_out === "string" &&
+                opt.check_in.length > 0 &&
+                opt.check_out.length > 0
+            )
+            if (valid.length > 0) {
+              setOptions(valid)
+            }
           }
         }
       } catch {
@@ -163,6 +183,15 @@ export function TravelPollModal({
           voters: updatedVoters,
         }
       }
+      // Single vote: voting for one option un-votes any other voted option.
+      if (opt.voted) {
+        return {
+          ...opt,
+          voted: false,
+          votes: Math.max(0, opt.votes - 1),
+          voters: (opt.voters || []).filter((name) => name !== "شما"),
+        }
+      }
       return opt
     })
     saveOptions(updated)
@@ -171,39 +200,88 @@ export function TravelPollModal({
   const handleAddCandidate = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = newTitle.trim()
-    if (!trimmed) return
+    if (!trimmed || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn) return
+
+    const nights = Math.round(
+      (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) / 86400000
+    )
 
     const newOption: DatePollOption = {
       id: `opt_${Date.now()}`,
       title: trimmed,
-      date_range: trimmed,
-      nights_count: 3,
+      date_range: `${newCheckIn} تا ${newCheckOut}`,
+      check_in: newCheckIn,
+      check_out: newCheckOut,
+      nights_count: nights,
       votes: 1,
       voted: true,
       voters: ["شما"],
     }
 
-    const updated = [...options, newOption]
+    // Single vote: the new candidate takes the user's vote, so any
+    // previously voted option is un-voted.
+    const updated = [
+      ...options.map((opt) =>
+        opt.voted
+          ? {
+              ...opt,
+              voted: false,
+              votes: Math.max(0, opt.votes - 1),
+              voters: (opt.voters || []).filter((name) => name !== "شما"),
+            }
+          : opt
+      ),
+      newOption,
+    ]
     saveOptions(updated)
     setNewTitle("")
+    setNewCheckIn("")
+    setNewCheckOut("")
     setIsProposing(false)
   }
 
   const handleShare = async () => {
+    setShareError(null)
+    const url = typeof window !== "undefined" ? window.location.href : ""
     try {
       if (typeof window !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(window.location.href)
+        await navigator.clipboard.writeText(url)
         setIsCopied(true)
         setTimeout(() => setIsCopied(false), 2000)
+        return
       }
+      throw new Error("clipboard unavailable")
     } catch {
-      // Fallback gracefully
+      // Fallback: temporary textarea + execCommand("copy").
+      try {
+        const textarea = document.createElement("textarea")
+        textarea.value = url
+        textarea.style.position = "fixed"
+        textarea.style.opacity = "0"
+        document.body.appendChild(textarea)
+        try {
+          textarea.select()
+          const ok = document.execCommand("copy")
+          if (!ok) throw new Error("execCommand copy failed")
+          setIsCopied(true)
+          setTimeout(() => setIsCopied(false), 2000)
+        } finally {
+          document.body.removeChild(textarea)
+        }
+      } catch {
+        setShareError("کپی لینک انجام نشد؛ لطفاً لینک را به‌صورت دستی کپی کنید.")
+      }
     }
   }
 
   const handleFinalizeDates = () => {
+    if (options.length === 0) return
+    const votedOptions = options.filter((opt) => opt.voted)
+    const chosen =
+      votedOptions.length === 1 ? votedOptions[0] : topOption
+    if (!chosen) return
     onClose()
-    router.push("/?check_in=1403-05-24&check_out=1403-05-27")
+    router.push(`/?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
   }
 
   const formatPersianNumber = (num: number) => {
@@ -363,6 +441,32 @@ export function TravelPollModal({
             className="text-right"
             autoFocus
           />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label htmlFor="new-check-in" className="text-xs font-semibold text-foreground">
+                تاریخ ورود
+              </label>
+              <Input
+                id="new-check-in"
+                type="date"
+                value={newCheckIn}
+                onChange={(e) => setNewCheckIn(e.target.value)}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="new-check-out" className="text-xs font-semibold text-foreground">
+                تاریخ خروج
+              </label>
+              <Input
+                id="new-check-out"
+                type="date"
+                value={newCheckOut}
+                onChange={(e) => setNewCheckOut(e.target.value)}
+                className="text-right"
+              />
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <Button
               type="button"
@@ -370,12 +474,20 @@ export function TravelPollModal({
               size="sm"
               onClick={() => {
                 setNewTitle("")
+                setNewCheckIn("")
+                setNewCheckOut("")
                 setIsProposing(false)
               }}
             >
               انصراف
             </Button>
-            <Button type="submit" size="sm" disabled={!newTitle.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                !newTitle.trim() || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn
+              }
+            >
               ثبت تاریخ پیشنهادی
             </Button>
           </div>
@@ -394,29 +506,35 @@ export function TravelPollModal({
 
       {/* Modal footer CTAs */}
       <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleShare}
-          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground w-full sm:w-auto"
-        >
-          {isCopied ? (
-            <>
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span className="text-emerald-600 font-bold">لینک کپی شد!</span>
-            </>
-          ) : (
-            <>
-              <Share2 className="w-4 h-4" />
-              <span>اشتراک‌گذاری با همسفران</span>
-            </>
+        <div className="flex flex-col items-start gap-1 w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleShare}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground w-full sm:w-auto"
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-emerald-600 font-bold">لینک کپی شد!</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-4 h-4" />
+                <span>اشتراک‌گذاری با همسفران</span>
+              </>
+            )}
+          </Button>
+          {shareError && (
+            <p className="text-xs text-destructive">{shareError}</p>
           )}
-        </Button>
+        </div>
 
         <Button
           type="button"
           onClick={handleFinalizeDates}
+          disabled={options.length === 0}
           className="gap-2 font-bold w-full sm:w-auto"
         >
           <Zap className="w-4 h-4" />

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { FolderOpen, Plus, FolderPlus } from "lucide-react"
 import type { WishlistFolder } from "@/types/wishlist"
 import {
@@ -15,56 +15,23 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-const STORAGE_KEY = "jabama_wishlist_folders"
-
-const DEFAULT_FOLDERS: WishlistFolder[] = [
-  { id: "all", name: "همه نشان‌شده‌ها", accommodation_ids: [] },
-  { id: "summer-north", name: "سفرهای تابستانه شمال", accommodation_ids: [] },
-  { id: "masal-cabins", name: "کلبه‌های جنگلی ماسال", accommodation_ids: [] },
-  { id: "yazd-traditional", name: "خانه‌های سنتی یزد", accommodation_ids: [] },
-]
-
 export interface FolderCarouselProps {
+  folders: WishlistFolder[]
+  onFoldersChange: (folders: WishlistFolder[]) => void
   activeFolderId: string
   onSelectFolder: (folderId: string) => void
   totalItemsCount: number
-  folders?: WishlistFolder[]
-  onFoldersChange?: (folders: WishlistFolder[]) => void
 }
 
 export function FolderCarousel({
+  folders,
+  onFoldersChange,
   activeFolderId,
   onSelectFolder,
   totalItemsCount,
-  folders: controlledFolders,
-  onFoldersChange,
 }: FolderCarouselProps) {
-  const [internalFolders, setInternalFolders] = useState<WishlistFolder[]>(DEFAULT_FOLDERS)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
-
-  const folders = controlledFolders || internalFolders
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          const parsed = JSON.parse(stored) as WishlistFolder[]
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setInternalFolders(parsed)
-            onFoldersChange?.(parsed)
-            return
-          }
-        }
-      } catch {
-        // Fallback to default folders on JSON parse failure
-      }
-      onFoldersChange?.(DEFAULT_FOLDERS)
-    }, 0)
-
-    return () => clearTimeout(timer)
-  }, [onFoldersChange])
 
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,16 +45,7 @@ export function FolderCarousel({
       created_at: new Date().toISOString(),
     }
 
-    const updated = [...folders, newFolder]
-    setInternalFolders(updated)
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      } catch {
-        // Handle localStorage quota error safely
-      }
-    }
-    onFoldersChange?.(updated)
+    onFoldersChange([...folders, newFolder])
     setNewFolderName("")
     setIsCreateOpen(false)
     onSelectFolder(newFolder.id)
