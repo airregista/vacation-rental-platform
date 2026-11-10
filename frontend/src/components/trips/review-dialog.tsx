@@ -104,7 +104,7 @@ export function ReviewDialog({
   onClose,
   onReviewSubmitted,
 }: ReviewDialogProps) {
-  const [rating, setRating] = useState<number>(5)
+  const [rating, setRating] = useState<number | null>(null)
   const [cleanliness, setCleanliness] = useState<number | null>(null)
   const [accuracy, setAccuracy] = useState<number | null>(null)
   const [comment, setComment] = useState<string>("")
@@ -112,6 +112,16 @@ export function ReviewDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const successTimerRef = useRef<number | null>(null)
+  // Pending parent callback for a success whose 1200ms timer has not fired
+  // yet: closing the dialog in that window must still deliver it (R3).
+  const pendingSuccessRef = useRef<(() => void) | null>(null)
+  // Whether the dialog is currently open; the POST can resolve after the
+  // user closed the dialog mid-submit (R3).
+  const isOpenRef = useRef(isOpen)
+
+  useEffect(() => {
+    isOpenRef.current = isOpen
+  }, [isOpen])
 
   // Clear the success timer if the dialog unmounts before it fires.
   useEffect(() => {
@@ -123,11 +133,17 @@ export function ReviewDialog({
   }, [])
 
   const handleClose = () => {
+    // If a success is still pending, deliver the parent update first so
+    // closing in the 1200ms success window does not drop it (R3).
+    const pending = pendingSuccessRef.current
+    pendingSuccessRef.current = null
+    if (pending) pending()
     if (successTimerRef.current !== null) {
       window.clearTimeout(successTimerRef.current)
       successTimerRef.current = null
     }
-    setRating(5)
+    isOpenRef.current = false
+    setRating(null)
     setCleanliness(null)
     setAccuracy(null)
     setComment("")
@@ -137,11 +153,11 @@ export function ReviewDialog({
     onClose()
   }
 
-  const isValid = rating >= 1 && rating <= 5 && comment.trim().length >= 5 && comment.trim().length <= 1000
+  const isValid = rating !== null && rating >= 1 && rating <= 5 && comment.trim().length >= 5 && comment.trim().length <= 1000
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!trip || !isValid) return
+    if (!trip || rating === null || !isValid) return
 
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -160,10 +176,20 @@ export function ReviewDialog({
         payload
       )
 
+      // Closed while the request was in flight: no timer, no success
+      // message — refresh the parent list right away instead (R3).
+      if (!isOpenRef.current) {
+        onReviewSubmitted(trip.id)
+        return
+      }
+
       setSuccessMessage("نظر ارزشمند شما با موفقیت ثبت شد و در صفحه اقامتگاه نمایش داده می‌شود.")
+      pendingSuccessRef.current = () => onReviewSubmitted(trip.id)
       successTimerRef.current = window.setTimeout(() => {
         successTimerRef.current = null
-        onReviewSubmitted(trip.id)
+        const pending = pendingSuccessRef.current
+        pendingSuccessRef.current = null
+        if (pending) pending()
         handleClose()
       }, 1200)
     } catch (err: unknown) {
@@ -223,9 +249,7 @@ export function ReviewDialog({
                 label="امتیاز کلی به اقامتگاه"
                 description="میزان رضایت کلی شما از اقامت، امکانات و میزبانی"
                 value={rating}
-                onChange={(val) => {
-                  if (val !== null) setRating(val)
-                }}
+                onChange={setRating}
                 required
                 disabled={isSubmitting}
               />

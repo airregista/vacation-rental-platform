@@ -87,47 +87,37 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
 
     let isMounted = true
 
-    apiClient
-      .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
-      .then((data) => {
-        if (isMounted) {
-          setMessages(data)
-          setHasLoadedInitially(true)
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
+    // One fetch path for the initial load, the 8-second poll, and the
+    // window-focus refetch. A successful fetch clears any earlier error
+    // banner; only the initial load reports failures (background polls
+    // stay silent).
+    const refreshMessages = (isInitial: boolean) => {
+      apiClient
+        .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
+        .then((data) => {
+          if (isMounted) {
+            setMessages(data)
+            setErrorMessage(null)
+            if (isInitial) setHasLoadedInitially(true)
+          }
+        })
+        .catch((err: unknown) => {
+          if (!isMounted || !isInitial) return
           setHasLoadedInitially(true)
           if (err instanceof ApiError) {
             setErrorMessage(err.detail || err.message || "خطا در دریافت پیام‌ها.")
           } else {
             setErrorMessage("امکان برقراری ارتباط با چت وجود ندارد.")
           }
-        }
-      })
-
-    // Poll for new messages every 8 seconds
-    const interval = setInterval(() => {
-      apiClient
-        .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
-        .then((data) => {
-          if (isMounted) setMessages(data)
-        })
-        .catch(() => {
-          // ignore background polling failures
-        })
-    }, 8000)
-
-    const handleFocus = () => {
-      apiClient
-        .get<ChatMessageItem[]>(`/reservations/${tripId}/messages?limit=100`)
-        .then((data) => {
-          if (isMounted) setMessages(data)
-        })
-        .catch(() => {
-          // ignore background focus poll failures
         })
     }
+
+    refreshMessages(true)
+
+    // Poll for new messages every 8 seconds
+    const interval = setInterval(() => refreshMessages(false), 8000)
+
+    const handleFocus = () => refreshMessages(false)
     window.addEventListener("focus", handleFocus)
 
     return () => {
@@ -313,6 +303,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
+              maxLength={2000}
               disabled={isSending || isLoadingMessages}
               className="min-h-[38px] max-h-32 resize-none border-0 bg-transparent px-2 py-1.5 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
             />
