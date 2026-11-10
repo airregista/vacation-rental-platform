@@ -24,7 +24,7 @@ export function CountdownTimer({
   const getSecondsLeft = React.useCallback(() => {
     if (!createdAt || !isPending) return 0
     const createdMs = new Date(
-      createdAt.endsWith("Z") || createdAt.includes("+") ? createdAt : `${createdAt}Z`
+      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`
     ).getTime()
     if (isNaN(createdMs)) return 0
     const expiresAtMs = createdMs + ttlMinutes * 60 * 1000
@@ -41,7 +41,7 @@ export function CountdownTimer({
     if (!isPending) return
 
     const createdMs = new Date(
-      createdAt.endsWith("Z") || createdAt.includes("+") ? createdAt : `${createdAt}Z`
+      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`
     ).getTime()
 
     if (isNaN(createdMs)) return

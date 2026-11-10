@@ -58,10 +58,10 @@ export function PaymentGatewayModal({
     setPrevGatewayProp(initialGateway)
     setGateway(initialGateway || "mellat")
   }
-  const [cardNumber, setCardNumber] = React.useState("6104 3378 9821 4452")
-  const [cvv2, setCvv2] = React.useState("345")
-  const [expMonth, setExpMonth] = React.useState("08")
-  const [expYear, setExpYear] = React.useState("06")
+  const [cardNumber, setCardNumber] = React.useState("")
+  const [cvv2, setCvv2] = React.useState("")
+  const [expMonth, setExpMonth] = React.useState("")
+  const [expYear, setExpYear] = React.useState("")
   const [otp, setOtp] = React.useState("")
   const [otpTimer, setOtpTimer] = React.useState(0)
   const [isRequestingOtp, setIsRequestingOtp] = React.useState(false)
@@ -84,6 +84,9 @@ export function PaymentGatewayModal({
   // Memoized initiate payment handler (strictly guarded to pending reservations)
   const initiatePayment = React.useCallback(async () => {
     if (reservation.status !== "pending") return
+    // Claim the initiation synchronously, before the await (T2): closing and
+    // reopening the modal mid-flight must not start a second POST.
+    hasInitiatedRef.current = reservation.id
     setIsInitiating(true)
     setInitiateError(null)
     try {
@@ -91,7 +94,6 @@ export function PaymentGatewayModal({
         reservation_id: reservation.id,
       })
       setPaymentData(response)
-      hasInitiatedRef.current = reservation.id
     } catch (err) {
       hasInitiatedRef.current = null
       if (err instanceof ApiError) {
@@ -107,6 +109,18 @@ export function PaymentGatewayModal({
     }
   }, [reservation.id, reservation.status, onStatusChange])
 
+  // Clear the payment session when the reservation prop changes (T5): a
+  // session belongs to one reservation id and must never verify another's.
+  // Declared before the initiation effect so it runs first on id change.
+  const prevReservationIdRef = React.useRef(reservation.id)
+  React.useEffect(() => {
+    if (prevReservationIdRef.current !== reservation.id) {
+      prevReservationIdRef.current = reservation.id
+      hasInitiatedRef.current = null
+      setPaymentData(null)
+    }
+  }, [reservation.id])
+
   // Initiate payment session on dialog open. The initiation is NOT reset on
   // close: reopening the gateway must reuse the existing payment session,
   // otherwise every reopen creates a duplicate pending Payment row (R3).
@@ -117,7 +131,7 @@ export function PaymentGatewayModal({
     }
 
     // If a payment session already exists for this reservation, do not re-post
-    if (hasInitiatedRef.current === reservation.id || paymentData) {
+    if (hasInitiatedRef.current === reservation.id || paymentData?.reservation_id === reservation.id) {
       return
     }
 
