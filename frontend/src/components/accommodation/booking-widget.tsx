@@ -128,34 +128,11 @@ export function BookingWidget({
           INVALID_COUPON_DETAILS.includes(err.detail)
         ) {
           setCouponError("کد تخفیف معتبر نیست یا منقضی شده است.")
+          // Clearing the coupon re-triggers this effect for a no-coupon
+          // calculation; no manual fallback fetch is needed.
           setAppliedCoupon(null)
-
-          // Fallback calculation without coupon
-          try {
-            const fallbackRes = await apiClient.post<PriceCalculationResponse>(
-              "/reservations/calculate-price",
-              {
-                accommodation_id: accommodation.id,
-                check_in: checkIn,
-                check_out: checkOut,
-                guests_count: guestsCount,
-              }
-            )
-            if (isCurrent) {
-              setPriceData(fallbackRes)
-            }
-          } catch (fallbackErr: unknown) {
-            if (isCurrent) {
-              setPriceData(null)
-              setSubmitError(
-                fallbackErr instanceof ApiError
-                  ? fallbackErr.message
-                  : "خطا در محاسبه قیمت. لطفاً مجدداً تلاش کنید."
-              )
-            }
-          }
         } else if (err instanceof ApiError) {
-          setSubmitError(err.message)
+          setSubmitError(err.detail)
           setPriceData(null)
         } else {
           setSubmitError("خطا در برقراری ارتباط با سرور برای محاسبه قیمت.")
@@ -169,6 +146,11 @@ export function BookingWidget({
 
     return () => {
       isCurrent = false
+      // A calc in flight when the effect re-runs (e.g. dates cleared
+      // mid-flight) never reaches its own setIsCalculating(false) because
+      // of the isCurrent guard above; reset here so the button label
+      // doesn't stick on "در حال محاسبه قیمت...".
+      setIsCalculating(false)
     }
   }, [
     accommodation.id,
@@ -217,8 +199,12 @@ export function BookingWidget({
 
       router.push(`/checkout/${res.id}`)
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.message)
+      if (err instanceof ApiError && err.status === 401) {
+        // Token expired since page load: open the login modal right away
+        // instead of showing a cryptic error and waiting for a 2nd click.
+        openOtpModal()
+      } else if (err instanceof ApiError) {
+        setSubmitError(err.detail)
       } else {
         setSubmitError("خطا در ایجاد رزرو. لطفاً مجدداً تلاش کنید.")
       }
@@ -250,6 +236,19 @@ export function BookingWidget({
     document
       .getElementById("availability-calendar")
       ?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  // Date boxes are rendered both in the desktop card and inside the mobile
+  // bottom sheet. While the sheet is open body scroll is locked and the
+  // sheet covers the page, so scrolling alone does nothing visible: close
+  // the sheet first (like the "مشاهده تقویم" button below), then scroll.
+  const handleDateBoxClick = () => {
+    if (isMobileSheetOpen) {
+      setIsMobileSheetOpen(false)
+      setTimeout(() => scrollToCalendar(), 100)
+    } else {
+      scrollToCalendar()
+    }
   }
 
   // Booking Card Body renderer
@@ -296,12 +295,12 @@ export function BookingWidget({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  scrollToCalendar()
+                  handleDateBoxClick()
                 }
               }}
               title="مشاهده تقویم برای تغییر تاریخ ورود"
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
-              onClick={scrollToCalendar}
+              onClick={handleDateBoxClick}
             >
               <span className="block text-[10px] text-muted-foreground mb-0.5">تاریخ ورود</span>
               <span className="font-semibold text-foreground">
@@ -314,12 +313,12 @@ export function BookingWidget({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  scrollToCalendar()
+                  handleDateBoxClick()
                 }
               }}
               title="مشاهده تقویم برای تغییر تاریخ خروج"
               className="p-2.5 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition"
-              onClick={scrollToCalendar}
+              onClick={handleDateBoxClick}
             >
               <span className="block text-[10px] text-muted-foreground mb-0.5">تاریخ خروج</span>
               <span className="font-semibold text-foreground">
@@ -574,7 +573,12 @@ export function BookingWidget({
       <div className="block lg:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border p-3 sm:p-4 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex flex-col">
-            {effectivePriceData ? (
+            {isCalculating ? (
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span>در حال محاسبه قیمت...</span>
+              </span>
+            ) : effectivePriceData ? (
               <>
                 <span className="text-base font-extrabold text-foreground">
                   {formatPersian(effectivePriceData.total_price)} تومان

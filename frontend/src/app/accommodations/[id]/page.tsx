@@ -35,7 +35,11 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   const resolvedParams = React.use(params)
   const accommodationId = Number(resolvedParams.id)
 
-  const isInvalidId = !accommodationId || isNaN(accommodationId) || accommodationId <= 0
+  const isInvalidId =
+    !accommodationId ||
+    isNaN(accommodationId) ||
+    !Number.isInteger(accommodationId) ||
+    accommodationId <= 0
 
   const [data, setData] = React.useState<AccommodationDetailData | null>(null)
   const [isLoading, setIsLoading] = React.useState<boolean>(!isInvalidId)
