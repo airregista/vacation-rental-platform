@@ -45,6 +45,13 @@ function isValidStoredFolder(entry: unknown): entry is WishlistFolder {
   )
 }
 
+function toPersianApiError(detail: string, fallback: string): string {
+  if (detail.includes("Invalid or expired authentication token")) {
+    return "نشست شما منقضی شده است؛ لطفاً دوباره وارد شوید."
+  }
+  return fallback
+}
+
 function WishlistPageSkeleton() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8" dir="rtl">
@@ -141,6 +148,31 @@ export default function WishlistsPage() {
     }
   }, [folders, foldersHydrated])
 
+  // Re-sync folders when another tab changes them. The storage event
+  // only fires in other tabs, so this cannot loop with the persist
+  // effect above.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== FOLDERS_STORAGE_KEY || !e.newValue) return
+      try {
+        const parsed: unknown = JSON.parse(e.newValue)
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(isValidStoredFolder)
+          if (valid.length > 0) {
+            if (!valid.some((f) => f.id === "all")) {
+              valid.unshift(DEFAULT_FOLDERS[0])
+            }
+            setFolders(valid)
+          }
+        }
+      } catch {
+        // Ignore malformed values written by other tabs
+      }
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [])
+
   const fetchAllWishlists = useCallback(async () => {
     setIsFetching(true)
     setFetchError(null)
@@ -159,7 +191,9 @@ export default function WishlistsPage() {
       setItems(allItems)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setFetchError(err.detail)
+        setFetchError(
+          toPersianApiError(err.detail, "بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
+        )
       } else {
         setFetchError("بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
       }
@@ -215,7 +249,12 @@ export default function WishlistsPage() {
       // Rollback state on failure
       setItems(previousItems)
       if (err instanceof ApiError) {
-        setActionError(err.detail)
+        setActionError(
+          toPersianApiError(
+            err.detail,
+            "حذف اقامتگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید."
+          )
+        )
       } else {
         setActionError("حذف اقامتگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید.")
       }

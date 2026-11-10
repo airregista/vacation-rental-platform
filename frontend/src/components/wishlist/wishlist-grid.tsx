@@ -94,7 +94,8 @@ export function WishlistGrid({
             ? Number(acc.average_rating)
             : null
 
-        const isSuperhost = averageRating !== null && averageRating >= 4.8
+        const isSuperhost =
+          averageRating !== null && averageRating >= 4.8 && acc.reviews_count >= 10
         const formattedRating =
           averageRating !== null
             ? new Intl.NumberFormat("fa-IR", {
