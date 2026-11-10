@@ -51,3 +51,10 @@ video/
 
 # Templates
 template/
+
+# Playwright (CLI skill: browser binaries live in ~/.cache/ms-playwright,
+# test artifacts must never be committed)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
