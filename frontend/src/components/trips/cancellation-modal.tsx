@@ -92,7 +92,7 @@ export function CancellationModal({
       .catch((err: unknown) => {
         if (isMounted) {
           if (err instanceof ApiError) {
-            setErrorMessage(err.message || "امکان محاسبه شرایط کنسلی برای این رزرو وجود ندارد.")
+            setErrorMessage(err.detail || err.message || "امکان محاسبه شرایط کنسلی برای این رزرو وجود ندارد.")
           } else {
             setErrorMessage("خطا در برقراری ارتباط با سامانه. لطفاً مجدداً تلاش کنید.")
           }
@@ -125,7 +125,7 @@ export function CancellationModal({
       }, 1200)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setErrorMessage(err.message || "خطا در لغو رزرو. ممکن است زمان تحویل سپری شده باشد.")
+        setErrorMessage(err.detail || err.message || "خطا در لغو رزرو. ممکن است زمان تحویل سپری شده باشد.")
       } else {
         setErrorMessage("خطا در ارسال درخواست لغو. لطفاً دوباره امتحان کنید.")
       }

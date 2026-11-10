@@ -23,7 +23,7 @@ export interface ReviewDialogProps {
   trip: TripReservationItem | null
   isOpen: boolean
   onClose: () => void
-  onReviewSubmitted: (reservationId: number) => void
+  onReviewSubmitted: (reservationId?: number) => void
 }
 
 function toPersianDigits(n: number | string): string {
@@ -156,12 +156,13 @@ export function ReviewDialog({
       }, 1200)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        if (err.status === 400 && err.message.includes("already been submitted")) {
+        const errorDetail = err.detail || err.message || ""
+        if (err.status === 400 && errorDetail.includes("already been submitted")) {
           setErrorMessage("برای این اقامت قبلاً نظر ثبت شده است.")
-        } else if (err.status === 400 && err.message.includes("check-out time")) {
+        } else if (err.status === 400 && errorDetail.includes("check-out time")) {
           setErrorMessage("امکان ثبت نظر تنها پس از پایان موعد تحویل و خروج از اقامتگاه فراهم است.")
         } else {
-          setErrorMessage(err.message || "خطا در ثبت نظر. لطفاً مجدداً بررسی فرمایید.")
+          setErrorMessage(err.detail || err.message || "خطا در ثبت نظر. لطفاً مجدداً بررسی فرمایید.")
         }
       } else {
         setErrorMessage("خطا در ارسال نظر. لطفاً اتصال اینترنت خود را بررسی کنید.")
