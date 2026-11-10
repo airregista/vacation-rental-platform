@@ -155,6 +155,7 @@ export function WishlistGrid({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      disabled={removingId !== null}
                       aria-label="افزودن به پوشه"
                       className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
                     >

@@ -87,7 +87,7 @@ export function FolderCarousel({
           className="text-xs text-primary font-semibold hover:underline gap-1 p-0 h-auto"
         >
           <FolderPlus className="w-3.5 h-3.5" />
-          <span>مدیریت پوشه‌ها</span>
+          <span>پوشه جدید</span>
         </Button>
       </div>
 

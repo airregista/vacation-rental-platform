@@ -91,6 +91,19 @@ const emptySubscribe = () => () => {}
 const getClientSnapshot = () => true
 const getServerClientSnapshot = () => false
 
+function todayIsoDate(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+// An option is offerable only while its check-in is still in the future.
+function isFutureCheckIn(checkIn: string): boolean {
+  return checkIn > todayIsoDate()
+}
+
 function isValidStoredPollOption(entry: unknown): entry is DatePollOption {
   if (typeof entry !== "object" || entry === null) return false
   const opt = entry as Record<string, unknown>
@@ -107,8 +120,11 @@ function isValidStoredPollOption(entry: unknown): entry is DatePollOption {
     opt.voters.every((v) => typeof v === "string") &&
     typeof opt.check_in === "string" &&
     opt.check_in.length > 0 &&
+    !isNaN(Date.parse(opt.check_in)) &&
     typeof opt.check_out === "string" &&
-    opt.check_out.length > 0
+    opt.check_out.length > 0 &&
+    !isNaN(Date.parse(opt.check_out)) &&
+    opt.check_out > opt.check_in
   )
 }
 
@@ -127,7 +143,10 @@ export function TravelPollModal({
   const isMounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerClientSnapshot)
   const isMobile = useSyncExternalStore(subscribeResize, getMobileSnapshot, getServerMobileSnapshot)
 
-  const [options, setOptions] = useState<DatePollOption[]>(INITIAL_POLL_OPTIONS)
+  // Seeds whose check-in has passed are never offered.
+  const [options, setOptions] = useState<DatePollOption[]>(() =>
+    INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in))
+  )
   const [isProposing, setIsProposing] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newCheckIn, setNewCheckIn] = useState("")
@@ -141,22 +160,33 @@ export function TravelPollModal({
           const parsed = JSON.parse(stored) as DatePollOption[]
           if (Array.isArray(parsed) && parsed.length > 0) {
             const valid = parsed.filter(isValidStoredPollOption)
-            if (valid.length > 0) {
+            // Drop options whose check-in has passed; only future
+            // options are ever offered.
+            const upcoming = valid.filter((opt) => isFutureCheckIn(opt.check_in))
+            if (upcoming.length > 0) {
               // Normalise stored state from before single-vote
-              // enforcement: keep only the first voted option.
-              const firstVotedIndex = valid.findIndex((opt) => opt.voted)
+              // enforcement: keep only the first voted option, and
+              // undo the de-voted options' vote (count + "شما" voter)
+              // exactly like the toggle handler's un-vote branch.
+              const firstVotedIndex = upcoming.findIndex((opt) => opt.voted)
               const needsNormalise =
                 firstVotedIndex !== -1 &&
-                valid.some((opt, i) => opt.voted && i !== firstVotedIndex)
+                upcoming.some((opt, i) => opt.voted && i !== firstVotedIndex)
+              const droppedPast = upcoming.length !== valid.length
               const normalised = needsNormalise
-                ? valid.map((opt, i) =>
+                ? upcoming.map((opt, i) =>
                     opt.voted && i !== firstVotedIndex
-                      ? { ...opt, voted: false }
+                      ? {
+                          ...opt,
+                          voted: false,
+                          votes: Math.max(0, opt.votes - 1),
+                          voters: (opt.voters || []).filter((n) => n !== "شما"),
+                        }
                       : opt
                   )
-                : valid
+                : upcoming
               setOptions(normalised)
-              if (needsNormalise) {
+              if (needsNormalise || droppedPast) {
                 try {
                   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalised))
                 } catch {
@@ -202,7 +232,9 @@ export function TravelPollModal({
         const nextVotes = nextVoted ? opt.votes + 1 : Math.max(0, opt.votes - 1)
         const voters = opt.voters ? [...opt.voters] : []
         const updatedVoters = nextVoted
-          ? [...voters, "شما"]
+          ? voters.includes("شما")
+            ? voters
+            : [...voters, "شما"]
           : voters.filter((name) => name !== "شما")
 
         return {
@@ -229,7 +261,14 @@ export function TravelPollModal({
   const handleAddCandidate = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = newTitle.trim()
-    if (!trimmed || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn) return
+    if (
+      !trimmed ||
+      !newCheckIn ||
+      !newCheckOut ||
+      newCheckOut <= newCheckIn ||
+      !isFutureCheckIn(newCheckIn)
+    )
+      return
 
     const nights = Math.round(
       (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) / 86400000
@@ -274,7 +313,8 @@ export function TravelPollModal({
     const votedOptions = options.filter((opt) => opt.voted)
     const chosen =
       votedOptions.length === 1 ? votedOptions[0] : topOption
-    if (!chosen) return
+    // Never finalize a past date range.
+    if (!chosen || !isFutureCheckIn(chosen.check_in)) return
     onClose()
     router.push(`/?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
   }
@@ -480,7 +520,11 @@ export function TravelPollModal({
               type="submit"
               size="sm"
               disabled={
-                !newTitle.trim() || !newCheckIn || !newCheckOut || newCheckOut <= newCheckIn
+                !newTitle.trim() ||
+                !newCheckIn ||
+                !newCheckOut ||
+                newCheckOut <= newCheckIn ||
+                !isFutureCheckIn(newCheckIn)
               }
             >
               ثبت تاریخ پیشنهادی

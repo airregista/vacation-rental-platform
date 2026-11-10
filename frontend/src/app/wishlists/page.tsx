@@ -39,7 +39,9 @@ function isValidStoredFolder(entry: unknown): entry is WishlistFolder {
   const folder = entry as Record<string, unknown>
   return (
     typeof folder.id === "string" &&
+    folder.id.length > 0 &&
     typeof folder.name === "string" &&
+    folder.name.trim().length > 0 &&
     Array.isArray(folder.accommodation_ids) &&
     folder.accommodation_ids.every((id) => typeof id === "number")
   )
@@ -163,6 +165,12 @@ export default function WishlistsPage() {
               valid.unshift(DEFAULT_FOLDERS[0])
             }
             setFolders(valid)
+            // The active folder may have been deleted in the other
+            // tab: fall back to "all" instead of pointing at a
+            // deleted folder.
+            setActiveFolderId((current) =>
+              valid.some((f) => f.id === current) ? current : "all"
+            )
           }
         }
       } catch {
