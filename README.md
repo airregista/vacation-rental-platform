@@ -125,7 +125,8 @@ POSTGRES_PORT=5432
 POSTGRES_DB=jabama_db
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/jabama_db
 
-ENABLE_STARTUP_SEED=True
+# Demo accounts (with publicly documented passwords) are seeded only in a demo ENVIRONMENT.
+ENABLE_STARTUP_SEED=False
 ```
 
 `ENVIRONMENT` is required. Outside the demo environments (`development`, `dev`, `local`, `test`, `testing`) the API refuses to start when `SECRET_KEY` is missing, a placeholder, or shorter than 32 characters; rotating the key invalidates all existing JWTs and calendar feed links.
@@ -163,12 +164,24 @@ Once the server is running, explore and test all 54 endpoints using interactive 
 
 ## Default Seed Credentials
 
-For quick local evaluation, the database seed initializes default accounts:
+The database seed creates two demo accounts **only** when `ENVIRONMENT` is one of the
+demo environments (`development`, `dev`, `local`, `test`, `testing`). `seed()` refuses
+to run anywhere else, so a deployment cannot accidentally create accounts whose
+passwords are published here.
 
-| Role | Mobile / Login | Password | Capabilities |
+| Role | Mobile / Login | Development default password | Capabilities |
 | :--- | :--- | :--- | :--- |
 | **System Admin** | `09120000000` | `admin123` | Full access across all hosts, listings, coupons, and payouts |
 | **Host / Guest User** | `09121111111` | `guest123` | Manage owned listings, view host reservations, make bookings |
+
+For a shared development/demo instance, override the passwords with
+`SEED_ADMIN_PASSWORD` and `SEED_GUEST_PASSWORD`. An override applies only when the
+account is first created; it does not rotate an existing user's password (use the API,
+or recreate the account deliberately).
+
+Do not set these variables in the environment used by the test suite:
+`tests/conftest.py` logs in with the documented development passwords, so an override
+on a clean test database breaks the fixtures.
 
 ---
 

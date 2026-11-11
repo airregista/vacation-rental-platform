@@ -7,6 +7,8 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 
+from app.core.config import DEMO_ENVIRONMENTS as DEMO_SEED_ENVIRONMENTS
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.core.security import get_password_hash
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
@@ -22,7 +24,22 @@ JABAMA_MANIFEST_PATH = SCRIPTS_DIR / "jabama-seed-manifest.json"
 SEED_ADMIN_PHONE = "09120000000"
 
 
+def ensure_demo_seeding_allowed(environment: str) -> None:
+    """Demo accounts have publicly documented passwords; never create them in production."""
+    if environment.strip().lower() not in DEMO_SEED_ENVIRONMENTS:
+        raise RuntimeError(
+            "Refusing to seed demo accounts outside the demo environments "
+            f"(ENVIRONMENT={environment!r}). Set ENVIRONMENT=development for local seeding."
+        )
+
+
+def resolve_demo_password(configured: str, dev_fallback: str) -> str:
+    """Prefer an operator-provided password; otherwise use the dev/test demo password."""
+    return configured or dev_fallback
+
+
 async def seed():
+    ensure_demo_seeding_allowed(settings.ENVIRONMENT)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -35,7 +52,10 @@ async def seed():
             admin = User(
                 phone="09120000000",
                 email="admin@jabama.local",
-                password_hash=get_password_hash("admin123"),
+                # Demo account: public development credential, guarded by ensure_demo_seeding_allowed.
+                password_hash=get_password_hash(
+                    resolve_demo_password(settings.SEED_ADMIN_PASSWORD, "admin123")
+                ),
                 first_name="مدیر",
                 last_name="سامانه",
                 role="admin",
@@ -50,7 +70,10 @@ async def seed():
             guest = User(
                 phone="09121111111",
                 email="guest@jabama.local",
-                password_hash=get_password_hash("guest123"),
+                # Demo account: public development credential, guarded by ensure_demo_seeding_allowed.
+                password_hash=get_password_hash(
+                    resolve_demo_password(settings.SEED_GUEST_PASSWORD, "guest123")
+                ),
                 first_name="علی",
                 last_name="محمدی",
                 role="guest",

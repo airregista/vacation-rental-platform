@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "jabama_db"
     DATABASE_URL: str | None = None
     ENABLE_STARTUP_SEED: bool = False
+    SEED_ADMIN_PASSWORD: str = ""
+    SEED_GUEST_PASSWORD: str = ""
 
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
