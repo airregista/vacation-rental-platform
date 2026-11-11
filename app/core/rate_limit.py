@@ -1,6 +1,7 @@
 import time
 from collections import deque
 from threading import Lock
+from typing import NoReturn
 
 from fastapi import HTTPException, status
 
@@ -32,8 +33,23 @@ def _sweep(now: float) -> None:
         _attempts.pop(key, None)
 
 
+def _retry_after(bucket: deque[float], now: float) -> int:
+    return max(
+        1,
+        int(bucket[0] + settings.LOGIN_RATE_LIMIT_WINDOW_SECONDS - now) + 1,
+    )
+
+
+def _raise_too_many(retry_after: int) -> NoReturn:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many failed login attempts. Try again later.",
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 def check_login_rate_limit(key: str) -> None:
-    """Raise 429 with Retry-After when the key has used up its failed attempts."""
+    """Read-only pre-check: raise 429 when the key is already over the limit."""
     now = time.monotonic()
     with _lock:
         bucket = _attempts.get(key)
@@ -42,24 +58,29 @@ def check_login_rate_limit(key: str) -> None:
         _prune(bucket, now)
         if len(bucket) < settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS:
             return
-        retry_after = max(
-            1,
-            int(bucket[0] + settings.LOGIN_RATE_LIMIT_WINDOW_SECONDS - now) + 1,
-        )
-    raise HTTPException(
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        detail="Too many failed login attempts. Try again later.",
-        headers={"Retry-After": str(retry_after)},
-    )
+        retry_after = _retry_after(bucket, now)
+    _raise_too_many(retry_after)
 
 
-def record_failed_login(key: str) -> None:
+def check_and_record_failed_login(key: str) -> None:
+    """Record one failed attempt and raise 429 when it crosses the limit.
+
+    The append and the threshold decision happen under the same lock, so a
+    concurrent burst cannot observe a stale count and slip extra attempts past
+    the limit. Every call records, even the ones that raise: an attacker who
+    keeps retrying keeps the window full, and a legitimate user clears it by
+    logging in successfully.
+    """
     now = time.monotonic()
     with _lock:
         _sweep(now)
         bucket = _attempts.setdefault(key, deque())
         _prune(bucket, now)
         bucket.append(now)
+        if len(bucket) <= settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS:
+            return
+        retry_after = _retry_after(bucket, now)
+    _raise_too_many(retry_after)
 
 
 def clear_login_attempts(key: str | None = None) -> None:

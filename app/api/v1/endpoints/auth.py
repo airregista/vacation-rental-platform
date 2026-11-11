@@ -7,7 +7,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
-from app.core.rate_limit import check_login_rate_limit, clear_login_attempts, record_failed_login
+from app.core.rate_limit import (
+    check_and_record_failed_login,
+    check_login_rate_limit,
+    clear_login_attempts,
+)
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.otp_code import OTPCode
 from app.models.user import User
@@ -84,7 +88,7 @@ async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Toke
     user = result.scalars().first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
-        record_failed_login(rate_key)
+        check_and_record_failed_login(rate_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials. Incorrect phone/email or password",

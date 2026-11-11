@@ -40,7 +40,7 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    login: str = Field(description="Phone number or email address")
+    login: str = Field(max_length=254, description="Phone number or email address")
     password: str
 
     @field_validator("login", mode="before")
