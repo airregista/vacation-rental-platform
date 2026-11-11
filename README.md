@@ -2,14 +2,14 @@
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00.svg?style=flat&logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Alembic](https://img.shields.io/badge/Alembic-1.14+-black.svg?style=flat)](https://alembic.sqlalchemy.org/)
-[![Tests](https://img.shields.io/badge/Tests-88%20Passed-brightgreen.svg?style=flat)](https://pytest.org)
+[![Tests](https://img.shields.io/badge/Tests-135%20Passed-brightgreen.svg?style=flat)](https://pytest.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg?style=flat)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](LICENSE)
 
-A production-grade, highly reliable RESTful API backend for a vacation rental and accommodation booking platform (similar to **Airbnb** and **Jajiga**), architected with **FastAPI**, **PostgreSQL 16**, **SQLAlchemy 2.0 (Asyncpg)**, and **Alembic**.
+A production-grade, highly reliable RESTful API backend for a vacation rental and accommodation booking platform (similar to **Airbnb** and **Jajiga**), architected with **FastAPI**, **PostgreSQL 14+**, **SQLAlchemy 2.0 (Asyncpg)**, and **Alembic**.
 
 Designed for enterprise workloads with a fully normalized 3NF relational schema, multi-host access scoping, row-level concurrency locking against double-booking, transparent price breakdowns, dynamic pricing calendar, two-way iCal sync, host payout ledgers, and verified proof-of-stay guest reviews.
 
@@ -72,13 +72,13 @@ The PostgreSQL schema consists of normalized relational tables with comprehensiv
 ## Technology Stack
 
 - **Framework**: FastAPI (Async ASGI)
-- **Database Engine**: PostgreSQL 16
+- **Database Engine**: PostgreSQL 14+ (developed and tested on 18)
 - **ORM & Driver**: SQLAlchemy 2.0 with `asyncpg` async driver
 - **Connection Pooling**: `AsyncAdaptedQueuePool`
 - **Schema Migrations**: Alembic
-- **Authentication**: JWT Bearer Tokens (`python-jose`) with `passlib[bcrypt]`
+- **Authentication**: JWT Bearer Tokens (PyJWT) with bcrypt password hashing
 - **Data Validation & Settings**: Pydantic v2 & Pydantic Settings
-- **Testing**: `pytest`, `pytest-asyncio`, `httpx` (88 comprehensive automated tests)
+- **Testing**: `pytest`, `pytest-asyncio`, `httpx` (135 comprehensive automated tests)
 - **Code Quality**: `ruff` (linter & formatter), `mypy` (static type analysis)
 
 ---
@@ -118,22 +118,24 @@ CALENDAR_MAX_BLOCK_DAYS=90
 CALENDAR_MAX_BLOCKED_DATES=1000
 RESERVATION_MAX_CHECKIN_MONTHS=18
 
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=localhost
+POSTGRES_SERVER=localhost
 POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=
 POSTGRES_DB=jabama_db
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/jabama_db
+DATABASE_URL=postgresql+asyncpg://postgres@localhost:5432/jabama_db
 
 # Demo accounts (with publicly documented passwords) are seeded only in a demo ENVIRONMENT.
 ENABLE_STARTUP_SEED=False
 ```
 
+The sample assumes a passwordless local `postgres` user. If your local PostgreSQL user has a password, set `POSTGRES_PASSWORD` and mirror the same password in the userinfo of `DATABASE_URL`.
+
 `ENVIRONMENT` is required. Outside the demo environments (`development`, `dev`, `local`, `test`, `testing`) the API refuses to start when `SECRET_KEY` is missing, a placeholder, or shorter than 32 characters; rotating the key invalidates all existing JWTs and calendar feed links.
 
 ### 3. Install Dependencies
 ```bash
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ### 4. Run Migrations & Seed Database
@@ -154,7 +156,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ## Interactive Documentation
 
-Once the server is running, explore and test all 54 endpoints using interactive API documentation:
+Once the server is running, explore and test all 58 operations across 46 paths using interactive API documentation:
 
 - **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
@@ -185,30 +187,30 @@ on a clean test database breaks the fixtures.
 
 ---
 
-## API Overview (54 Verified Endpoints)
+## API Overview (58 Operations)
 
-The API is organized into 12 core resource routers:
+The API is organized into 12 core resource routers. Counts are grouped by feature and generated from `/openapi.json`; use Swagger UI as the authoritative list.
 
 | Module | Endpoints | Key Operations |
 | :--- | :--- | :--- |
-| **Auth** | 4 | Mobile registration, JWT Bearer login, profile retrieval & update |
+| **Auth** | 7 | Mobile registration, JWT Bearer login, profile retrieval & update |
 | **Users** | 2 | Directory listing, user detail inspection (RBAC admin only) |
 | **Geography** | 4 | 3NF provinces and tourist cities retrieval and creation |
 | **Categories & Amenities** | 4 | SEO categories (Villas, Cottages, Eco-Lodges) and amenities registry |
 | **Accommodations** | 10 | Bounding-box map search, CRUD, host-scoped listings (`/my`) |
 | **Calendar & Pricing** | 5 | Date exceptions, bulk blocks, iCal RFC 5545 `.ics` export & sync |
-| **Reservations** | 8 | Pre-calculation engine, row-locked booking, host/guest views, cancellation |
+| **Reservations** | 9 | Pre-calculation engine, row-locked booking, host/guest views, cancellation |
 | **Messages** | 2 | In-stay direct messaging between host and traveler |
-| **Payments & Payouts** | 5 | Gateway checkout, verification, guest invoices, host payout ledger & settlement |
-| **Coupons** | 4 | Coupon validation, percentage/fixed discounts with caps |
-| **Reviews** | 3 | Proof-of-stay verified review submission and ratings retrieval |
-| **Wishlist & Health** | 3 | Accommodation bookmarks toggle and live database health monitoring |
+| **Payments & Payouts** | 6 | Gateway checkout, verification, guest invoices, host payout ledger & settlement |
+| **Coupons** | 3 | Coupon validation, percentage/fixed discounts with caps |
+| **Reviews** | 2 | Proof-of-stay verified review submission and ratings retrieval |
+| **Wishlist & Health** | 4 | Accommodation bookmarks toggle and live database health monitoring |
 
 ---
 
 ## Automated Test Suite
 
-The test suite contains 88 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
+The test suite contains 135 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
 
 ```bash
 # Run the complete test suite
@@ -246,11 +248,10 @@ mypy app/
 │   ├── seeds/                    # Deterministic database seeding scripts
 │   └── main.py                   # FastAPI application initialization & middleware
 ├── migrations/                   # Alembic environment and migration versions
-├── tests/                        # 88 Pytest integration and concurrency test cases
+├── tests/                        # 135 Pytest integration and concurrency test cases
 ├── .env.example                  # Environment configuration template
 ├── alembic.ini                   # Alembic configuration
-├── pyproject.toml                # Project metadata, Ruff, and Mypy configuration
-└── requirements.txt              # Production and development dependencies
+└── pyproject.toml                # Project metadata, Ruff, and Mypy configuration
 ```
 
 ---
