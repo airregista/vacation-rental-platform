@@ -215,6 +215,12 @@ The API is organized into 12 core resource routers. Counts are grouped by featur
 
 ## Automated Test Suite
 
+Tests run against a disposable database whose name must end in `_test`.
+The default is `jabama_test`; override it with `TEST_DATABASE_URL`. The suite
+creates the database if needed, drops and recreates only that database's
+`public` schema, runs `alembic upgrade head`, and then seeds. It never writes
+to the development database.
+
 The test suite contains 138 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
 
 ```bash
