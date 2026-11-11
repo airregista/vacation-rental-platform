@@ -62,6 +62,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters outside the demo environments"
             )
+        self.SECRET_KEY = key
         return self
 
     POSTGRES_SERVER: str = "localhost"

@@ -27,6 +27,15 @@ def test_production_accepts_long_secret_key():
     assert result.SECRET_KEY == "k" * 48
 
 
+def test_secret_key_is_trimmed():
+    result = Settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        SECRET_KEY="  " + "k" * 48 + "  ",
+    )
+    assert result.SECRET_KEY == "k" * 48
+
+
 def test_development_generates_ephemeral_secret_key():
     result = Settings(_env_file=None, ENVIRONMENT="development", SECRET_KEY="")
     assert len(result.SECRET_KEY) >= 32
