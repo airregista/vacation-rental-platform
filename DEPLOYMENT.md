@@ -23,7 +23,11 @@ not copy the local `.env` to the server.
 |---|---|---|
 | `ENVIRONMENT` | `production` (or `staging`) | Required. Demo values (`development`, `dev`, `local`, `test`, `testing`) enable demo behavior. |
 | `SECRET_KEY` | A new random value, at least 32 characters | Required. Generate it once, store it only in the secret manager. Rotating it invalidates every existing JWT and calendar feed link. |
-| `DATABASE_URL` | `postgresql+asyncpg://USER:PASSWORD@HOST:5432/DB` | Prefer this over the individual `POSTGRES_*` values. URL-encode special characters in the password. |
+| `DATABASE_URL` | `postgresql+asyncpg://ashianak_app:PASSWORD@HOST:5432/ashianak?ssl=require` | Required. Use the least-privilege app role and TLS for remote hosts (see §3). URL-encode special characters in the password. |
+| `DB_POOL_SIZE` | `5` (default) | Per-process pool size. Keep `workers × (DB_POOL_SIZE + DB_MAX_OVERFLOW)` below `max_connections` minus headroom. |
+| `DB_MAX_OVERFLOW` | `5` (default) | Extra connections allowed above `DB_POOL_SIZE` per process. |
+| `DB_POOL_TIMEOUT` | `30` (default) | Seconds to wait for a pooled connection before failing. |
+| `DB_POOL_RECYCLE` | `1800` (default) | Seconds before a pooled connection is recycled. Lower it below any firewall/pooler idle timeout. |
 | `ALLOWED_ORIGINS` | JSON list of exact frontend origins | Example: `["https://app.example.com","https://www.example.com"]`. No wildcard; CORS allows credentials. |
 | `ENABLE_STARTUP_SEED` | `False` | Keep demo seeding off. The seed itself also refuses to create demo accounts outside the demo environments. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | e.g. `1440` | Shorten it if the product can tolerate more frequent logins. |
@@ -46,18 +50,74 @@ suite expects the documented development passwords.
 
 ## 3. Database
 
-1. Create a dedicated database and user with a strong password.
-2. Grant only the permissions the app needs on that database.
-3. Run the migrations from the release checkout:
+Production uses two non-superuser roles:
 
-   ```bash
-   alembic upgrade head
+| Role | Used by | Rights |
+|---|---|---|
+| `ashianak_owner` | `alembic upgrade head` only | Owns the database and schema; can create/alter tables. No `SUPERUSER`, `CREATEDB`, or `CREATEROLE`. |
+| `ashianak_app` | the API process | `CONNECT`, `USAGE` on `public`, and `SELECT/INSERT/UPDATE/DELETE` on tables plus `USAGE/SELECT` on sequences. Cannot run DDL. |
+
+1. On the database host, enable TLS and SCRAM authentication:
+
+   ```conf
+   # postgresql.conf
+   ssl = on
+   ssl_cert_file = '/etc/postgresql/tls/server.crt'
+   ssl_key_file  = '/etc/postgresql/tls/server.key'
+   password_encryption = scram-sha-256
    ```
 
-4. Do **not** run `python -m app.seeds.seed_data` in production. It intentionally
-   refuses to create the public demo accounts there, and production data should
-   be created through migrations and real admin/user flows.
+   ```conf
+   # pg_hba.conf — reject anything that is not TLS + SCRAM
+   local     all  all                      peer
+   hostssl   all  all  0.0.0.0/0           scram-sha-256
+   hostssl   all  all  ::/0                scram-sha-256
+   hostnossl all  all  0.0.0.0/0           reject
+   hostnossl all  all  ::/0                reject
+   ```
+
+2. Run the provisioning script once as a superuser:
+
+   ```bash
+   psql -h DB_HOST -U postgres -d postgres \
+        -v owner_password='...' -v app_password='...' \
+        -f scripts/provision_production_db.sql
+   ```
+
+3. Run the migrations as the owner role:
+
+   ```bash
+   DATABASE_URL='postgresql+asyncpg://ashianak_owner:...@DB_HOST:5432/ashianak?ssl=require' \
+     alembic upgrade head
+   ```
+
+4. Run the API as the app role:
+
+   ```dotenv
+   DATABASE_URL=postgresql+asyncpg://ashianak_app:...@DB_HOST:5432/ashianak?ssl=require
+   ```
+
+   The app refuses to start outside the demo environments when the URL uses
+   `postgres`/`root`, omits the password, or omits TLS for a remote host.
+
 5. Take a backup before every migration and verify restore procedures.
+   Do **not** run `python -m app.seeds.seed_data` in production.
+
+### Connection pool sizing
+
+Each API process opens at most `DB_POOL_SIZE + DB_MAX_OVERFLOW` connections
+(idle connections are kept up to `DB_POOL_SIZE`). Keep:
+
+```text
+workers × (DB_POOL_SIZE + DB_MAX_OVERFLOW)
+  ≤ max_connections − superuser_reserved_connections − migration headroom
+```
+
+With PostgreSQL's default `max_connections = 100`, reserve ~10 connections for
+migrations and operators, and the defaults `5 + 5`, a safe starting point is
+8 API processes. Raise the server limit before raising the pool. `DB_POOL_RECYCLE`
+(default 1800 seconds) drops connections older than 30 minutes; lower it if a
+firewall or pooler closes idle connections sooner.
 
 ## 4. Install and start
 
