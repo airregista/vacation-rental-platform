@@ -52,6 +52,14 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **042** | `042-wishlists-and-travel-planning.md` | P2 | M | 036, 037 | **DONE** | `advisor/042-wishlists-and-travel-planning` | `894f505` |
 | **043** | `043-host-dashboard-multi-step-wizard-and-calendar.md` | P1 | L | 035, 036, 037 | **DONE** | `advisor/043-host-dashboard-multi-step-wizard-and-calendar` | `9538c45` |
 | **044** | `044-real-jabama-data-seeding-pipeline.md` | P2 | M | 035 | **TODO** | `advisor/044-real-jabama-data-seeding-pipeline` | `677a622` |
+| **046** | `046-remove-hardcoded-jwt-secret.md` | P1 | S | - | **DONE** | `advisor/046-remove-hardcoded-jwt-secret` | `c3217be` |
+| **047** | `047-demo-seed-credentials.md` | P1 | S | 046 | **DONE** | `advisor/047-demo-seed-credentials` | `dc96d92` |
+| **048** | `048-login-rate-limit.md` | P2 | S | 046 | **DONE** | `advisor/048-login-rate-limit` | `4ab82b7` |
+| **049** | `049-session-storage-spike.md` | P3 | M | - | **DONE** | `advisor/049-cookie-spike` | `025fe7a` (prototype) |
+| **050** | `050-readme-truth-up.md` | P3 | S | 046, 047 | **DONE** | `advisor/050-readme-truth-up` | `e9c8144` |
+
+> **2026-11-11 security follow-up (planned at `3cf3cdd`)**: a focused re-audit of the auth/token/secret surface confirmed that the JWT signing key was hardcoded with a fail-open guard, that the seed creates admin/guest accounts with fixed passwords, that `/auth/login` has no throttling, and that the bearer token is stored in `localStorage`. It also verified that the README no longer matches the code (auth libraries, test/endpoint counts, install command, `POSTGRES_HOST` vs `POSTGRES_SERVER`). Plans **046–050** cover those findings; plan **049** is a spike (decision record + throwaway prototype), not a production migration. The static OTP `1234` / `dev_code` finding was **deferred by the maintainer** (still in testing) — see “Findings Considered and Rejected”. Only the security surface was audited this round; perf, tests, tech-debt, and direction were not re-audited.
+
 
 > Plan 045 (`045-wishlist-review-fixes.md`) was retired on 2026-11-10 by the maintainer's decision: a separate plan was not needed — all of its fixes were folded into plan 042 ("## Review fixes" section, steps F0–F5). Its executor work (Steps F1–F2, commit `1108274`) is already applied in the working tree, uncommitted.
 >
@@ -85,6 +93,10 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **030** depends on **029** because calendar export headers (`PRODID` and `UID` domains) are aligned to Ashianak in 029 before token TTL hardening in 030.
 - **031** is self-contained with no dependencies.
 - **032**, **033**, and **034** are self-contained cleanup and optimization plans (recommended execution order: 032 -> 033 -> 034).
+- **046** is self-contained and lands first in the 2026-11-11 security set. It also makes `ENVIRONMENT` required, so every later plan's test environment must set it explicitly.
+- **047** and **048** both edit `app/core/config.py`, so they depend on **046** landing first (mechanical conflict only; 046 shifts the settings lines).
+- **050** depends on **046** and **047** because those plans rewrite the README `SECRET_KEY`/`ENVIRONMENT` and seed-credentials blocks that 050 must preserve. It also edits `pyproject.toml` to add setuptools package discovery (plus an explicit build backend) so the README's editable-install command actually works.
+- **049** is independent, but it prototypes changes to `app/api/v1/endpoints/auth.py`; run it after **048** (or in a separate worktree) to keep the prototype diff readable.
 
 ---
 
@@ -203,6 +215,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **Direct Banking Reversal Webhooks in Phase 1**: Simulating refund records in `Payment` with tracking code covers all functional requirements without third-party PSP sandbox dependencies.
 - **PostGIS Extension Installation for Spatial Queries**: Standard PostgreSQL mathematical functions (`acos`, `cos`, `sin`, `radians`) with trigonometric clamping provide sub-millisecond Haversine execution with zero additional OS dependencies.
 - **Dynamic Policy Expression Language (DSL) for Cancellations**: Hardcoded tiered cancellation math with `ZoneInfo("Asia/Tehran")` covers 100% of current business requirements with zero maintenance overhead compared to a dynamic rule evaluator.
+- **Static OTP `1234` and `dev_code` in responses (deferred 2026-11-11)**: the maintainer confirmed the project is still in testing and the OTP modal intentionally displays the test code; the fix (environment-gated static code + `dev_code` only in dev/test + hiding the frontend banner) is not planned this round. Re-audit when testing ends. Plan 048's limiter module is deliberately generic so it can be wired to `verify_otp` at that point.
 
 ## Active Implementation Plans Overview (029–034)
 
