@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 
 from app.core.config import DEMO_ENVIRONMENTS as DEMO_SEED_ENVIRONMENTS
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal, Base, engine
+from app.core.database import AsyncSessionLocal
 from app.core.security import get_password_hash
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
@@ -40,8 +40,6 @@ def resolve_demo_password(configured: str, dev_fallback: str) -> str:
 
 async def seed():
     ensure_demo_seeding_allowed(settings.ENVIRONMENT)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as db:
         # 1. Admin & Guest users

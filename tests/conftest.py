@@ -1,38 +1,94 @@
+import os
+import re
+import subprocess
+import sys
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.database import AsyncSessionLocal, engine, get_db
-from app.core.rate_limit import clear_login_attempts
-from app.main import app
+_DEFAULT_TEST_URL = "postgresql+asyncpg://postgres@localhost:5432/jabama_test"
+_TEST_URL = os.environ.get("TEST_DATABASE_URL") or _DEFAULT_TEST_URL
+_TEST_DB = make_url(_TEST_URL)
+
+if not _TEST_DB.database or not _TEST_DB.database.endswith("_test"):
+    raise RuntimeError(
+        "Refusing to run tests against a database whose name does not end in '_test': "
+        f"{_TEST_DB.database!r}"
+    )
+
+os.environ["DATABASE_URL"] = _TEST_URL
+os.environ.setdefault("ENVIRONMENT", "test")
+
+_ROOT = Path(__file__).resolve().parents[1]
+
+from app.core.config import settings  # noqa: E402
+from app.core.database import AsyncSessionLocal, engine, get_db  # noqa: E402
+from app.core.rate_limit import clear_login_attempts  # noqa: E402
+from app.main import app  # noqa: E402
+
+
+async def _ensure_test_database() -> None:
+    import asyncpg
+
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _TEST_DB.database or ""):
+        raise RuntimeError(f"Unsafe test database name: {_TEST_DB.database!r}")
+
+    maintenance = _TEST_DB.set(database="postgres")
+    dsn = maintenance.render_as_string(hide_password=False).replace(
+        "postgresql+asyncpg://", "postgresql://"
+    )
+    conn = await asyncpg.connect(dsn)
+    try:
+        exists = await conn.fetchval(
+            "SELECT 1 FROM pg_database WHERE datname = $1", _TEST_DB.database
+        )
+        if not exists:
+            await conn.execute(f'CREATE DATABASE "{_TEST_DB.database}"')
+    finally:
+        await conn.close()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def ensure_database_seeded():
-    """Ensures test database tables and essential seed data exist before running tests."""
-    from sqlalchemy import select
+    """Builds the disposable test database from Alembic and seeds it."""
+    from sqlalchemy import text
 
-    from app.core.database import AsyncSessionLocal, Base, engine
-    from app.models.user import User
+    from app.core.database import engine
     from app.seeds.seed_data import seed
 
-    # 1. Ensure all DDL tables exist (handles clean CI runs without prior migration)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await _ensure_test_database()
 
-    # 2. Ensure seed data exists
-    async with AsyncSessionLocal() as session:
-        admin_check = (
-            (await session.execute(select(User).where(User.phone == "09120000000")))
-            .scalars()
-            .first()
-        )
-        if not admin_check:
-            await seed()
+    # Hard guard against a misconfigured URL before any destructive DDL.
+    await engine.dispose()
+    async with engine.begin() as conn:
+        current = (await conn.execute(text("SELECT current_database()"))).scalar_one()
+        if not current.endswith("_test"):
+            raise RuntimeError(
+                f"Refusing to reset non-test database {current!r}; "
+                "set TEST_DATABASE_URL to a database ending in '_test'."
+            )
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+
+    # Build the schema the same way production will: through Alembic.
+    await engine.dispose()
+    env = os.environ.copy()
+    env["DATABASE_URL"] = _TEST_URL
+    env["ENVIRONMENT"] = "test"
+    subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=_ROOT,
+        env=env,
+        check=True,
+    )
+
+    # The database is empty after the reset; seed unconditionally.
+    await seed()
 
 
 @pytest_asyncio.fixture(autouse=True)
