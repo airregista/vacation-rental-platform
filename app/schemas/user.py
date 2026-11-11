@@ -98,6 +98,22 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class PublicHostResponse(BaseModel):
+    """Fields safe to expose on a public accommodation page.
+
+    Never add phone, email, shaba_number, role, or password material here.
+    Owners and admins read the full record through /auth/me or /users/*.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    created_at: datetime
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

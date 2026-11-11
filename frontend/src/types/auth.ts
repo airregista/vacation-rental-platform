@@ -10,6 +10,14 @@ export interface UserResponse {
   created_at: string
 }
 
+export interface PublicHost {
+  id: number
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
+  created_at: string
+}
+
 export interface TokenResponse {
   access_token: string
   token_type: string
