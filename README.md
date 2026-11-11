@@ -105,7 +105,12 @@ Ensure your PostgreSQL database connection string is properly configured:
 ```ini
 PROJECT_NAME="Ashianak — Accommodation Booking API"
 API_V1_STR="/api/v1"
-SECRET_KEY="your-secure-random-secret-key-for-development"
+# REQUIRED. Use development/dev/local/test/testing for local work; any other value requires a real SECRET_KEY.
+ENVIRONMENT="development"
+# REQUIRED outside development/dev/local/test/testing. Generate one with:
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+# In the demo environments an empty value generates an ephemeral per-process key.
+SECRET_KEY=""
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 CALENDAR_FEED_TTL_MINUTES=10080
@@ -122,6 +127,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/jabama_db
 
 ENABLE_STARTUP_SEED=True
 ```
+
+`ENVIRONMENT` is required. Outside the demo environments (`development`, `dev`, `local`, `test`, `testing`) the API refuses to start when `SECRET_KEY` is missing, a placeholder, or shorter than 32 characters; rotating the key invalidates all existing JWTs and calendar feed links.
 
 ### 3. Install Dependencies
 ```bash

@@ -1,14 +1,25 @@
+import secrets
 from decimal import Decimal
 from typing import Self
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PLACEHOLDER_SECRET_MARKERS = (
+    "donotuseinprod",
+    "changeme",
+    "change-me",
+    "replace-with",
+    "your-secure",
+    "example",
+)
+DEMO_ENVIRONMENTS = frozenset({"development", "dev", "local", "test", "testing"})
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Ashianak — Accommodation Booking API"
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = "supersecretkeyforjavabamaccommodationapppleasedonotuseinprod"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
@@ -22,15 +33,35 @@ class Settings(BaseSettings):
         "http://localhost:8000",
     ]
 
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str
 
     @model_validator(mode="after")
-    def validate_production_secret(self) -> Self:
-        if (
-            self.ENVIRONMENT.lower() in ("production", "prod")
-            and "donotuseinprod" in self.SECRET_KEY
-        ):
-            raise ValueError("Insecure default SECRET_KEY cannot be used in production environment")
+    def validate_secret_key(self) -> Self:
+        environment = self.ENVIRONMENT.strip().lower()
+        key = self.SECRET_KEY.strip()
+
+        if not environment:
+            raise ValueError("ENVIRONMENT must be set (use development or test locally)")
+
+        if key and any(marker in key.lower() for marker in PLACEHOLDER_SECRET_MARKERS):
+            raise ValueError(
+                "SECRET_KEY is a placeholder value. Generate one with: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+
+        if not key:
+            if environment not in DEMO_ENVIRONMENTS:
+                raise ValueError(
+                    "SECRET_KEY must be set outside the demo environments "
+                    f"(ENVIRONMENT={self.ENVIRONMENT!r})"
+                )
+            self.SECRET_KEY = secrets.token_urlsafe(48)
+            return self
+
+        if environment not in DEMO_ENVIRONMENTS and len(key) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters outside the demo environments"
+            )
         return self
 
     POSTGRES_SERVER: str = "localhost"
@@ -57,4 +88,5 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
-settings = Settings()
+# ENVIRONMENT (and SECRET_KEY) come from the process environment or .env at runtime.
+settings = Settings()  # type: ignore[call-arg]
