@@ -152,6 +152,11 @@ python -m app.seeds.seed_data
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+### 6. Deploy to a Server
+For production secrets, database migrations, CORS, TLS, worker/rate-limit
+considerations, and a post-deploy smoke test, see
+[DEPLOYMENT.md](DEPLOYMENT.md).
+
 ---
 
 ## Interactive Documentation
