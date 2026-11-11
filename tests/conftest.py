@@ -1,11 +1,13 @@
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, get_db
+from app.core.rate_limit import clear_login_attempts
 from app.main import app
 
 
@@ -61,6 +63,13 @@ async def db_isolation() -> AsyncGenerator[None, None]:
             await trans.rollback()
             app.dependency_overrides.clear()
             AsyncSessionLocal.configure(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def reset_login_rate_limits():
+    clear_login_attempts()
+    yield
+    clear_login_attempts()
 
 
 @pytest_asyncio.fixture

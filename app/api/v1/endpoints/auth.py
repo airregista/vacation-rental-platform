@@ -1,12 +1,13 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
+from app.core.rate_limit import check_login_rate_limit, clear_login_attempts, record_failed_login
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.otp_code import OTPCode
 from app.models.user import User
@@ -73,18 +74,23 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 
 
 @router.post("/login", response_model=Token)
-async def login(login_data: UserLogin, db: SessionDep) -> Token:
+async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Token:
     identifier = login_data.login.strip()
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{client_ip}:{identifier.lower()}"
+    check_login_rate_limit(rate_key)
     stmt = select(User).where(or_(User.phone == identifier, func.lower(User.email) == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
+        record_failed_login(rate_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials. Incorrect phone/email or password",
         )
 
+    clear_login_attempts(rate_key)
     token = create_access_token(subject=user.id)
     return Token(
         access_token=token,
