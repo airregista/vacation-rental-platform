@@ -18,10 +18,20 @@ import { Textarea } from "@/components/ui/textarea"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { toPersianDigits } from "@/lib/format-fa"
-import type { ReviewSubmissionPayload, TripReservationItem } from "@/types/trips"
+import type { ReviewSubmissionPayload } from "@/types/trips"
+
+/**
+ * Minimal shape the dialog needs to submit a review. Both trip cards and the
+ * accommodation page's eligibility response satisfy it.
+ */
+export interface ReviewDialogTarget {
+  id: number
+  accommodation_id: number
+  accommodation_title?: string | null
+}
 
 export interface ReviewDialogProps {
-  trip: TripReservationItem | null
+  trip: ReviewDialogTarget | null
   isOpen: boolean
   onClose: () => void
   onReviewSubmitted: (reservationId?: number) => void
@@ -49,22 +59,23 @@ function StarPicker({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold text-foreground flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-1 text-sm font-semibold text-ink">
           <span>{label}</span>
-          {required && <span className="text-destructive text-xs">*</span>}
+          {required && <span className="text-xs text-destructive">*</span>}
         </label>
-        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+        <span className="text-xs font-bold tabular-nums text-gold">
           {current > 0 ? `${toPersianDigits(current)} از ۵` : "امتیاز دهید"}
         </span>
       </div>
       {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-[11px] leading-6 text-ink-soft">{description}</p>
       )}
 
       {/* 5-Star Row with 44px Accessible Touch Targets */}
       <div
-        className="flex items-center gap-1 direction-ltr justify-end"
+        className="flex items-center justify-end gap-1"
+        dir="ltr"
         onMouseLeave={() => setHoverVal(null)}
       >
         {[1, 2, 3, 4, 5].map((star) => {
@@ -75,10 +86,10 @@ function StarPicker({
               type="button"
               disabled={disabled}
               className={cn(
-                "w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 active:scale-95 disabled:pointer-events-none",
+                "flex size-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brick/40 active:scale-95 disabled:pointer-events-none",
                 isFilled
-                  ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                  : "text-muted-foreground/30 hover:text-amber-400 hover:bg-muted"
+                  ? "text-gold hover:bg-gold/10"
+                  : "text-ink-soft/30 hover:bg-paper-deep hover:text-gold/70"
               )}
               onMouseEnter={() => setHoverVal(star)}
               onClick={() => onChange(star === value ? null : star)}
@@ -87,7 +98,7 @@ function StarPicker({
               <Star
                 className={cn(
                   "size-6 transition-transform",
-                  isFilled && "fill-amber-500 scale-110"
+                  isFilled && "scale-110 fill-gold"
                 )}
               />
             </button>
@@ -214,23 +225,27 @@ export function ReviewDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader className="text-right">
-          <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-xl font-black text-ink">
+            <span className="grid size-9 place-items-center rounded-b-xl rounded-t-full bg-brick/10 text-brick">
+              <Sparkles className="size-5" />
+            </span>
             <span>ثبت نظر و امتیازدهی به اقامتگاه</span>
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
+          <DialogDescription className="text-sm text-ink-soft">
             {trip?.accommodation_title || (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
           </DialogDescription>
         </DialogHeader>
 
         {/* Success Alert */}
         {successMessage && (
-          <Alert className="border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300">
-            <CheckCircle2 className="size-4 text-emerald-600" />
+          <Alert className="border-trust/30 bg-trust/10 text-trust">
+            <CheckCircle2 className="size-4 text-trust" />
             <AlertTitle>ثبت موفق نظر</AlertTitle>
-            <AlertDescription className="text-xs">{successMessage}</AlertDescription>
+            <AlertDescription className="text-xs text-trust/90">
+              {successMessage}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -246,7 +261,7 @@ export function ReviewDialog({
         {!successMessage && (
           <form onSubmit={handleSubmit} className="space-y-5 py-2">
             {/* Rating 1: Overall (Required) */}
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="rounded-xl border border-line/80 bg-paper-deep/40 p-3.5">
               <StarPicker
                 label="امتیاز کلی به اقامتگاه"
                 description="میزان رضایت کلی شما از اقامت، امکانات و میزبانی"
@@ -258,7 +273,7 @@ export function ReviewDialog({
             </div>
 
             {/* Rating 2: Cleanliness (Optional) */}
-            <div className="p-3.5 rounded-xl bg-card border border-border">
+            <div className="rounded-xl border border-line/80 bg-paper-card p-3.5">
               <StarPicker
                 label="نظافت و بهداشت"
                 description="تمیزی ملحفه‌ها، سرویس بهداشتی، حمام و فضاهای اقامتگاه"
@@ -269,7 +284,7 @@ export function ReviewDialog({
             </div>
 
             {/* Rating 3: Accuracy (Optional) */}
-            <div className="p-3.5 rounded-xl bg-card border border-border">
+            <div className="rounded-xl border border-line/80 bg-paper-card p-3.5">
               <StarPicker
                 label="صحت اطلاعات و تصاویر"
                 description="مطابقت مشخصات و عکس‌های سایت با واقعیت اقامتگاه"
@@ -281,14 +296,14 @@ export function ReviewDialog({
 
             {/* Comment Section */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between gap-2">
                 <label
                   htmlFor="review-comment"
-                  className="text-sm font-semibold text-foreground"
+                  className="text-sm font-semibold text-ink"
                 >
                   متن تجربه و دیدگاه شما:
                 </label>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[11px] tabular-nums text-ink-soft">
                   {toPersianDigits(comment.trim().length)} / ۱۰۰۰ کاراکتر
                 </span>
               </div>
@@ -300,6 +315,7 @@ export function ReviewDialog({
                 rows={4}
                 maxLength={1000}
                 disabled={isSubmitting}
+                className="border-line bg-paper-card"
               />
               {comment.trim().length > 0 && comment.trim().length < 5 && (
                 <p className="text-xs text-destructive">
@@ -308,12 +324,13 @@ export function ReviewDialog({
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <DialogFooter className="gap-2 pt-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
+                className="border-line bg-transparent"
               >
                 انصراف
               </Button>

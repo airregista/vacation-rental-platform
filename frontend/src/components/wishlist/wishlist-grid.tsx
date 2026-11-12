@@ -3,8 +3,17 @@
 import * as React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { Heart, Star, MapPin, Compass, Sparkles, Check, FolderPlus } from "lucide-react"
+import {
+  Heart,
+  Star,
+  MapPin,
+  Compass,
+  Sparkles,
+  Check,
+  FolderPlus,
+} from "lucide-react"
 import type { WishlistFolder, WishlistItemResponse } from "@/types/wishlist"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,26 +67,26 @@ export function WishlistGrid({
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-border bg-card/40 my-6">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
-          <Heart className="w-8 h-8 text-primary/70" />
-        </div>
-        <h3 className="text-lg font-bold text-foreground mb-2">{emptyTitle}</h3>
-        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          {emptyDescription}
-        </p>
-        <Button asChild>
-          <Link href="/" className="gap-2">
-            <Compass className="w-4 h-4" />
-            <span>مشاهده و جستجوی اقامتگاه‌ها</span>
-          </Link>
-        </Button>
+      <div className="my-6 rounded-3xl border border-dashed border-line/80 bg-paper-card/60 px-4">
+        <EmptyState
+          icon={Heart}
+          title={emptyTitle}
+          description={emptyDescription}
+          action={
+            <Button asChild className="gap-2">
+              <Link href="/">
+                <Compass className="size-4" />
+                <span>مشاهده و جستجوی اقامتگاه‌ها</span>
+              </Link>
+            </Button>
+          }
+        />
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 my-6">
+    <div className="my-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((item) => {
         const acc = item.accommodation
         const hasImgError = imgErrors[item.accommodation_id] || !acc.cover_image
@@ -111,13 +120,13 @@ export function WishlistGrid({
         return (
           <Card
             key={item.accommodation_id}
-            className="group overflow-hidden rounded-2xl border border-border/70 hover:shadow-lg transition-all duration-200 bg-card flex flex-col"
+            className="group flex flex-col overflow-hidden rounded-2xl border-line/80 bg-paper-card transition-[border-color,box-shadow] duration-300 hover:border-line-strong hover:shadow-lift"
           >
             {/* Cover image container */}
-            <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+            <div className="relative aspect-[16/10] w-full overflow-hidden bg-paper-deep">
               <Link
                 href={`/accommodations/${item.accommodation_id}`}
-                className="block w-full h-full"
+                className="block size-full"
               >
                 {!hasImgError ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -125,18 +134,18 @@ export function WishlistGrid({
                     src={acc.cover_image!}
                     alt={acc.title}
                     onError={() => handleImageError(item.accommodation_id)}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-muted/60">
-                    <Compass className="w-8 h-8 opacity-40 mb-1" />
+                  <div className="flex size-full flex-col items-center justify-center bg-paper-deep text-ink-soft">
+                    <Compass className="mb-1 size-8 opacity-40" />
                     <span className="text-xs font-medium">بدون تصویر</span>
                   </div>
                 )}
               </Link>
 
               {/* Heart toggle + add-to-folder buttons (top-left) */}
-              <div className="absolute top-3 left-3 flex items-center gap-2">
+              <div className="absolute left-3 top-3 flex items-center gap-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -144,9 +153,9 @@ export function WishlistGrid({
                   onClick={(e) => handleRemoveClick(e, item.accommodation_id)}
                   disabled={removingId !== null}
                   aria-label="حذف از علاقه‌مندی‌ها"
-                  className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
+                  className="size-9 min-h-9 min-w-9 rounded-full bg-paper/90 text-brick shadow-soft backdrop-blur-md hover:scale-110 hover:bg-paper active:scale-90"
                 >
-                  <Heart className="w-5 h-5 fill-primary text-primary transition-colors" />
+                  <Heart className="size-5 fill-brick text-brick transition-colors" />
                 </Button>
 
                 <DropdownMenu>
@@ -157,12 +166,12 @@ export function WishlistGrid({
                       size="icon"
                       disabled={removingId !== null}
                       aria-label="افزودن به پوشه"
-                      className="size-9 min-h-9 min-w-9 rounded-full bg-card/85 backdrop-blur-md shadow-md hover:scale-110 active:scale-90 text-primary"
+                      className="size-9 min-h-9 min-w-9 rounded-full bg-paper/90 text-brick shadow-soft backdrop-blur-md hover:scale-110 hover:bg-paper active:scale-90"
                     >
-                      <FolderPlus className="w-5 h-5" />
+                      <FolderPlus className="size-5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuContent align="start" className="w-56 border-line bg-popover">
                     {folders
                       .filter((folder) => folder.id !== "all")
                       .map((folder) => {
@@ -175,12 +184,12 @@ export function WishlistGrid({
                             onClick={() =>
                               onToggleFolder(folder.id, item.accommodation_id)
                             }
-                            className="gap-2 cursor-pointer"
+                            className="cursor-pointer gap-2"
                           >
                             {isInFolder ? (
-                              <Check className="w-4 h-4 text-primary" />
+                              <Check className="size-4 text-brick" />
                             ) : (
-                              <span className="w-4 h-4" />
+                              <span className="size-4" />
                             )}
                             <span className="line-clamp-1">{folder.name}</span>
                           </DropdownMenuItem>
@@ -196,13 +205,13 @@ export function WishlistGrid({
               </div>
 
               {/* Badges (top-right) */}
-              <div className="absolute top-3 right-3 flex flex-wrap items-center gap-1.5 pointer-events-none">
+              <div className="pointer-events-none absolute right-3 top-3 flex flex-wrap items-center gap-1.5">
                 {isSuperhost && (
                   <Badge
-                    variant="secondary"
-                    className="bg-amber-100 text-amber-900 border-amber-300 text-[11px] font-bold gap-1 shadow-xs"
+                    variant="outline"
+                    className="gap-1 border-transparent bg-gold text-[11px] font-bold text-secondary-foreground shadow-soft"
                   >
-                    <Sparkles className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    <Sparkles className="size-3 fill-secondary-foreground/80" />
                     <span>سوپرمیزبان</span>
                   </Badge>
                 )}
@@ -210,48 +219,46 @@ export function WishlistGrid({
             </div>
 
             {/* Card Content */}
-            <CardContent className="p-4 flex flex-col flex-1 justify-between gap-3">
+            <CardContent className="flex flex-1 flex-col justify-between gap-3 p-4">
               <div>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 text-[11px] text-ink-soft">
+                    <MapPin className="size-3.5 flex-shrink-0 text-brick/70" />
                     <span className="line-clamp-1">{locationText}</span>
                   </div>
 
                   {formattedRating ? (
-                    <div className="flex items-center gap-1 text-xs font-bold text-foreground">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <div className="flex items-center gap-1 text-xs font-bold tabular-nums text-ink">
+                      <Star className="size-3.5 fill-gold text-gold" />
                       <span>{formattedRating}</span>
-                      <span className="text-[11px] text-muted-foreground font-normal">
+                      <span className="text-[11px] font-normal text-ink-soft">
                         ({formattedReviewsCount})
                       </span>
                     </div>
                   ) : (
-                    <span className="text-[11px] text-muted-foreground">جدید</span>
+                    <span className="text-[11px] text-ink-soft">جدید</span>
                   )}
                 </div>
 
                 <Link
                   href={`/accommodations/${item.accommodation_id}`}
-                  className="block group-hover:text-primary transition-colors"
+                  className="block transition-colors group-hover:text-brick"
                 >
-                  <h3 className="font-bold text-sm sm:text-base text-foreground line-clamp-1">
+                  <h3 className="line-clamp-1 text-sm font-black text-ink sm:text-base">
                     {acc.title}
                   </h3>
                 </Link>
 
                 {acc.category && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {acc.category.title}
-                  </p>
+                  <p className="mt-1 text-[11px] text-ink-soft">{acc.category.title}</p>
                 )}
               </div>
 
-              <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-                <div className="text-xs text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-line/70 pt-2">
+                <div className="text-[11px] text-ink-soft">
                   <span>شروع از</span>
                 </div>
-                <div className="text-sm font-bold text-foreground font-price">
+                <div className="text-sm font-black tabular-nums text-brick">
                   {formattedPrice}
                 </div>
               </div>

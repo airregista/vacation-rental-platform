@@ -1,13 +1,25 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { Building, Calendar, CreditCard, FileText, MessageSquare, Star, Users, XCircle } from "lucide-react"
+import {
+  ArrowLeft,
+  Building,
+  Calendar,
+  CreditCard,
+  FileText,
+  MapPin,
+  MessageSquare,
+  Star,
+  Users,
+  XCircle,
+} from "lucide-react"
 
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { TripStatusBadge } from "@/components/trips/trip-status-badge"
+import { useTripPermissions } from "@/components/trips/trip-permissions"
 import { formatFaPrice } from "@/types/checkout"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import type { TripReservationItem } from "@/types/trips"
@@ -26,181 +38,125 @@ export function TripCard({
   onOpenReview,
 }: TripCardProps) {
   const [imageError, setImageError] = useState(false)
-
-  // Determine check-in and check-out timestamps for strict guards.
-  // Bare dates use the backend defaults (check-in 14:00, check-out 12:00
-  // Tehran time; cancellation_service.py falls back to time(14, 0)). The
-  // per-accommodation times are authoritative on the server.
-  const checkInTimestamp = React.useMemo(() => {
-    try {
-      const isoStr = trip.check_in.includes("T")
-        ? trip.check_in
-        : `${trip.check_in}T10:30:00Z`
-      return new Date(isoStr).getTime()
-    } catch {
-      return 0
-    }
-  }, [trip.check_in])
-
-  const checkOutTimestamp = React.useMemo(() => {
-    try {
-      const isoStr = trip.check_out.includes("T")
-        ? trip.check_out
-        : `${trip.check_out}T08:30:00Z`
-      return new Date(isoStr).getTime()
-    } catch {
-      return 0
-    }
-  }, [trip.check_out])
-
-  // Refresh "now" every 60 seconds so the eligibility guards below do not
-  // go stale while the page stays open.
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60_000)
-    return () => clearInterval(interval)
-  }, [])
-  const canCancel = trip.status === "confirmed" && checkInTimestamp > now
-  const canReview =
-    trip.status === "completed" ||
-    (trip.status === "confirmed" && checkOutTimestamp <= now)
-  const canChat = trip.status === "confirmed" || trip.status === "completed"
+  const { canCancel, canReview, canChat } = useTripPermissions(trip)
 
   const title =
     trip.accommodation_title || `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
   const nightsText = `${toPersianDigits(trip.total_nights)} شب`
   const guestsText = `${toPersianDigits(trip.guests_count)} نفر`
-  const trackingCode = `کد رزرو: JBM-${toPersianDigits(trip.id)}`
-
-  const renderStatusBadge = () => {
-    switch (trip.status) {
-      case "confirmed":
-        return (
-          <Badge className="bg-emerald-600 text-white hover:bg-emerald-600/90 border-0">
-            تأیید شده
-          </Badge>
-        )
-      case "completed":
-        return <Badge variant="secondary">پایان‌یافته</Badge>
-      case "cancelled": {
-        const isExpired = trip.cancellation_reason?.toLowerCase().includes("expired")
-        if (isExpired) {
-          return <Badge variant="secondary">منقضی شده</Badge>
-        }
-        return <Badge variant="destructive">لغو شده</Badge>
-      }
-      case "pending":
-      default:
-        return (
-          <Badge
-            variant="outline"
-            className="border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400"
-          >
-            در انتظار پرداخت
-          </Badge>
-        )
-    }
-  }
+  const trackingCode = `JBM-${toPersianDigits(trip.id)}`
+  const detailHref = `/trips/${trip.id}`
+  const locationText = [trip.province, trip.city].filter(Boolean).join("، ")
 
   return (
-    <Card className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-      {/* Top Header bar with status and booking code */}
-      <div className="bg-muted/40 px-5 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/60">
-        <div className="flex items-center gap-3">
-          {renderStatusBadge()}
-          <span className="text-xs text-muted-foreground font-mono font-medium">
+    <Card className="overflow-hidden rounded-2xl border-line/80 bg-paper-card shadow-soft transition-shadow hover:shadow-lift">
+      {/* Status + reservation code ledger strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 bg-paper-deep/40 px-5 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <TripStatusBadge trip={trip} />
+          <span className="font-mono text-[11px] font-medium text-ink-soft" dir="ltr">
             {trackingCode}
           </span>
         </div>
-        {trip.city && (
-          <span className="text-xs text-muted-foreground">
-            {trip.province ? `${trip.province}، ` : ""}
-            {trip.city}
+        {locationText ? (
+          <span className="flex items-center gap-1 text-[11px] text-ink-soft">
+            <MapPin className="size-3" />
+            {locationText}
           </span>
-        )}
+        ) : null}
       </div>
 
       <div className="p-5 md:p-6">
-        <div className="flex flex-col sm:flex-row gap-5">
-          {/* Accommodation Thumbnail with Fallback */}
-          <div className="sm:w-48 sm:h-36 w-full h-44 rounded-xl overflow-hidden relative flex-shrink-0 bg-muted">
+        <div className="flex flex-col gap-5 sm:flex-row">
+          {/* Stay thumbnail */}
+          <Link
+            href={detailHref}
+            className="relative block h-44 w-full shrink-0 overflow-hidden rounded-xl bg-paper-deep sm:h-36 sm:w-48"
+            aria-label={`جزئیات رزرو ${title}`}
+          >
             {trip.accommodation_image && !imageError ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={trip.accommodation_image}
                 alt={title}
                 onError={() => setImageError(true)}
-                className="w-full h-full object-cover"
+                className="size-full object-cover transition-transform duration-500 hover:scale-[1.03]"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-primary/5 text-primary/60 gap-1.5 p-4 text-center">
-                <Building className="size-8 stroke-[1.5]" />
-                <span className="text-xs font-medium text-muted-foreground">
+              <div className="flex size-full flex-col items-center justify-center gap-1.5 bg-paper-deep p-4 text-center text-brick/70">
+                <span className="grid size-11 place-items-center rounded-b-xl rounded-t-full bg-brick/10">
+                  <Building className="size-6 stroke-[1.5]" />
+                </span>
+                <span className="text-[11px] font-medium text-ink-soft">
                   تصویر اقامتگاه
                 </span>
               </div>
             )}
-          </div>
+          </Link>
 
-          {/* Details Column */}
-          <div className="flex-1 flex flex-col justify-between gap-3">
+          {/* Details */}
+          <div className="flex flex-1 flex-col justify-between gap-3">
             <div>
               <Link
-                href={`/accommodations/${trip.accommodation_id}`}
-                className="text-base sm:text-lg font-bold text-foreground hover:text-primary transition-colors line-clamp-2"
+                href={detailHref}
+                className="text-base font-black leading-7 text-ink transition-colors hover:text-brick sm:text-lg"
               >
                 {title}
               </Link>
 
-              {/* Schedule and guests */}
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-soft">
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="size-3.5 text-primary" />
-                  <span>
+                  <Calendar className="size-3.5 text-brick" />
+                  <span className="tabular-nums">
                     {formatPersianDate(trip.check_in)} الی{" "}
                     {formatPersianDate(trip.check_out)} ({nightsText})
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Users className="size-3.5 text-primary" />
+                  <Users className="size-3.5 text-brick" />
                   <span>{guestsText}</span>
                 </div>
               </div>
 
-              {/* Cancellation Info for Cancelled Bookings */}
               {trip.status === "cancelled" && (
-                <div className="mt-2.5 p-2.5 rounded-lg bg-destructive/10 text-destructive text-xs space-y-1">
+                <div className="mt-3 space-y-1 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-[11px] leading-6 text-destructive">
                   {trip.cancellation_reason && (
                     <p>علت لغو: {trip.cancellation_reason}</p>
                   )}
-                  {trip.refund_amount !== null && trip.refund_amount !== undefined && (
-                    <p>
-                      مبلغ مسترد شده: {formatFaPrice(trip.refund_amount)} تومان
-                    </p>
-                  )}
+                  {trip.refund_amount !== null &&
+                    trip.refund_amount !== undefined && (
+                      <p className="tabular-nums">
+                        مبلغ مسترد شده: {formatFaPrice(trip.refund_amount)} تومان
+                      </p>
+                    )}
                 </div>
               )}
             </div>
 
-            {/* Price display and actions */}
-            <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-3">
+            {/* Price + actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line/70 pt-3">
               <div>
-                <span className="text-xs text-muted-foreground block">
+                <span className="block text-[11px] text-ink-soft">
                   {trip.status === "pending"
-                    ? "مبلغ قابل پرداخت:"
-                    : "مبلغ کل پرداختی:"}
+                    ? "مبلغ قابل پرداخت"
+                    : "مبلغ کل پرداختی"}
                 </span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-base sm:text-lg font-extrabold text-foreground">
+                  <span className="text-lg font-black tabular-nums text-ink">
                     {formatFaPrice(trip.total_price)}
                   </span>
-                  <span className="text-xs text-muted-foreground">تومان</span>
+                  <span className="text-[11px] text-ink-soft">تومان</span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2">
-                {/* Pending: Continue to Payment */}
+                <Button asChild variant="ghost" size="sm" className="gap-1.5 text-ink-soft hover:text-brick">
+                  <Link href={detailHref}>
+                    <span>جزئیات رزرو</span>
+                    <ArrowLeft className="size-3.5" />
+                  </Link>
+                </Button>
+
                 {trip.status === "pending" && (
                   <Button asChild size="sm" className="gap-1.5">
                     <Link href={`/checkout/${trip.id}`}>
@@ -210,22 +166,20 @@ export function TripCard({
                   </Button>
                 )}
 
-                {/* View Invoice: for confirmed or completed */}
                 {(trip.status === "confirmed" || trip.status === "completed") && (
                   <Button asChild variant="ghost" size="sm" className="gap-1.5">
-                    <Link href={`/checkout/${trip.id}`}>
+                    <Link href={`/invoice/${trip.id}`}>
                       <FileText className="size-3.5" />
                       <span>مشاهده فاکتور</span>
                     </Link>
                   </Button>
                 )}
 
-                {/* Host Chat: for confirmed or completed */}
                 {canChat && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 border-line bg-transparent"
                     onClick={() => onOpenChat(trip)}
                   >
                     <MessageSquare className="size-3.5" />
@@ -233,25 +187,23 @@ export function TripCard({
                   </Button>
                 )}
 
-                {/* Review Submission Guard */}
                 {canReview && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 text-primary border-primary/40 hover:bg-primary/5"
+                    className="gap-1.5 border-brick/35 text-brick hover:bg-brick/5 hover:text-brick"
                     onClick={() => onOpenReview(trip)}
                   >
-                    <Star className="size-3.5 text-amber-500 fill-amber-500" />
+                    <Star className="size-3.5 fill-gold text-gold" />
                     <span>ثبت نظر</span>
                   </Button>
                 )}
 
-                {/* Cancellation Guard: Confirmed + Future Checkin */}
                 {canCancel && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
+                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => onOpenCancel(trip)}
                   >
                     <XCircle className="size-3.5" />

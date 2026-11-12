@@ -26,6 +26,8 @@ export interface TripReservationItem {
 export interface CancellationPreviewData {
   reservation_id: number
   cancellation_policy: string
+  cancellation_free_hours?: number | null
+  cancellation_penalty_percent?: number | string | null
   hours_to_checkin: number
   total_price: number | string
   refundable_amount: number | string
@@ -35,6 +37,9 @@ export interface CancellationPreviewData {
 export interface CancellationResponseData {
   reservation_id: number
   status: string
+  cancellation_policy: string
+  hours_to_checkin: number
+  total_price: number | string
   refund_amount: number | string
   penalty_amount: number | string
   message: string

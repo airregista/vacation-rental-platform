@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
 export interface FolderCarouselProps {
   folders: WishlistFolder[]
@@ -77,21 +78,26 @@ export function FolderCarousel({
   }
 
   return (
-    <section className="relative my-4" aria-label="دسته‌بندی‌های نشان‌شده">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-foreground">پوشه‌ها و دسته‌ها</h2>
+    <section className="relative" aria-label="دسته‌بندی‌های نشان‌شده">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">
+            قفسه‌های سفر
+          </p>
+          <h2 className="mt-1 text-base font-black text-ink">پوشه‌ها و دسته‌ها</h2>
+        </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsCreateOpen(true)}
-          className="text-xs text-primary font-semibold hover:underline gap-1 p-0 h-auto"
+          className="h-auto gap-1 p-0 text-xs font-semibold text-brick hover:bg-transparent hover:underline"
         >
-          <FolderPlus className="w-3.5 h-3.5" />
+          <FolderPlus className="size-3.5" />
           <span>پوشه جدید</span>
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-2">
         {folders.map((folder) => {
           const isActive = folder.id === activeFolderId
           const count =
@@ -106,15 +112,23 @@ export function FolderCarousel({
                 variant="ghost"
                 size="sm"
                 onClick={() => onSelectFolder(folder.id)}
-                className={`h-auto min-h-0 px-4 py-2 rounded-full text-xs sm:text-sm gap-1.5 active:scale-95 ${
+                className={cn(
+                  "h-auto min-h-0 gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all active:scale-95 sm:text-sm",
                   isActive
-                    ? "bg-foreground text-background font-bold shadow-sm hover:bg-foreground hover:text-background"
-                    : "bg-card border border-border text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "border-transparent bg-brick text-on-brick shadow-soft hover:bg-brick-deep hover:text-on-brick"
+                    : "border-line bg-paper-card text-ink-soft hover:border-line-strong hover:bg-paper-deep hover:text-ink"
+                )}
               >
-                <FolderOpen className={`w-4 h-4 ${isActive ? "text-background" : "text-muted-foreground"}`} />
+                <FolderOpen
+                  className={cn("size-4", isActive ? "text-on-brick" : "text-brick")}
+                />
                 <span>{folder.name}</span>
-                <span className={`text-[11px] font-medium opacity-80 ${isActive ? "text-background" : "text-muted-foreground"}`}>
+                <span
+                  className={cn(
+                    "text-[11px] font-medium tabular-nums",
+                    isActive ? "text-on-brick/80" : "text-ink-soft"
+                  )}
+                >
                   ({formatCount(count)})
                 </span>
               </Button>
@@ -129,9 +143,9 @@ export function FolderCarousel({
                       setNewFolderName(folder.name)
                     }}
                     aria-label="تغییر نام پوشه"
-                    className="size-7 min-h-7 min-w-7 rounded-full text-muted-foreground hover:text-foreground"
+                    className="size-7 min-h-7 min-w-7 rounded-full text-ink-soft hover:bg-paper-deep hover:text-brick"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="size-3.5" />
                   </Button>
                   <Button
                     type="button"
@@ -139,9 +153,9 @@ export function FolderCarousel({
                     size="icon"
                     onClick={() => handleDeleteFolder(folder)}
                     aria-label="حذف پوشه"
-                    className="size-7 min-h-7 min-w-7 rounded-full text-muted-foreground hover:text-destructive"
+                    className="size-7 min-h-7 min-w-7 rounded-full text-ink-soft hover:bg-destructive/10 hover:text-destructive"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="size-3.5" />
                   </Button>
                 </>
               )}
@@ -154,9 +168,9 @@ export function FolderCarousel({
           variant="ghost"
           size="sm"
           onClick={() => setIsCreateOpen(true)}
-          className="flex-shrink-0 h-auto min-h-0 px-3.5 py-2 rounded-full border border-dashed border-primary text-primary bg-primary/5 hover:bg-primary/10 hover:text-primary text-xs sm:text-sm font-medium gap-1 active:scale-95"
+          className="h-auto min-h-0 flex-shrink-0 gap-1 rounded-full border border-dashed border-brick/45 bg-brick/5 px-3.5 py-2 text-xs font-semibold text-brick hover:bg-brick/10 hover:text-brick active:scale-95 sm:text-sm"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="size-3.5" />
           <span>پوشه جدید</span>
         </Button>
       </div>
@@ -171,12 +185,12 @@ export function FolderCarousel({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md text-right" dir="rtl">
+        <DialogContent className="text-right sm:max-w-md" dir="rtl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-black text-ink">
               {editingFolder ? "تغییر نام پوشه" : "ایجاد پوشه جدید"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs leading-6 text-ink-soft">
               {editingFolder
                 ? "نام جدید پوشه را وارد فرمایید."
                 : "نام پوشه را وارد فرمایید تا اقامتگاه‌های دلخواه در دسته‌های مجزا ذخیره شوند."}
@@ -185,7 +199,7 @@ export function FolderCarousel({
 
           <form onSubmit={handleSubmitFolder} className="space-y-4 py-2">
             <div className="space-y-2">
-              <label htmlFor="folder-name-input" className="text-xs font-semibold text-foreground">
+              <label htmlFor="folder-name-input" className="text-xs font-semibold text-ink">
                 عنوان پوشه
               </label>
               <Input
@@ -193,7 +207,7 @@ export function FolderCarousel({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="مثلاً: سفرهای پاییزه با دوستان"
-                className="text-right"
+                className="border-line bg-paper-card text-right"
                 autoFocus
               />
             </div>
@@ -202,6 +216,7 @@ export function FolderCarousel({
               <Button
                 type="button"
                 variant="outline"
+                className="border-line bg-transparent"
                 onClick={() => {
                   setNewFolderName("")
                   setIsCreateOpen(false)

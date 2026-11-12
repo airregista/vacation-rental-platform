@@ -178,27 +178,32 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <SheetContent
         side="left"
-        className="w-full sm:max-w-md p-0 flex flex-col h-full bg-background"
+        className="flex h-full w-full flex-col border-line bg-paper p-0 sm:max-w-md"
       >
         {/* Header Bar */}
-        <SheetHeader className="p-4 sm:p-5 border-b border-border bg-card text-right flex flex-col gap-1.5 shrink-0">
+        <SheetHeader className="flex shrink-0 flex-col gap-1.5 border-b border-line bg-paper-card p-4 text-right sm:p-5">
           <div className="flex items-center justify-between pl-8">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-b-xl rounded-t-full bg-brick/10 text-brick">
                 <MessageSquare className="size-5" />
-              </div>
-              <SheetTitle className="text-base sm:text-lg font-bold text-foreground">
+              </span>
+              <SheetTitle className="text-base font-black text-ink sm:text-lg">
                 گفتگو با میزبان
               </SheetTitle>
             </div>
             {trip && (
-              <Badge variant="outline" className="text-xs font-mono">
+              <Badge
+                variant="outline"
+                className="border-line bg-paper-deep/50 font-mono text-[10px] text-ink-soft"
+                dir="ltr"
+              >
                 JBM-{toPersianDigits(trip.id)}
               </Badge>
             )}
           </div>
-          <SheetDescription className="text-xs text-muted-foreground line-clamp-1 pr-11">
-            {trip?.accommodation_title || (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
+          <SheetDescription className="line-clamp-1 pr-12 text-[11px] text-ink-soft">
+            {trip?.accommodation_title ||
+              (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
           </SheetDescription>
         </SheetHeader>
 
@@ -221,19 +226,19 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             <MessageScrollerViewport className="p-4">
               <MessageScrollerContent className="gap-3">
                 {isLoadingMessages ? (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="size-6 animate-spin text-primary" />
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 text-ink-soft">
+                    <Loader2 className="size-6 animate-spin text-brick" />
                     <span className="text-xs">در حال بارگذاری پیام‌ها...</span>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
-                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60">
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-ink-soft">
+                    <span className="grid size-14 place-items-center rounded-b-2xl rounded-t-full bg-brick/10 text-brick">
                       <MessageSquare className="size-6" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">
+                    </span>
+                    <p className="text-sm font-bold text-ink">
                       هنوز پیامی رد و بدل نشده است.
                     </p>
-                    <p className="text-xs leading-relaxed max-w-xs">
+                    <p className="max-w-xs text-xs leading-6">
                       اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود را انجام دهید.
                     </p>
                   </div>
@@ -249,22 +254,26 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
                         <Message align={mine ? "end" : "start"}>
                           <MessageAvatar>
                             {!mine ? (
-                              <Avatar className="size-7 shrink-0 bg-secondary/20 text-secondary border border-border">
-                                <AvatarFallback className="text-[11px] font-bold">
+                              <Avatar className="size-7 shrink-0 border border-line bg-trust/10 text-trust">
+                                <AvatarFallback className="bg-transparent text-[11px] font-bold text-trust">
                                   {msg.sender_name ? msg.sender_name.charAt(0) : "م"}
                                 </AvatarFallback>
                               </Avatar>
                             ) : (
-                              <Avatar className="size-7 shrink-0 bg-primary/20 text-primary border border-border">
-                                <AvatarFallback className="text-[11px] font-bold">
-                                  {user?.first_name ? user.first_name.charAt(0) : <User className="size-3.5" />}
+                              <Avatar className="size-7 shrink-0 border border-line bg-brick/10 text-brick">
+                                <AvatarFallback className="bg-transparent text-[11px] font-bold text-brick">
+                                  {user?.first_name ? (
+                                    user.first_name.charAt(0)
+                                  ) : (
+                                    <User className="size-3.5" />
+                                  )}
                                 </AvatarFallback>
                               </Avatar>
                             )}
                           </MessageAvatar>
                           <MessageContent>
                             {!mine && (
-                              <MessageHeader>
+                              <MessageHeader className="text-ink-soft">
                                 {msg.sender_name || "میزبان"}
                               </MessageHeader>
                             )}
@@ -276,15 +285,15 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
                                 className={
                                   mine
                                     ? "whitespace-pre-wrap rounded-bl-sm"
-                                    : "whitespace-pre-wrap rounded-br-sm border-border"
+                                    : "whitespace-pre-wrap rounded-br-sm border-line bg-paper-deep/70 text-ink"
                                 }
                               >
                                 <p>{msg.message}</p>
                                 <div
                                   className={
                                     mine
-                                      ? "text-[10px] mt-1 text-right text-primary-foreground/75"
-                                      : "text-[10px] mt-1 text-right text-muted-foreground"
+                                      ? "mt-1 text-right text-[10px] tabular-nums text-on-brick/70"
+                                      : "mt-1 text-right text-[10px] tabular-nums text-ink-soft"
                                   }
                                 >
                                   {formatMessageTime(msg.created_at)}
@@ -304,10 +313,10 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
         </MessageScrollerProvider>
 
         {/* Composer Footer */}
-        <div className="p-3 border-t border-border bg-card shrink-0">
+        <div className="shrink-0 border-t border-line bg-paper-card p-3">
           <form
             onSubmit={handleSendMessage}
-            className="flex items-end gap-2 bg-background border border-input rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1"
+            className="flex items-end gap-2 rounded-2xl border border-line-strong/60 bg-paper p-1.5 focus-within:ring-2 focus-within:ring-brick/30"
           >
             <Textarea
               ref={textareaRef}
@@ -318,13 +327,13 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
               rows={1}
               maxLength={2000}
               disabled={isSending || isLoadingMessages}
-              className="min-h-[38px] max-h-32 resize-none border-0 bg-transparent px-2 py-1.5 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
+              className="max-h-32 min-h-[38px] resize-none border-0 bg-transparent px-2 py-1.5 text-sm shadow-none placeholder:text-ink-soft focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <Button
               type="submit"
               size="icon"
               disabled={!inputText.trim() || isSending || isLoadingMessages}
-              className="size-9 rounded-xl shrink-0"
+              className="size-9 shrink-0 rounded-xl"
               aria-label="ارسال پیام"
             >
               {isSending ? (
