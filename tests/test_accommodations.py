@@ -1153,3 +1153,46 @@ async def test_create_accommodation_cover_image_assignment(
 
 
 
+
+
+@pytest.mark.asyncio
+async def test_accommodation_coordinates_out_of_range_rejected(
+    client: AsyncClient,
+    admin_token: str,
+):
+    payload = {
+        "title": "Coordinate validation test",
+        "address": "Coordinate validation address",
+        "city_id": 1,
+        "category_id": 1,
+        "base_price": 500000,
+        "capacity": 2,
+        "max_capacity": 4,
+    }
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    bad_latitude = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={**payload, "latitude": 91},
+        headers=headers,
+    )
+    assert bad_latitude.status_code == 422
+
+    bad_longitude = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={**payload, "longitude": -181},
+        headers=headers,
+    )
+    assert bad_longitude.status_code == 422
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/", json=payload, headers=headers
+    )
+    assert create_res.status_code == 201
+
+    update_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{create_res.json()['id']}",
+        json={"latitude": -91},
+        headers=headers,
+    )
+    assert update_res.status_code == 422

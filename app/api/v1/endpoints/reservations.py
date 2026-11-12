@@ -488,6 +488,14 @@ async def cancel_reservation(
     reservation.refund_amount = refundable
     reservation.penalty_amount = penalty
 
+    # Lock order: Reservation -> HostPayout -> Payment -> Coupon.
+    await db.execute(
+        select(Payment)
+        .where(Payment.reservation_id == reservation.id)
+        .with_for_update(of=Payment)
+        .execution_options(populate_existing=True)
+    )
+
     for p in reservation.payments:
         if p.status == "pending":
             p.status = "failed"

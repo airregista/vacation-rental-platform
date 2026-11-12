@@ -7,7 +7,6 @@ import re
 import secrets
 import socket
 import urllib.parse
-from collections.abc import Sequence
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
@@ -15,10 +14,9 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import delete, distinct, exists, func, not_, or_, select, update
+from sqlalchemy import delete, distinct, exists, func, not_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import (
@@ -49,11 +47,20 @@ from app.schemas.accommodation import (
     PricingExceptionCreate,
     PricingExceptionResponse,
 )
-from app.schemas.category import CategoryResponse
-from app.schemas.geo import CityResponse, ProvinceResponse
 from app.schemas.reservation import CalendarDayInfo
+from app.services.accommodation_service import build_accommodation_list_items
 
 router = APIRouter(prefix="/accommodations", tags=["accommodations"])
+
+
+def _require_host_or_admin(
+    accommodation: Accommodation,
+    user: User,
+    detail: str = "You do not have permission to modify this accommodation",
+) -> None:
+    if user.role != "admin" and accommodation.host_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
 
 
 def generate_calendar_feed_token(
@@ -123,71 +130,6 @@ def validate_calendar_feed_token(
     return secrets.compare_digest(expected_signature, signature)
 
 
-async def _build_accommodation_list_items(
-    db: AsyncSession,
-    accommodations: Sequence[Accommodation],
-) -> list[AccommodationListItem]:
-    acc_ids = [a.id for a in accommodations]
-    ratings_map: dict[int, tuple[float, int]] = {}
-    if acc_ids:
-        agg_stmt = (
-            select(
-                Review.accommodation_id,
-                func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("count_rating"),
-            )
-            .where(Review.accommodation_id.in_(acc_ids))
-            .group_by(Review.accommodation_id)
-        )
-        agg_res = await db.execute(agg_stmt)
-        for row in agg_res.all():
-            ratings_map[row.accommodation_id] = (float(row.avg_rating), int(row.count_rating))
-
-    items: list[AccommodationListItem] = []
-    for acc in accommodations:
-        cover = next((img.image_url for img in acc.images if img.is_cover), None)
-        if not cover and acc.images:
-            cover = acc.images[0].image_url
-
-        avg_rat, count_rat = ratings_map.get(acc.id, (None, 0))
-        city_resp = None
-        if acc.city:
-            prov_resp = (
-                ProvinceResponse.model_validate(acc.city.province)
-                if acc.city.province
-                else None
-            )
-            city_resp = CityResponse(
-                id=acc.city.id,
-                province_id=acc.city.province_id,
-                name=acc.city.name,
-                province=prov_resp,
-            )
-
-        cat_resp = CategoryResponse.model_validate(acc.category) if acc.category else None
-
-        items.append(
-            AccommodationListItem(
-                id=acc.id,
-                title=acc.title,
-                city=city_resp,
-                category=cat_resp,
-                base_price=acc.base_price,
-                capacity=acc.capacity,
-                max_capacity=acc.max_capacity,
-                rooms_count=acc.rooms_count,
-                beds_count=acc.beds_count,
-                min_nights=acc.min_nights,
-                cover_image=cover,
-                cancellation_policy=acc.cancellation_policy,
-                average_rating=round(avg_rat, 1) if avg_rat is not None else None,
-                reviews_count=count_rat,
-                is_active=acc.is_active,
-            )
-        )
-    return items
-
-
 @router.get("/", response_model=list[AccommodationListItem])
 async def list_accommodations(
     db: SessionDep,
@@ -226,7 +168,6 @@ async def list_accommodations(
         .options(
             joinedload(Accommodation.city).joinedload(City.province),
             joinedload(Accommodation.category),
-            joinedload(Accommodation.host),
             selectinload(Accommodation.images),
         )
         .where(Accommodation.is_active.is_(True))
@@ -361,7 +302,7 @@ async def list_accommodations(
     result = await db.execute(stmt)
     accommodations = result.scalars().all()
 
-    return await _build_accommodation_list_items(db, accommodations)
+    return await build_accommodation_list_items(db, accommodations)
 
 
 @router.get("/my", response_model=list[AccommodationListItem])
@@ -376,7 +317,6 @@ async def list_my_accommodations(
         .options(
             joinedload(Accommodation.city).joinedload(City.province),
             joinedload(Accommodation.category),
-            joinedload(Accommodation.host),
             selectinload(Accommodation.images),
         )
         .where(Accommodation.host_id == current_user.id)
@@ -387,7 +327,7 @@ async def list_my_accommodations(
     result = await db.execute(stmt)
     accommodations = result.scalars().all()
 
-    return await _build_accommodation_list_items(db, accommodations)
+    return await build_accommodation_list_items(db, accommodations)
 
 
 @router.get("/{id}", response_model=AccommodationDetail)
@@ -641,11 +581,9 @@ async def rotate_calendar_feed_token(
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this accommodation calendar",
-        )
+    _require_host_or_admin(
+        acc, current_user, "You do not have permission to manage this accommodation calendar"
+    )
 
     acc.calendar_feed_token_version = (acc.calendar_feed_token_version or 0) + 1
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.CALENDAR_FEED_TTL_MINUTES)
@@ -816,8 +754,7 @@ async def sync_external_calendar(
     acc = (await db.execute(stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden")
+    _require_host_or_admin(acc, current_user, "Access forbidden")
     if not acc.external_calendar_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -886,7 +823,6 @@ async def sync_external_calendar(
             {
                 "accommodation_id": acc.id,
                 "date": d,
-                "is_blocked": True,
                 "manual_blocked": False,
                 "ical_blocked": True,
             }
@@ -897,7 +833,7 @@ async def sync_external_calendar(
             .values(values)
             .on_conflict_do_update(
                 constraint="uq_pricing_exception_accommodation_date",
-                set_={"is_blocked": True, "ical_blocked": True},
+                set_={"ical_blocked": True},
             )
         )
         await db.execute(insert_stmt)
@@ -914,7 +850,7 @@ async def sync_external_calendar(
             PricingException.date >= today,
             PricingException.date < max_future,
         )
-        .values(ical_blocked=False, is_blocked=PricingException.manual_blocked)
+        .values(ical_blocked=False)
     )
     if dates_to_block:
         stale_stmt = stale_stmt.where(
@@ -1077,11 +1013,7 @@ async def update_accommodation(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     if acc_in.city_id is not None:
         city_exists = (
@@ -1158,11 +1090,9 @@ async def delete_accommodation(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to delete this accommodation",
-        )
+    _require_host_or_admin(
+        acc, current_user, "You do not have permission to delete this accommodation"
+    )
 
     # Soft delete / deactivate
     acc.is_active = False
@@ -1182,11 +1112,7 @@ async def add_accommodation_image(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     if img_in.is_cover:
         # Reset other covers
@@ -1220,11 +1146,7 @@ async def remove_accommodation_image(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     stmt = select(AccommodationImage).where(
         AccommodationImage.id == image_id,
@@ -1252,11 +1174,7 @@ async def upsert_pricing_exception(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     # Check if exception exists for this date
     stmt = select(PricingException).where(
@@ -1267,7 +1185,6 @@ async def upsert_pricing_exception(
     if existing:
         existing.price = ex_in.price
         existing.manual_blocked = ex_in.is_blocked
-        existing.is_blocked = existing.manual_blocked or existing.ical_blocked
         existing.min_nights = ex_in.min_nights
         exception_obj = existing
     else:
@@ -1275,7 +1192,6 @@ async def upsert_pricing_exception(
             accommodation_id=id,
             date=ex_in.date,
             price=ex_in.price,
-            is_blocked=ex_in.is_blocked,
             manual_blocked=ex_in.is_blocked,
             ical_blocked=False,
             min_nights=ex_in.min_nights,
@@ -1305,25 +1221,15 @@ async def batch_pricing_exceptions(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     requested_count = (batch_in.end_date - batch_in.start_date).days + 1
-    if requested_count > settings.CALENDAR_MAX_BLOCKED_DATES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The requested calendar mutation exceeds the maximum allowed size",
-        )
 
     values = [
         {
             "accommodation_id": id,
             "date": batch_in.start_date + timedelta(days=i),
             "price": batch_in.price,
-            "is_blocked": batch_in.is_blocked,
             "manual_blocked": batch_in.is_blocked,
             "ical_blocked": False,
             "min_nights": batch_in.min_nights,
@@ -1339,9 +1245,6 @@ async def batch_pricing_exceptions(
             set_={
                 "price": batch_in.price,
                 "manual_blocked": batch_in.is_blocked,
-                # An iCal block is independent of the host's manual toggle: a
-                # manual unblock must not make an upstream-blocked date bookable.
-                "is_blocked": or_(batch_in.is_blocked, PricingException.ical_blocked),
                 "min_nights": batch_in.min_nights,
             },
         )
@@ -1374,11 +1277,7 @@ async def delete_pricing_exception(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    if current_user.role != "admin" and acc.host_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to modify this accommodation",
-        )
+    _require_host_or_admin(acc, current_user)
 
     stmt = select(PricingException).where(
         PricingException.accommodation_id == id,

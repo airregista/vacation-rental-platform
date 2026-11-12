@@ -76,8 +76,8 @@ class AccommodationCreate(BaseModel):
     title: str = Field(min_length=3, max_length=150)
     description: str | None = None
     address: str = Field(min_length=5, max_length=255)
-    latitude: Decimal | None = None
-    longitude: Decimal | None = None
+    latitude: Decimal | None = Field(default=None, ge=-90, le=90)
+    longitude: Decimal | None = Field(default=None, ge=-180, le=180)
     base_price: Decimal = Field(ge=0)
     cleaning_fee: Decimal = Field(default=Decimal(0), ge=0)
     capacity: int = Field(default=2, gt=0)
@@ -108,8 +108,8 @@ class AccommodationUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=3, max_length=150)
     description: str | None = None
     address: str | None = Field(default=None, min_length=5, max_length=255)
-    latitude: Decimal | None = None
-    longitude: Decimal | None = None
+    latitude: Decimal | None = Field(default=None, ge=-90, le=90)
+    longitude: Decimal | None = Field(default=None, ge=-180, le=180)
     base_price: Decimal | None = Field(default=None, ge=0)
     cleaning_fee: Decimal | None = Field(default=None, ge=0)
     capacity: int | None = Field(default=None, gt=0)

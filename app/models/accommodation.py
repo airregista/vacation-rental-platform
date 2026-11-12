@@ -6,6 +6,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -155,10 +156,6 @@ class PricingException(Base):
             "min_nights IS NULL OR min_nights >= 1",
             name="chk_pricing_exception_min_nights",
         ),
-        CheckConstraint(
-            "is_blocked = (manual_blocked OR ical_blocked)",
-            name="chk_pricing_exception_block_flags",
-        ),
         Index(
             "ix_pricing_exceptions_blocked",
             "accommodation_id",
@@ -173,7 +170,11 @@ class PricingException(Base):
     )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
-    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_blocked: Mapped[bool] = mapped_column(
+        Boolean,
+        Computed("manual_blocked OR ical_blocked", persisted=True),
+        nullable=False,
+    )
     manual_blocked: Mapped[bool] = mapped_column(
         Boolean, server_default="false", default=False, nullable=False
     )

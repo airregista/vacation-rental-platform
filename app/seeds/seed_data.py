@@ -262,7 +262,6 @@ async def seed():
                     accommodation_id=acc1.id,
                     date=weekend_date,
                     price=Decimal("3200000"),
-                    is_blocked=False,
                 )
                 db.add(ex1)
 

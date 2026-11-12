@@ -37,6 +37,7 @@ async def checkout_payment(
         select(Reservation)
         .options(selectinload(Reservation.accommodation), selectinload(Reservation.payments))
         .where(Reservation.id == req.reservation_id)
+        .with_for_update(of=Reservation)
     )
     res = await db.execute(stmt)
     reservation = res.scalars().first()
@@ -65,6 +66,23 @@ async def checkout_payment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reservation has expired due to payment timeout. Please create a new booking.",
+        )
+
+    existing = (
+        await db.execute(
+            select(Payment).where(
+                Payment.reservation_id == reservation.id,
+                Payment.status == "pending",
+            )
+        )
+    ).scalars().first()
+    if existing:
+        return PaymentInitiateResponse(
+            payment_id=existing.id,
+            reservation_id=reservation.id,
+            amount=existing.amount,
+            tracking_code=existing.tracking_code or "",
+            gateway_url=f"https://shaparak.mock/pay?token={existing.tracking_code or ''}",
         )
 
     tracking_code = f"SHP-{uuid.uuid4().hex[:12].upper()}"
@@ -99,7 +117,6 @@ async def verify_payment(
             selectinload(Payment.reservation).selectinload(Reservation.accommodation)
         )
         .where(Payment.id == req.payment_id)
-        .with_for_update(of=Payment)
     )
     res = await db.execute(stmt)
     payment = res.scalars().first()
@@ -127,10 +144,23 @@ async def verify_payment(
             detail=f"Payment is already in '{payment.status}' state",
         )
 
-    if reservation.status != "pending":
+    # Lock order everywhere: Reservation -> Accommodation/HostPayout -> Payment -> Coupon.
+    reservation = (
+        await db.execute(
+            select(Reservation)
+            .options(selectinload(Reservation.accommodation))
+            .where(Reservation.id == payment.reservation_id)
+            .with_for_update(of=Reservation)
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
+    if not reservation or reservation.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Reservation is no longer pending (current status: {reservation.status})",
+            detail=(
+                "Reservation is no longer pending "
+                f"(current status: {reservation.status if reservation else 'missing'})"
+            ),
         )
 
     if await check_and_expire_reservation(db, reservation, commit=True):
@@ -148,6 +178,27 @@ async def verify_payment(
         )
         await db.execute(acc_stmt)
 
+    payment = (
+        await db.execute(
+            select(Payment)
+            .where(Payment.id == req.payment_id)
+            .with_for_update(of=Payment)
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found"
+        )
+    if payment.status == "success":
+        return PaymentResponse.model_validate(payment)
+    if payment.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment is already in '{payment.status}' state",
+        )
+
+    if req.simulate_success:
         # Re-verify no conflicting confirmed reservation exists
         is_conflict = await check_booking_overlap(
             db=db,

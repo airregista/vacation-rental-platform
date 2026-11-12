@@ -8,9 +8,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Numeric,
     String,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +30,12 @@ class Payment(Base):
         CheckConstraint(
             "status IN ('pending', 'success', 'failed')",
             name="chk_payment_status",
+        ),
+        Index(
+            "uq_payments_pending_reservation",
+            "reservation_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
         ),
     )
 

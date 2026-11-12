@@ -124,32 +124,6 @@ async def test_batch_range_exactly_90_days_accepted(
 
 
 @pytest.mark.asyncio
-async def test_max_blocked_dates_defense_in_depth(
-    client: AsyncClient,
-    test_accommodation: Accommodation,
-    host_token_headers: dict[str, str],
-    monkeypatch,
-):
-    """If schema limit is temporarily bypassed or relaxed, handler aborts on max dates ceiling."""
-    monkeypatch.setattr(settings, "CALENDAR_MAX_BLOCK_DAYS", 2000)
-    monkeypatch.setattr(settings, "CALENDAR_MAX_BLOCKED_DATES", 100)
-
-    today = datetime.now(TEHRAN_TZ).date()
-    payload = {
-        "start_date": str(today + timedelta(days=1)),
-        "end_date": str(today + timedelta(days=150)),
-        "is_blocked": True,
-    }
-    resp = await client.post(
-        f"/api/v1/accommodations/{test_accommodation.id}/pricing-exceptions/batch",
-        json=payload,
-        headers=host_token_headers,
-    )
-    assert resp.status_code == 400
-    assert "exceeds the maximum allowed size" in resp.json()["detail"]
-
-
-@pytest.mark.asyncio
 async def test_check_in_beyond_horizon_rejected(
     client: AsyncClient,
     test_accommodation: Accommodation,

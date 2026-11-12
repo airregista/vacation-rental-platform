@@ -301,14 +301,12 @@ async def test_sync_reconciles_ical_owned_rows(
                 PricingException(
                     accommodation_id=external_calendar_accommodation.id,
                     date=stale_ical_date,
-                    is_blocked=True,
                     manual_blocked=False,
                     ical_blocked=True,
                 ),
                 PricingException(
                     accommodation_id=external_calendar_accommodation.id,
                     date=manual_date,
-                    is_blocked=True,
                     manual_blocked=True,
                     ical_blocked=False,
                 ),
@@ -403,7 +401,6 @@ async def test_empty_feed_clears_ical_block_on_priced_row(
                 accommodation_id=external_calendar_accommodation.id,
                 date=priced_date,
                 price=Decimal("123000"),
-                is_blocked=True,
                 manual_blocked=False,
                 ical_blocked=True,
             )
@@ -451,7 +448,6 @@ async def test_manual_unblock_does_not_override_active_ical_block(
             PricingException(
                 accommodation_id=external_calendar_accommodation.id,
                 date=blocked_date,
-                is_blocked=True,
                 manual_blocked=False,
                 ical_blocked=True,
             )
@@ -485,7 +481,6 @@ async def test_manual_block_survives_ical_removal(
             PricingException(
                 accommodation_id=external_calendar_accommodation.id,
                 date=blocked_date,
-                is_blocked=True,
                 manual_blocked=True,
                 ical_blocked=True,
             )

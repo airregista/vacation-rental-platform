@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=300, ge=1)
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
     CALENDAR_MAX_BLOCK_DAYS: int = 90  # Max days between start_date and end_date in batch blocking
-    CALENDAR_MAX_BLOCKED_DATES: int = 1000  # Hard ceiling on number of dates touched by one mutation
     RESERVATION_MAX_CHECKIN_MONTHS: int = 18  # Max forward booking horizon (18 * 30 = 540 days)
     PLATFORM_COMMISSION_RATE: Decimal = Decimal("0.10")
     ALLOWED_ORIGINS: list[str] = [

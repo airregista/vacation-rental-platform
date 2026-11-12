@@ -1,6 +1,3 @@
-from datetime import datetime, timezone
-from decimal import Decimal
-
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +10,7 @@ from app.schemas.coupon import (
     CouponValidateRequest,
     CouponValidateResponse,
 )
+from app.services.coupon_service import evaluate_coupon, get_coupon_by_code, normalize_code
 
 router = APIRouter(prefix="/coupons", tags=["coupons"])
 
@@ -21,7 +19,7 @@ router = APIRouter(prefix="/coupons", tags=["coupons"])
 async def create_coupon(
     coupon_in: CouponCreate, admin: CurrentAdminDep, db: SessionDep
 ) -> CouponResponse:
-    clean_code = coupon_in.code.strip().upper()
+    clean_code = normalize_code(coupon_in.code)
     coupon_data = coupon_in.model_dump()
     coupon_data["code"] = clean_code
     coupon = Coupon(**coupon_data)
@@ -54,32 +52,11 @@ async def list_coupons(
 
 @router.post("/validate", response_model=CouponValidateResponse)
 async def validate_coupon(req: CouponValidateRequest, db: SessionDep) -> CouponValidateResponse:
-    clean_code = req.code.strip().upper()
-    coupon = (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
-    now_utc = datetime.now(timezone.utc)
-    if not coupon or not coupon.is_active:
-        return CouponValidateResponse(is_valid=False, message="Invalid or inactive coupon code")
-    if now_utc < coupon.valid_from:
-        return CouponValidateResponse(is_valid=False, message="Coupon is not yet active")
-    if now_utc > coupon.valid_until:
-        return CouponValidateResponse(is_valid=False, message="Coupon has expired")
-    if req.booking_amount < coupon.min_booking_amount:
-        return CouponValidateResponse(
-            is_valid=False, message=f"Minimum booking amount is {coupon.min_booking_amount}"
-        )
-    if coupon.usage_limit is not None and coupon.used_count >= coupon.usage_limit:
-        return CouponValidateResponse(is_valid=False, message="Coupon usage limit reached")
-
-    if coupon.discount_type == "percentage":
-        raw = (req.booking_amount * Decimal(coupon.discount_value)) / Decimal(100)
-        if coupon.max_discount_amount:
-            raw = min(raw, Decimal(coupon.max_discount_amount))
-    else:
-        raw = min(req.booking_amount, Decimal(coupon.discount_value))
-
+    coupon = await get_coupon_by_code(db, req.code)
+    evaluation = evaluate_coupon(coupon, req.booking_amount)
     return CouponValidateResponse(
-        is_valid=True,
-        discount_amount=Decimal(round(raw)),
-        discount_type=coupon.discount_type,
-        message="Coupon applied successfully",
+        is_valid=evaluation.is_valid,
+        discount_amount=evaluation.discount_amount,
+        discount_type=evaluation.discount_type,
+        message=evaluation.message,
     )

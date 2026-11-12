@@ -5,9 +5,12 @@ from decimal import Decimal
 
 import pytest
 from httpx import ASGITransport, AsyncClient, Response
+from sqlalchemy import func, select
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
 from app.main import app
+from app.models.payment import Payment
 
 
 @pytest.mark.asyncio
@@ -451,3 +454,69 @@ async def test_payment_conflict_cancels_reservation_and_releases_coupon(
     matched_after = next(c for c in coupons_list_after.json() if c["code"] == coupon_code)
     assert matched_after["used_count"] == 0
 
+
+
+@pytest.mark.asyncio
+async def test_checkout_reuses_existing_pending_payment(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": "Idempotent checkout listing",
+            "address": "Idempotent checkout address",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 500000,
+            "cleaning_fee": 0,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+
+    reservation_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=150)).isoformat(),
+            "check_out": (date.today() + timedelta(days=152)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert reservation_res.status_code == 201
+    reservation_id = reservation_res.json()["id"]
+
+    headers = {"Authorization": f"Bearer {guest_token}"}
+    first = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": reservation_id},
+        headers=headers,
+    )
+    second = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": reservation_id},
+        headers=headers,
+    )
+    assert first.status_code in (200, 201)
+    assert second.status_code in (200, 201)
+    assert first.json()["payment_id"] == second.json()["payment_id"]
+    assert first.json()["tracking_code"] == second.json()["tracking_code"]
+
+    async with AsyncSessionLocal() as session:
+        pending_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(Payment)
+                .where(
+                    Payment.reservation_id == reservation_id,
+                    Payment.status == "pending",
+                )
+            )
+        ).scalar_one()
+    assert pending_count == 1

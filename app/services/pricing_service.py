@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accommodation import Accommodation, PricingException
-from app.models.coupon import Coupon
 from app.schemas.reservation import PriceBreakdownItem, PriceCalculationResponse
+from app.services.coupon_service import evaluate_coupon, get_coupon_by_code, normalize_code
 
 
 async def calculate_reservation_price(
@@ -100,40 +100,14 @@ async def calculate_reservation_price(
     applied_coupon_code: str | None = None
 
     if coupon_code and coupon_code.strip():
-        clean_code = coupon_code.strip().upper()
-        coupon = (
-            (await db.execute(select(Coupon).where(Coupon.code == clean_code))).scalars().first()
-        )
-        now_utc = datetime.now(timezone.utc)
-        if not coupon or not coupon.is_active:
+        coupon = await get_coupon_by_code(db, coupon_code)
+        evaluation = evaluate_coupon(coupon, subtotal)
+        if not evaluation.is_valid:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive coupon code"
+                status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message
             )
-        if not (coupon.valid_from <= now_utc <= coupon.valid_until):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Coupon code has expired or is not yet valid",
-            )
-        if subtotal < coupon.min_booking_amount:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Booking subtotal must be at least {coupon.min_booking_amount} to use this coupon",
-            )
-        if coupon.usage_limit is not None and coupon.used_count >= coupon.usage_limit:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Coupon code usage limit has been reached",
-            )
-
-        if coupon.discount_type == "percentage":
-            raw_discount = (subtotal * Decimal(coupon.discount_value)) / Decimal(100)
-            if coupon.max_discount_amount is not None:
-                raw_discount = min(raw_discount, Decimal(coupon.max_discount_amount))
-        else:
-            raw_discount = min(subtotal, Decimal(coupon.discount_value))
-
-        discount_amount = Decimal(round(raw_discount))
-        applied_coupon_code = clean_code
+        discount_amount = evaluation.discount_amount
+        applied_coupon_code = normalize_code(coupon_code)
 
     cleaning_fee = Decimal(accommodation.cleaning_fee)
     total_price = max(Decimal(0), subtotal + cleaning_fee - discount_amount)

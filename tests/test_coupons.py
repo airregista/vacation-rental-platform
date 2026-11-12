@@ -393,3 +393,31 @@ async def test_coupon_validation_and_timezone_normalization(client: AsyncClient,
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert mixed_res.status_code == 201
+
+
+def test_coupon_evaluation_applies_percentage_cap_and_expiry():
+    from types import SimpleNamespace
+
+    from app.services.coupon_service import evaluate_coupon
+
+    now = datetime.now(timezone.utc)
+    coupon = SimpleNamespace(
+        is_active=True,
+        valid_from=now - timedelta(days=1),
+        valid_until=now + timedelta(days=1),
+        min_booking_amount=Decimal(100000),
+        usage_limit=None,
+        used_count=0,
+        discount_type="percentage",
+        discount_value=Decimal(20),
+        max_discount_amount=Decimal(300000),
+    )
+
+    evaluation = evaluate_coupon(coupon, Decimal(2000000), now)
+    assert evaluation.is_valid is True
+    assert evaluation.discount_amount == Decimal(300000)
+
+    coupon.valid_until = now - timedelta(days=1)
+    expired = evaluate_coupon(coupon, Decimal(2000000), now)
+    assert expired.is_valid is False
+    assert expired.message == "Coupon has expired"
