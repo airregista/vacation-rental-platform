@@ -61,7 +61,7 @@ export const SCENES: HeroSceneDefinition[] = [
   {
     id: "coast",
     label: "ساحلی",
-    badge: "ساحل خلیج فارس · کنگ",
+    badge: "ساحل بندر لنگه",
     climate: "گرم و مرطوب",
     Icon: Waves,
     Scene: CoastScene,

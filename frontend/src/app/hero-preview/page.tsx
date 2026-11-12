@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
+import { Settings2 } from "lucide-react"
 import { HeroSection, type QualityPreference } from "@/components/hero/hero-section"
-import { HeroSearchDock } from "@/components/hero/hero-search-dock"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSceneQuality, type SceneQuality } from "@/components/hero/use-scene-quality"
-import { StaySlider } from "./stay-slider"
 
 const QUALITY_LABEL: Record<SceneQuality, string> = {
   full: "کامل",
@@ -23,7 +23,7 @@ function subscribeToUrl(onChange: () => void) {
   return () => window.removeEventListener("popstate", onChange)
 }
 
-/** Preview-only page frame rate, to judge the scene on real devices. */
+/** Preview-only frame rate, to judge the scene on real devices. */
 function useFps() {
   const [fps, setFps] = React.useState(0)
 
@@ -52,61 +52,65 @@ function useFps() {
 export default function HeroPreviewPage() {
   const detected = useSceneQuality()
   const [manual, setManual] = React.useState<QualityPreference | null>(null)
+  const [controlsOpen, setControlsOpen] = React.useState(false)
   const forced = React.useSyncExternalStore(subscribeToUrl, readForcedQuality, () => null)
   const preference: QualityPreference = manual ?? forced ?? "auto"
   const effective: SceneQuality = preference === "auto" ? detected : preference
   const fps = useFps()
 
   return (
-    <div className="relative flex flex-col">
+    <div className="hero-tokens bg-paper text-ink">
       <HeroSection qualityPreference={preference} />
 
-      {/* Search dock — sticky over the results while browsing */}
-      <div className="sticky top-[65px] z-30 mt-2 px-4 sm:px-6 md:-mt-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <HeroSearchDock />
-        </div>
-      </div>
-
-      <section
-        id="results"
-        aria-label="نمونهٔ اقامتگاه‌ها"
-        className="mx-auto w-full max-w-[1360px] scroll-mt-36 px-4 py-10 sm:px-6 lg:px-8 lg:py-14"
-      >
-        <StaySlider />
-      </section>
-
-      {/* Prototype-only quality switch (desktop; phones use ?quality=lite) */}
-      <div className="absolute left-4 top-20 z-50 hidden md:block">
-        <div className="rounded-2xl border border-border bg-background/95 p-1.5 shadow-xl backdrop-blur md:p-2">
-          <div className="flex items-center justify-between gap-3 px-1.5 pb-1.5">
-            <p className="text-[10px] font-semibold text-muted-foreground">
-              پیش‌نمایش صحنه
-            </p>
-            <span className="text-[10px] tabular-nums text-muted-foreground">
-              {QUALITY_LABEL[effective]} · {fps > 0 ? `${fps.toLocaleString("fa-IR")} فریم/ث` : "—"}
-            </span>
-          </div>
-          <Tabs
-            value={preference}
-            onValueChange={(value) => setManual(value as QualityPreference)}
+      <div className="fixed bottom-5 right-5 z-50 hidden flex-col items-end xl:flex">
+        {controlsOpen ? (
+          <div
+            id="quality-controls"
+            className="mb-2 rounded-2xl border border-line bg-paper/95 p-2 shadow-lift backdrop-blur"
           >
-            <TabsList className="h-8 md:h-9">
-              <TabsTrigger value="auto" className="px-2 text-[11px] md:px-2.5 md:text-xs">
-                خودکار
-              </TabsTrigger>
-              <TabsTrigger value="full" className="px-2 text-[11px] md:px-2.5 md:text-xs">
-                کامل
-              </TabsTrigger>
-              <TabsTrigger value="lite" className="px-2 text-[11px] md:px-2.5 md:text-xs">
-                سبک
-              </TabsTrigger>
-              <TabsTrigger value="poster" className="px-2 text-[11px] md:px-2.5 md:text-xs">
-                تصویر
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+            <div className="flex items-center justify-between gap-3 px-1.5 pb-1.5">
+              <p className="text-[11px] font-semibold text-ink-soft">پیش‌نمایش صحنه</p>
+              <span className="text-[11px] tabular-nums text-ink-soft">
+                {QUALITY_LABEL[effective]} ·{" "}
+                {fps > 0 ? `${fps.toLocaleString("fa-IR")} فریم/ث` : "—"}
+              </span>
+            </div>
+            <Tabs
+              value={preference}
+              onValueChange={(value) => setManual(value as QualityPreference)}
+            >
+              <TabsList className="h-8 md:h-9">
+                <TabsTrigger value="auto" className="px-2 text-[11px] md:px-2.5 md:text-xs">
+                  خودکار
+                </TabsTrigger>
+                <TabsTrigger value="full" className="px-2 text-[11px] md:px-2.5 md:text-xs">
+                  کامل
+                </TabsTrigger>
+                <TabsTrigger value="lite" className="px-2 text-[11px] md:px-2.5 md:text-xs">
+                  سبک
+                </TabsTrigger>
+                <TabsTrigger value="poster" className="px-2 text-[11px] md:px-2.5 md:text-xs">
+                  تصویر
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        ) : null}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          shape="pill"
+          onClick={() => setControlsOpen((open) => !open)}
+          aria-expanded={controlsOpen}
+          aria-controls="quality-controls"
+          aria-label={`کیفیت صحنه · ${QUALITY_LABEL[effective]}`}
+          title={`کیفیت صحنه · ${QUALITY_LABEL[effective]}`}
+          className="border-line bg-paper/95 text-ink shadow-lift backdrop-blur hover:bg-paper"
+        >
+          <Settings2 className="size-4 text-brick" />
+        </Button>
       </div>
     </div>
   )

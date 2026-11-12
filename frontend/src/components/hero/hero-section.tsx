@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { ArrowLeft, MapPin, PlayCircle, Sparkles, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -23,8 +24,11 @@ const STATS = [
 
 export function HeroSection({
   qualityPreference = "auto",
+  headerOffset = false,
 }: {
   qualityPreference?: QualityPreference
+  /** Clear a fixed site header that overlays the top of the hero. */
+  headerOffset?: boolean
 }) {
   const detected = useSceneQuality()
   const quality = qualityPreference === "auto" ? detected : qualityPreference
@@ -85,7 +89,7 @@ export function HeroSection({
   }
 
   return (
-    <section className="relative isolate overflow-x-clip">
+    <section className="hero-tokens relative isolate overflow-x-clip text-foreground">
       {/* Golden-hour backdrop */}
       <div
         aria-hidden="true"
@@ -100,7 +104,14 @@ export function HeroSection({
         className="hero-bloom-teal absolute -left-32 top-1/3 -z-10 size-[26rem] rounded-full blur-2xl"
       />
 
-      <div className="mx-auto grid w-full max-w-[1360px] items-center gap-4 px-4 pb-4 pt-6 sm:gap-6 sm:px-6 sm:pt-10 lg:grid-cols-12 lg:gap-8 lg:px-8 lg:pb-8 lg:pt-12">
+      <div
+        className={cn(
+          "mx-auto grid w-full max-w-[1360px] items-center gap-4 px-4 pb-4 sm:gap-6 sm:px-6 lg:grid-cols-12 lg:gap-8 lg:px-8 lg:pb-8",
+          headerOffset
+            ? "pt-24 sm:pt-28 lg:pt-32"
+            : "pt-6 sm:pt-10 lg:pt-12"
+        )}
+      >
         {/* Copy */}
         <div className="flex min-w-0 flex-col items-start gap-4 lg:col-span-5 lg:gap-6">
           <div className="hero-rise inline-flex items-center gap-2 rounded-full border border-primary/20 bg-card/70 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-sm backdrop-blur">
@@ -136,19 +147,22 @@ export function HeroSection({
           </p>
 
           <div className="hero-rise flex w-full flex-col gap-3 sm:flex-row [animation-delay:240ms]">
-            <Button asChild size="lg" className="gap-2 rounded-2xl shadow-lg shadow-primary/20">
+            <Button asChild size="lg" className="gap-2 shadow-lg shadow-primary/20">
               <a href="#results">
                 <span>کاوش اقامتگاه‌ها</span>
                 <ArrowLeft className="size-4" />
               </a>
             </Button>
             <Button
+              asChild
               size="lg"
               variant="outline"
-              className="hidden gap-2 rounded-2xl border-card/80 bg-card/55 backdrop-blur hover:bg-card/80 sm:inline-flex"
+              className="gap-2 border-card/80 bg-card/55 backdrop-blur hover:bg-card/80"
             >
-              <PlayCircle className="size-4" />
-              <span>چطور رزرو کنیم؟</span>
+              <Link href="/help#faq-booking">
+                <PlayCircle className="size-4" />
+                <span>چطور رزرو کنیم؟</span>
+              </Link>
             </Button>
           </div>
 
@@ -160,13 +174,13 @@ export function HeroSection({
                   <span className="text-base font-extrabold text-hero-ink sm:text-lg">
                     {stat.value}
                   </span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {stat.label}
                   </span>
                 </dd>
               </div>
             ))}
-            <div className="hidden items-center gap-1 text-[11px] font-medium text-muted-foreground sm:flex">
+            <div className="hidden items-center gap-1 text-xs font-medium text-muted-foreground sm:flex">
               <Star className="size-3.5 fill-secondary text-secondary" />
               <span>میزبانان تأییدشده</span>
             </div>

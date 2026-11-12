@@ -53,7 +53,7 @@ export function HeroSceneSwitcher({
       role="group"
       aria-label="انتخاب اقلیم صحنه"
     >
-      <span className="hidden shrink-0 text-[10px] font-semibold text-muted-foreground sm:inline">
+      <span className="hidden shrink-0 text-[11px] font-semibold text-muted-foreground sm:inline">
         اقلیم
       </span>
       <div
@@ -67,12 +67,13 @@ export function HeroSceneSwitcher({
             type="button"
             variant="ghost"
             size="sm"
+            shape="pill"
             aria-pressed={active === scene.id}
             aria-label={`${scene.label} — ${scene.climate}`}
             title={scene.climate}
             onClick={() => onSelect(scene.id)}
             className={cn(
-              "h-9 shrink-0 gap-1.5 rounded-full px-3 text-[11px] font-semibold",
+              "h-9 shrink-0 gap-1.5 px-3 text-xs font-semibold",
               active === scene.id
                 ? "border border-border bg-card text-foreground shadow-sm hover:bg-card"
                 : "text-muted-foreground"
@@ -87,12 +88,13 @@ export function HeroSceneSwitcher({
         type="button"
         variant="ghost"
         size="icon"
+        shape="pill"
         aria-label={
           autoPlay ? "توقف چرخش خودکار اقلیم‌ها" : "شروع چرخش خودکار اقلیم‌ها"
         }
         title={autoPlay ? "توقف چرخش خودکار" : "شروع چرخش خودکار"}
         onClick={onToggleAutoPlay}
-        className="size-9 min-h-9 min-w-9 shrink-0 rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted"
+        className="size-9 min-h-9 min-w-9 shrink-0 border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted"
       >
         {autoPlay ? (
           <Pause className="size-3.5" aria-hidden="true" />
