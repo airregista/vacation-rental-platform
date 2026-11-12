@@ -12,7 +12,12 @@ from app.core.rate_limit import (
     check_login_rate_limit,
     clear_login_attempts,
 )
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import (
+    DUMMY_PASSWORD_HASH,
+    create_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.models.otp_code import OTPCode
 from app.models.user import User
 from app.schemas.user import (
@@ -87,7 +92,10 @@ async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Toke
     result = await db.execute(stmt)
     user = result.scalars().first()
 
-    if not user or not verify_password(login_data.password, user.password_hash):
+    password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
+    password_ok = verify_password(login_data.password, password_hash)
+
+    if user is None or not password_ok:
         check_and_record_failed_login(rate_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -103,6 +103,28 @@ async def test_successful_login_resets_failed_attempts(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_unknown_login_still_runs_bcrypt(client: AsyncClient, monkeypatch):
+    from app.api.v1.endpoints import auth as auth_module
+    from app.core.security import DUMMY_PASSWORD_HASH
+
+    calls: list[str] = []
+    real_verify = auth_module.verify_password
+
+    def spy(password: str, hashed: str) -> bool:
+        calls.append(hashed)
+        return real_verify(password, hashed)
+
+    monkeypatch.setattr(auth_module, "verify_password", spy)
+    phone = "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"
+    response = await client.post(
+        f"{settings.API_V1_STR}/auth/login",
+        json={"login": phone, "password": "definitely-wrong"},
+    )
+    assert response.status_code == 401
+    assert calls == [DUMMY_PASSWORD_HASH]
+
+
+@pytest.mark.asyncio
 async def test_login_identifier_length_is_bounded(client: AsyncClient) -> None:
     url = f"{settings.API_V1_STR}/auth/login"
 
