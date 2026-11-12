@@ -1,9 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 import app.models as _models  # noqa: F401 - ensure models are registered
@@ -58,6 +60,12 @@ app.add_middleware(
 
 # Include API v1 routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Locally uploaded accommodation images. The directory is created eagerly so
+# the app can boot on a clean checkout.
+_upload_dir = Path(settings.UPLOAD_DIR)
+_upload_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_upload_dir), name="uploads")
 
 
 @app.get("/", tags=["health"])

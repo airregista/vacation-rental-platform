@@ -38,6 +38,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:8000",
     ]
+    UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_SIZE_MB: int = Field(default=5, ge=1, le=20)
 
     ENVIRONMENT: str
 

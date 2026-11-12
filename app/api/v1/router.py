@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     payments,
     reservations,
     reviews,
+    uploads,
     users,
     wishlists,
 )
@@ -26,4 +27,5 @@ api_router.include_router(coupons.router)
 api_router.include_router(reservations.router)
 api_router.include_router(payments.router)
 api_router.include_router(reviews.router)
+api_router.include_router(uploads.router)
 api_router.include_router(wishlists.router)

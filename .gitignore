@@ -48,6 +48,7 @@ node_modules/
 .remotion/
 video/
 .playwright-cli/
+uploads/
 
 # Templates
 template/
