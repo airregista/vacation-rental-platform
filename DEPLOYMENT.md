@@ -48,16 +48,29 @@ suite expects the documented development passwords.
 
 1. Create a dedicated database and user with a strong password.
 2. Grant only the permissions the app needs on that database.
-3. Run the migrations from the release checkout:
+3. Take a backup and verify restore procedures before every migration.
+4. Run the integrity preflight from the release checkout. It is read-only and
+   exits non-zero when existing rows would violate the constraints added by
+   revision `94d16e6e59ff`:
+
+   ```bash
+   psql -d "$PGDATABASE" -v ON_ERROR_STOP=1 \
+     -f scripts/preflight_integrity_constraints.sql
+   ```
+
+   If it reports violations, repair the data with the data owner and re-run.
+   Do not weaken or skip a constraint to make the migration pass. The dev-only
+   cleanup in plan 053, Step 1 (hardcoded reservation IDs) must not be applied
+   to production.
+5. Run the migrations:
 
    ```bash
    alembic upgrade head
    ```
 
-4. Do **not** run `python -m app.seeds.seed_data` in production. It intentionally
+6. Do **not** run `python -m app.seeds.seed_data` in production. It intentionally
    refuses to create the public demo accounts there, and production data should
    be created through migrations and real admin/user flows.
-5. Take a backup before every migration and verify restore procedures.
 
 ## 4. Install and start
 
