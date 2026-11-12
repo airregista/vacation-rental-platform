@@ -63,6 +63,47 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **054** | `054-external-calendar-and-ssrf-hardening.md` | P1 | L | 052, 053 | **DONE** | `advisor/054-external-calendar-and-ssrf-hardening` | `6eee192` (merged into 056) |
 | **055** | `055-production-database-hardening.md` | P1 | M | - | **DONE** | `advisor/055-production-database-hardening` | `f2f3c92` |
 | **056** | `056-runtime-and-edge-hardening.md` | P1 | M | 053, 055 | **DONE** | `advisor/056-runtime-and-edge-hardening` | `71edd11` (integrated 051-055) |
+| **057** | `057-calendar-sync-transaction-and-io.md` | P1 | M | — | **TODO** | `advisor/057-calendar-sync-transaction-and-io` | — |
+| **058** | `058-payment-confirmation-revalidation.md` | P1 | S | — | **TODO** | `advisor/058-payment-confirmation-revalidation` | — |
+| **059** | `059-automatic-pending-reservation-expiry.md` | P1 | M | — | **TODO** | `advisor/059-automatic-pending-reservation-expiry` | — |
+| **060** | `060-refresh-coupon-rows-under-lock.md` | P1 | S | — | **TODO** | `advisor/060-refresh-coupon-rows-under-lock` | — |
+| **061** | `061-reject-host-self-booking-and-review.md` | P1 | S | — | **TODO** | `advisor/061-reject-host-self-booking-and-review` | — |
+| **062** | `062-preserve-admin-deactivation.md` | P1 | S | — | **TODO** | `advisor/062-preserve-admin-deactivation` | — |
+| **063** | `063-schema-database-bound-parity.md` | P1 | M | — | **TODO** | `advisor/063-schema-database-bound-parity` | — |
+| **064** | `064-tehran-today-consistency.md` | P2 | S | — | **TODO** | `advisor/064-tehran-today-consistency` | — |
+| **065** | `065-calendar-horizon-and-export-bounds.md` | P1 | M | 064 | **TODO** | `advisor/065-calendar-horizon-and-export-bounds` | — |
+| **066** | `066-registration-throttle.md` | P2 | S | — | **TODO** | `advisor/066-registration-throttle` | — |
+| **067** | `067-real-concurrency-test-harness.md` | P2 | M | — | **TODO** | `advisor/067-real-concurrency-test-harness` | — |
+| **068** | `068-payment-type-refund.md` | P2 | S | 062 | **TODO** | `advisor/068-payment-type-refund` | — |
+| **069** | `069-exclusion-constraint-in-orm.md` | P2 | S | — | **TODO** | `advisor/069-exclusion-constraint-in-orm` | — |
+| **070** | `070-coupon-lifecycle.md` | P2 | S | 060, 063 | **TODO** | `advisor/070-coupon-lifecycle` | — |
+| **071** | `071-gallery-reorder-and-cover.md` | P2 | M | 063, 068 | **TODO** | `advisor/071-gallery-reorder-and-cover` | — |
+| **072** | `072-messaging-unread-state.md` | P2 | S | — | **TODO** | `advisor/072-messaging-unread-state` | — |
+| **073** | `073-docs-and-env-truth.md` | P3 | S | 059, 066, 070, 071, 072 | **TODO** | `advisor/073-docs-and-env-truth` | — |
+| **074** | `074-ci-type-and-format-gates.md` | P1 | M | 057, 058, 068; runs last | **TODO** | `advisor/074-ci-type-and-format-gates` | — |
+
+> **2026-11-12 backend/PostgreSQL audit (planned at `8426aa0`)**: a read-only
+> audit of `app/`, `tests/`, `migrations/`, `scripts/`, CI, and docs/config
+> (frontend excluded) produced plans **057–074**. Sixteen findings were
+> confirmed against the live code plus three product/direction options: calendar
+> I/O inside the booking transaction; payment confirmation not revalidating
+> blocked dates or listing activity; no automatic expiry for abandoned pending
+> reservations; stale coupon identity-map rows under lock; hosts able to book
+> and review their own listing; a host reactivating a listing an admin
+> deactivated; request schemas wider than the database; an iCal sync window
+> shorter than the booking horizon and an unbounded export; unthrottled
+> registration with field-specific duplicate errors; mixed `date.today()` /
+> Tehran date logic; concurrency tests that share one connection; missing
+> mypy/format CI gates; refunds indistinguishable from charges; the exclusion
+> constraint missing from ORM metadata; and README/`.env.example` drift. Three
+> product/direction options are also planned: an admin coupon lifecycle
+> (`070`), gallery reorder/cover endpoints (`071`), and explicit messaging
+> unread state (`072`). The static OTP `1234`/`dev_code`, `simulate_success`,
+> and the demo seed passwords remain accepted demo behavior and are **explicitly excluded**; the
+> DNS-rebinding TOCTOU in the iCal fetch guard remains deferred. Migration
+> order is **062 → 068 → 071** (each created against the live head), and **074
+> must execute last** because it applies a global `ruff format` and fixes the
+> remaining mypy errors.
 
 > **2026-11-12 database/security audit (planned at `c43af4c`)**: a read-only audit of the public schema, data invariants, Alembic chain, test isolation, and runtime/auth surface produced plans **051–056**. The test suite was still running `create_all` + `seed()` against the development database `jabama_db` (now `ashianak_db`); a migration-built database did not match the ORM models; the development data contained two overlapping confirmed bookings and 37 pending rows whose `total_nights` disagreed with their date range; the public accommodation detail exposed full host PII; the outbound iCal guard was IPv4-only and leaked exception text; production accepted the `postgres` superuser with an empty password; and `/health` never touched the database. Plan **052** must land before **053** and **054** because it establishes migration truth and the disposable `jabama_test` database (now `ashianak_test`); **056** follows **053** and **055** because 053 rewrites the login query and 055 edits the same config/test files. The static OTP `1234` / `dev_code` and the `simulate_success` payment shortcut are accepted demo behavior and were **explicitly excluded** by the maintainer — see “Findings Considered and Rejected”.
 
@@ -115,6 +156,25 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **054** depends on **052** and **053** (migration order and the disposable test DB).
 - **055** is independent of 051–054 (it edits `app/core/config.py`, `app/core/database.py`, `tests/test_config.py`, `.env.example`, and `DEPLOYMENT.md`) but is listed after **054** in the recommended order.
 - **056** depends on **053** and **055**: 053 removes the `func.lower(User.email)` wrappers that 056's login excerpt touches, and 055 edits the same `app/core/config.py` / `tests/test_config.py` files. It also edits `README.md`, which **052** touches in a different section, so run it after **052** as ordered.
+- **057** is self-contained: it moves the iCal fetch outside the transaction and bounds the total timeout. It also fixes the `accommodations.py:709` mypy error, so **074** has one less file to touch.
+- **058** is self-contained but edits the payment confirmation path; land it before **059** if both are in flight, because 059's expiry sweep and 058's revalidation both inspect blocked dates.
+- **059** is self-contained (config, startup sweep, tests) and adds `RESERVATION_TTL_MINUTES`, `RESERVATION_SWEEP_INTERVAL_SECONDS`, and `ENABLE_RESERVATION_SWEEP`.
+- **060** is self-contained but edits `coupon_service.py`; **070** depends on it to avoid a lock-helper conflict.
+- **061** is self-contained (authorization guards in reservations/reviews).
+- **062** is the first migration in this set. **068** must follow it, and **071** must follow 068, so the chain stays linear.
+- **063** is self-contained (schemas + new `tests/test_input_bounds.py`); **071** reuses the bounded `AccommodationImageCreate`.
+- **064** is self-contained and introduces `app/core/time.py`; **065** depends on it for `today_tehran()`.
+- **065** depends on **064** and edits the same calendar endpoint as **057**. Land 057 first so the merge is clean.
+- **066** is self-contained and adds `REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP`; **073** documents it.
+- **067** is self-contained (test harness + marker); it should land before **074** because 074 reformats the rewritten tests.
+- **068** depends on **062** (migration order) and adds `payments.payment_type`.
+- **069** is metadata-only and self-contained; it does not add a migration.
+- **070** depends on **060** and **063** (it reuses `INTEGER_MAX` from the new `app/schemas/constraints.py`) and adds `PUT /coupons/{id}`.
+- **071** depends on **063** (image schema bounds) and **068** (migration order); it is the third and last migration in this set.
+- **072** is self-contained (message read state; no migration).
+- **073** depends on **059**, **066**, **070**, **071**, and **072**: it documents their settings and endpoints, so run it after they land.
+- **074** depends on **057**, **058**, and **068** for the remaining mypy fixes, and on the rest of the set because it applies a repository-wide `ruff format`. Run it last.
+- **058**, **059**, **061**, and **072** all edit `tests/test_reservations.py`; land them sequentially rather than in parallel. **057**, **062**, **064**, **065**, **071**, and **074** all edit `app/api/v1/endpoints/accommodations.py`; the numbered order keeps the merges simple.
 
 ---
 
