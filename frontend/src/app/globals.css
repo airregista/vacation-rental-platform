@@ -35,6 +35,40 @@
     --ring: #F05A28;
     --radius: 1rem;
     --font-vazirmatn: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    /* Hero diorama palette — golden-hour Persian courtyard */
+    --hero-sky: #fbf1e1;
+    --hero-sky-mid: #f9ebd8;
+    --hero-sky-deep: #f1dcc0;
+    --hero-sand: #e9dcc6;
+    --hero-sand-deep: #dcc9a8;
+    --hero-plaster: #f2e7d3;
+    --hero-plaster-shade: #d8c4a6;
+    --hero-ink: #1b2436;
+    --hero-clay: #c4633f;
+    --hero-clay-deep: #9e4a2e;
+    --hero-teal: #2a9d8f;
+    --hero-teal-deep: #1f7a70;
+    --hero-green: #4c6b4f;
+    --hero-green-deep: #3a5440;
+    --hero-wood: #8a5a3b;
+    --hero-gold: #dfa45c;
+    --hero-cream: #f8efdf;
+    --hero-red: #b33a2b;
+    --hero-glow: #ffd9a0;
+    --hero-ember: #ffb067;
+    --hero-stone: #8c8377;
+    --hero-snow: #f8f3e9;
+    --hero-mist: #dfe8e3;
+    --hero-tent: #3d3830;
+    --hero-coral: #d9a58b;
+
+    /* Scene lighting */
+    --hero-light-warm: #fff3e0;
+    --hero-light-sky: #ffe7c6;
+    --hero-light-ground: #7a5c46;
+    --hero-light-key: #ffd6a5;
+    --hero-light-rim: #9fc0d8;
   }
 }
 
@@ -60,6 +94,36 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-hero-sky: var(--hero-sky);
+  --color-hero-sky-mid: var(--hero-sky-mid);
+  --color-hero-sky-deep: var(--hero-sky-deep);
+  --color-hero-sand: var(--hero-sand);
+  --color-hero-sand-deep: var(--hero-sand-deep);
+  --color-hero-plaster: var(--hero-plaster);
+  --color-hero-plaster-shade: var(--hero-plaster-shade);
+  --color-hero-ink: var(--hero-ink);
+  --color-hero-clay: var(--hero-clay);
+  --color-hero-clay-deep: var(--hero-clay-deep);
+  --color-hero-teal: var(--hero-teal);
+  --color-hero-teal-deep: var(--hero-teal-deep);
+  --color-hero-green: var(--hero-green);
+  --color-hero-green-deep: var(--hero-green-deep);
+  --color-hero-wood: var(--hero-wood);
+  --color-hero-gold: var(--hero-gold);
+  --color-hero-cream: var(--hero-cream);
+  --color-hero-red: var(--hero-red);
+  --color-hero-glow: var(--hero-glow);
+  --color-hero-ember: var(--hero-ember);
+  --color-hero-stone: var(--hero-stone);
+  --color-hero-snow: var(--hero-snow);
+  --color-hero-mist: var(--hero-mist);
+  --color-hero-tent: var(--hero-tent);
+  --color-hero-coral: var(--hero-coral);
+  --color-hero-light-warm: var(--hero-light-warm);
+  --color-hero-light-sky: var(--hero-light-sky);
+  --color-hero-light-ground: var(--hero-light-ground);
+  --color-hero-light-key: var(--hero-light-key);
+  --color-hero-light-rim: var(--hero-light-rim);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -73,4 +137,141 @@ body {
 /* Mobile Safe Area utilities */
 .safe-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Hero entrance — staggered, transform-only so it never affects layout. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-fade {
+  animation: hero-fade 0.6s ease-out both;
+}
+
+/* Soft grounding shadow + warm bounce under the floating diorama. */
+.hero-scene-glow {
+  background:
+    radial-gradient(
+      52% 42% at 50% 78%,
+      color-mix(in srgb, var(--hero-clay) 22%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      46% 34% at 50% 84%,
+      color-mix(in srgb, var(--hero-ink) 16%, transparent),
+      transparent 76%
+    );
+}
+
+/* Hero surfaces */
+.hero-backdrop {
+  background: radial-gradient(
+    120% 120% at 72% 8%,
+    var(--hero-sky) 0%,
+    var(--hero-sky-mid) 42%,
+    var(--hero-sky-deep) 100%
+  );
+}
+
+.hero-bloom-clay {
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--primary) 16%, transparent) 0%,
+    transparent 66%
+  );
+}
+
+.hero-bloom-teal {
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+    transparent 68%
+  );
+}
+
+.hero-scene-fade {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--hero-sky-deep) 75%, transparent),
+    transparent
+  );
+}
+
+.hero-dock-shadow {
+  box-shadow: 0 24px 60px -24px color-mix(in srgb, var(--hero-ink) 38%, transparent);
+}
+
+@keyframes hero-scene-veil {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.hero-scene-veil {
+  background: radial-gradient(
+    120% 100% at 50% 42%,
+    var(--hero-sky) 0%,
+    var(--hero-sky-deep) 100%
+  );
+  animation: hero-scene-veil 420ms ease-out both;
+}
+
+/* Placeholder stay thumbnails (prototype only) */
+.stay-thumb-sand {
+  background: linear-gradient(160deg, var(--hero-sand) 0%, var(--hero-sand-deep) 100%);
+}
+
+.stay-thumb-green {
+  background: linear-gradient(160deg, var(--hero-cream) 0%, var(--hero-green) 140%);
+}
+
+.stay-thumb-teal {
+  background: linear-gradient(160deg, var(--hero-sky) 0%, var(--hero-teal) 150%);
+}
+
+.stay-thumb-clay {
+  background: linear-gradient(160deg, var(--hero-cream) 0%, var(--hero-clay) 150%);
+}
+
+.stay-thumb-dusk {
+  background: linear-gradient(160deg, var(--hero-sky) 0%, var(--hero-clay-deep) 160%);
+}
+
+.stay-thumb-mist {
+  background: linear-gradient(160deg, var(--hero-cream) 0%, var(--hero-sand-deep) 110%, var(--hero-green) 190%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise,
+  .hero-fade,
+  .hero-scene-veil {
+    animation: none;
+  }
+
+  .hero-scene-veil {
+    opacity: 0;
+  }
 }
