@@ -26,7 +26,7 @@ class City(Base):
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     province_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("provinces.id", ondelete="RESTRICT"), index=True, nullable=False
+        Integer, ForeignKey("provinces.id", ondelete="RESTRICT"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(50), nullable=False)
 

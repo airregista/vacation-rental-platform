@@ -95,9 +95,7 @@ class Accommodation(Base):
     cancellation_policy: Mapped[str] = mapped_column(
         String(20), server_default="flexible", nullable=False
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, server_default="true", index=True, nullable=False
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -164,7 +162,7 @@ class PricingException(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     accommodation_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), index=True, nullable=False
+        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), nullable=False
     )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)

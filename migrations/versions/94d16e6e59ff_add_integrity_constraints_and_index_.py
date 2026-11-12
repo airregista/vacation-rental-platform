@@ -132,8 +132,46 @@ def upgrade() -> None:
         "CHECK (beds_count >= 0)"
     )
 
+    # Index hygiene: each dropped index duplicates the leftmost column of an
+    # existing composite index or unique constraint.
+    op.execute("DROP INDEX IF EXISTS ix_accommodations_is_active")
+    op.execute("DROP INDEX IF EXISTS ix_cities_province_id")
+    op.execute("DROP INDEX IF EXISTS ix_pricing_exceptions_accommodation_id")
+    op.execute("DROP INDEX IF EXISTS ix_reservations_accommodation_id")
+    op.execute("DROP INDEX IF EXISTS ix_reservations_user_id")
+    op.execute("DROP INDEX IF EXISTS ix_reservations_status")
+    op.execute("DROP INDEX IF EXISTS ix_reviews_accommodation_id")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_otp_codes_expires_at "
+        "ON otp_codes (expires_at)"
+    )
+
 
 def downgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS ix_otp_codes_expires_at")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_reviews_accommodation_id "
+        "ON reviews (accommodation_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_reservations_status ON reservations (status)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_reservations_user_id ON reservations (user_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_reservations_accommodation_id "
+        "ON reservations (accommodation_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_pricing_exceptions_accommodation_id "
+        "ON pricing_exceptions (accommodation_id)"
+    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_cities_province_id ON cities (province_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_accommodations_is_active "
+        "ON accommodations (is_active)"
+    )
     op.execute("ALTER TABLE accommodations DROP CONSTRAINT chk_accommodation_beds_count")
     op.execute("ALTER TABLE accommodations DROP CONSTRAINT chk_accommodation_rooms_count")
     op.execute("ALTER TABLE accommodations DROP CONSTRAINT chk_accommodation_longitude")

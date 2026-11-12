@@ -62,10 +62,10 @@ class Reservation(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     accommodation_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accommodations.id", ondelete="RESTRICT"), index=True, nullable=False
+        BigInteger, ForeignKey("accommodations.id", ondelete="RESTRICT"), nullable=False
     )
     check_in: Mapped[date] = mapped_column(Date, nullable=False)
     check_out: Mapped[date] = mapped_column(Date, nullable=False)
@@ -73,9 +73,7 @@ class Reservation(Base):
     total_nights: Mapped[int] = mapped_column(Integer, nullable=False)
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     coupon_code: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(20), server_default="pending", index=True, nullable=False
-    )
+    status: Mapped[str] = mapped_column(String(20), server_default="pending", nullable=False)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     refund_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
