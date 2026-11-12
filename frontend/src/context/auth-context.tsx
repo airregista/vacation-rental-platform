@@ -90,6 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser)
   }, [])
 
+  const updateUser = useCallback((updatedUser: UserResponse): void => {
+    setUser(updatedUser)
+  }, [])
+
   const logout = useCallback((): void => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("access_token")
@@ -126,9 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sendOtp,
       verifyOtp,
       becomeHost,
+      updateUser,
       logout,
     }),
-    [user, token, isLoading, isOtpModalOpen, openOtpModal, closeOtpModal, sendOtp, verifyOtp, becomeHost, logout]
+    [user, token, isLoading, isOtpModalOpen, openOtpModal, closeOtpModal, sendOtp, verifyOtp, becomeHost, updateUser, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

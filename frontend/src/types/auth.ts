@@ -43,5 +43,6 @@ export interface AuthContextType {
   sendOtp: (phone: string) => Promise<OTPResponse>
   verifyOtp: (phone: string, code: string) => Promise<void>
   becomeHost: () => Promise<void>
+  updateUser: (user: UserResponse) => void
   logout: () => void
 }
