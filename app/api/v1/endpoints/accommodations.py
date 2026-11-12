@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import ipaddress
+import logging
 import math
 import re
 import secrets
@@ -14,7 +15,7 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import delete, distinct, exists, func, not_, select
+from sqlalchemy import delete, distinct, exists, func, not_, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,10 +56,17 @@ from app.schemas.reservation import CalendarDayInfo
 router = APIRouter(prefix="/accommodations", tags=["accommodations"])
 
 
-def generate_calendar_feed_token(accommodation_id: int, expires_at: datetime | None = None) -> str:
+def generate_calendar_feed_token(
+    accommodation_id: int,
+    expires_at: datetime | None = None,
+    token_version: int = 0,
+) -> str:
     """Generate time-bounded calendar feed token in the format '{ts}:{signature}'.
 
-    Signature covers f'calendar:{accommodation_id}:{ts}' using SECRET_KEY.
+    The signature covers the versioned payload
+    f'calendar:{accommodation_id}:{token_version}:{ts}' (or the legacy
+    f'calendar:{accommodation_id}:{ts}' when the version is 0) using
+    SECRET_KEY.
     """
     if expires_at is None:
         expires_at = datetime.now(timezone.utc) + timedelta(
@@ -68,16 +76,25 @@ def generate_calendar_feed_token(accommodation_id: int, expires_at: datetime | N
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
     ts = int(expires_at.timestamp())
+    payload = (
+        f"calendar:{accommodation_id}:{ts}"
+        if token_version == 0
+        else f"calendar:{accommodation_id}:{token_version}:{ts}"
+    )
     signature = hmac.new(
         settings.SECRET_KEY.encode(),
-        f"calendar:{accommodation_id}:{ts}".encode(),
+        payload.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
     return f"{ts}:{signature}"
 
 
-def validate_calendar_feed_token(token: str | None, accommodation_id: int) -> bool:
-    """Verify HMAC signature and check that the token has not expired."""
+def validate_calendar_feed_token(
+    token: str | None,
+    accommodation_id: int,
+    token_version: int = 0,
+) -> bool:
+    """Verify HMAC signature over the versioned payload and that the token has not expired."""
     if not token or ":" not in token:
         return False
     parts = token.split(":")
@@ -93,9 +110,14 @@ def validate_calendar_feed_token(token: str | None, accommodation_id: int) -> bo
     if datetime.now(timezone.utc) > expires_at:
         return False
 
+    payload = (
+        f"calendar:{accommodation_id}:{ts}"
+        if token_version == 0
+        else f"calendar:{accommodation_id}:{token_version}:{ts}"
+    )
     expected_signature = hmac.new(
         settings.SECRET_KEY.encode(),
-        f"calendar:{accommodation_id}:{ts}".encode(),
+        payload.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
     return secrets.compare_digest(expected_signature, signature)
@@ -429,7 +451,9 @@ async def get_accommodation(
     detail.average_rating = round(float(avg_r), 1) if avg_r is not None else None
     detail.reviews_count = int(count_r)
     if is_owner_or_admin:
-        detail.calendar_ics_token = generate_calendar_feed_token(acc.id)
+        detail.calendar_ics_token = generate_calendar_feed_token(
+            acc.id, token_version=acc.calendar_feed_token_version
+        )
     else:
         detail.external_calendar_url = None
         detail.last_calendar_sync_at = None
@@ -530,7 +554,9 @@ async def export_accommodation_calendar_ics(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    is_token_valid = validate_calendar_feed_token(token, acc.id)
+    is_token_valid = validate_calendar_feed_token(
+        token, acc.id, acc.calendar_feed_token_version
+    )
     is_authorized_user = bool(
         current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
     )
@@ -606,7 +632,11 @@ async def rotate_calendar_feed_token(
     current_user: CurrentUserDep,
 ) -> CalendarFeedTokenResponse:
     """Generate a fresh calendar feed token with new TTL for accommodation owner or admin."""
-    acc_stmt = select(Accommodation).where(Accommodation.id == id)
+    acc_stmt = (
+        select(Accommodation)
+        .where(Accommodation.id == id)
+        .with_for_update(of=Accommodation)
+    )
     acc = (await db.execute(acc_stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
@@ -617,8 +647,14 @@ async def rotate_calendar_feed_token(
             detail="You do not have permission to manage this accommodation calendar",
         )
 
+    acc.calendar_feed_token_version = (acc.calendar_feed_token_version or 0) + 1
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.CALENDAR_FEED_TTL_MINUTES)
-    token = generate_calendar_feed_token(acc.id, expires_at=expires_at)
+    token = generate_calendar_feed_token(
+        acc.id,
+        expires_at=expires_at,
+        token_version=acc.calendar_feed_token_version,
+    )
+    await db.commit()
     feed_url = f"{settings.API_V1_STR}/accommodations/{acc.id}/calendar.ics?token={token}"
 
     return CalendarFeedTokenResponse(
@@ -628,45 +664,121 @@ async def rotate_calendar_feed_token(
     )
 
 
-def validate_external_feed_url(url_str: str) -> None:
-    parsed = urllib.parse.urlparse(url_str)
+logger = logging.getLogger(__name__)
+MAX_CALENDAR_FEED_BYTES = 2 * 1024 * 1024
+
+_ALLOWED_FEED_PORTS = {None, 80, 443}
+_BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
+# The well-known NAT64 prefix embeds an IPv4 address that the NAT64 gateway
+# translates. ipaddress reports the IPv6 form as global even when the embedded
+# IPv4 is loopback/private, so reject the whole prefix.
+_NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _assert_global_ip(value: str) -> None:
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must resolve to a public IP address",
+        ) from None
+    if isinstance(address, ipaddress.IPv6Address) and address in _NAT64_PREFIX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must not use NAT64-mapped addresses",
+        )
+    if not address.is_global:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must resolve to a public IP address",
+        )
+
+
+def validate_external_feed_url(url_str: str, *, resolve: bool = True) -> None:
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid calendar feed URL",
+        ) from None
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only HTTP/HTTPS calendar feed URLs are supported",
         )
-    hostname = parsed.hostname or ""
+
+    if parsed.username or parsed.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must not contain credentials",
+        )
+
+    hostname = (parsed.hostname or "").rstrip(".").lower()
     if not hostname:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid calendar feed URL: missing host",
         )
-    if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+
+    try:
+        port = parsed.port
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid calendar feed URL: bad port",
+        )
+    if port not in _ALLOWED_FEED_PORTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs may only use ports 80 or 443",
+        )
+
+    if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(
+        _BLOCKED_HOST_SUFFIXES
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Loopback calendar URLs are forbidden",
         )
+
     try:
-        ip = ipaddress.ip_address(hostname)
-        if ip.is_private or ip.is_loopback:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Private network calendar URLs are forbidden",
-            )
+        literal = ipaddress.ip_address(hostname)
     except ValueError:
-        try:
-            resolved_ip = socket.gethostbyname(hostname)
-            ip = ipaddress.ip_address(resolved_ip)
-            if ip.is_private or ip.is_loopback:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Private network calendar URLs are forbidden",
-                )
-        except socket.gaierror:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot resolve calendar feed host",
-            )
+        literal = None
+
+    if literal is not None:
+        _assert_global_ip(hostname)
+        return
+
+    if not resolve:
+        return
+
+    try:
+        infos = socket.getaddrinfo(
+            hostname,
+            port or (443 if parsed.scheme == "https" else 80),
+            type=socket.SOCK_STREAM,
+        )
+    except socket.gaierror:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resolve calendar feed host",
+        )
+
+    addresses = {
+        info[4][0].split("%", 1)[0]
+        for info in infos
+        if info[4] and info[4][0]
+    }
+    if not addresses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resolve calendar feed host",
+        )
+    for address in addresses:
+        _assert_global_ip(address)
 
 
 def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
@@ -719,23 +831,24 @@ async def sync_external_calendar(
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
             for _ in range(max_redirects):
                 validate_external_feed_url(target_url)
-                resp = await client.get(target_url)
-                if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
-                    target_url = urllib.parse.urljoin(target_url, resp.headers.get("location", ""))
-                    continue
-                resp.raise_for_status()
-                content_bytes = (
-                    resp.content
-                    if isinstance(resp.content, (bytes, bytearray))
-                    else resp.text.encode()
-                )
-                if len(content_bytes) > 2 * 1024 * 1024:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Calendar feed content exceeds maximum permitted size (2MB)",
-                    )
-                ics_text = resp.text
-                break
+                async with client.stream("GET", target_url) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
+                        target_url = urllib.parse.urljoin(
+                            target_url, resp.headers.get("location", "")
+                        )
+                        continue
+
+                    resp.raise_for_status()
+                    content = bytearray()
+                    async for chunk in resp.aiter_bytes():
+                        content.extend(chunk)
+                        if len(content) > MAX_CALENDAR_FEED_BYTES:
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Calendar feed content exceeds maximum permitted size (2MB)",
+                            )
+                    ics_text = content.decode(resp.encoding or "utf-8", errors="replace")
+                    break
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -744,9 +857,16 @@ async def sync_external_calendar(
     except HTTPException:
         raise
     except Exception as exc:
+        # Do not log the exception text or the stack trace: httpx errors embed
+        # the request URL, which can carry a private token or API key.
+        logger.warning(
+            "Failed to fetch external calendar feed for accommodation %s (%s)",
+            id,
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch external calendar feed: {str(exc)}",
+            detail="Failed to fetch external calendar feed",
         )
 
     event_ranges = parse_ical_blocked_ranges(ics_text)
@@ -763,7 +883,13 @@ async def sync_external_calendar(
 
     if dates_to_block:
         values = [
-            {"accommodation_id": acc.id, "date": d, "is_blocked": True}
+            {
+                "accommodation_id": acc.id,
+                "date": d,
+                "is_blocked": True,
+                "manual_blocked": False,
+                "ical_blocked": True,
+            }
             for d in sorted(dates_to_block)
         ]
         insert_stmt = (
@@ -771,10 +897,42 @@ async def sync_external_calendar(
             .values(values)
             .on_conflict_do_update(
                 constraint="uq_pricing_exception_accommodation_date",
-                set_={"is_blocked": True},
+                set_={"is_blocked": True, "ical_blocked": True},
             )
         )
         await db.execute(insert_stmt)
+
+    # Clear the iCal flag on dates the upstream feed no longer blocks. Manual
+    # blocks survive because is_blocked falls back to manual_blocked. Rows that
+    # carried only the iCal block (no manual block, price, or min_nights) are
+    # deleted below so they do not linger as false blocks.
+    stale_stmt = (
+        update(PricingException)
+        .where(
+            PricingException.accommodation_id == acc.id,
+            PricingException.ical_blocked.is_(True),
+            PricingException.date >= today,
+            PricingException.date < max_future,
+        )
+        .values(ical_blocked=False, is_blocked=PricingException.manual_blocked)
+    )
+    if dates_to_block:
+        stale_stmt = stale_stmt.where(
+            PricingException.date.notin_(sorted(dates_to_block))
+        )
+    await db.execute(stale_stmt)
+
+    await db.execute(
+        delete(PricingException).where(
+            PricingException.accommodation_id == acc.id,
+            PricingException.manual_blocked.is_(False),
+            PricingException.ical_blocked.is_(False),
+            PricingException.date >= today,
+            PricingException.date < max_future,
+            PricingException.price.is_(None),
+            PricingException.min_nights.is_(None),
+        )
+    )
 
     now_utc = datetime.now(timezone.utc)
     acc.last_calendar_sync_at = now_utc
@@ -851,6 +1009,9 @@ async def create_accommodation(
         )
     else:
         host_id = current_user.id
+
+    if acc_in.external_calendar_url:
+        validate_external_feed_url(acc_in.external_calendar_url, resolve=False)
 
     accommodation = Accommodation(
         host_id=host_id,
@@ -973,6 +1134,10 @@ async def update_accommodation(
 
     update_data = acc_in.model_dump(exclude_unset=True)
     update_data.pop("amenity_ids", None)
+    if update_data.get("external_calendar_url"):
+        validate_external_feed_url(
+            update_data["external_calendar_url"], resolve=False
+        )
     for field, value in update_data.items():
         setattr(acc, field, value)
 
@@ -1101,7 +1266,8 @@ async def upsert_pricing_exception(
     existing = (await db.execute(stmt)).scalars().first()
     if existing:
         existing.price = ex_in.price
-        existing.is_blocked = ex_in.is_blocked
+        existing.manual_blocked = ex_in.is_blocked
+        existing.is_blocked = existing.manual_blocked or existing.ical_blocked
         existing.min_nights = ex_in.min_nights
         exception_obj = existing
     else:
@@ -1110,6 +1276,8 @@ async def upsert_pricing_exception(
             date=ex_in.date,
             price=ex_in.price,
             is_blocked=ex_in.is_blocked,
+            manual_blocked=ex_in.is_blocked,
+            ical_blocked=False,
             min_nights=ex_in.min_nights,
         )
         db.add(exception_obj)
@@ -1156,6 +1324,8 @@ async def batch_pricing_exceptions(
             "date": batch_in.start_date + timedelta(days=i),
             "price": batch_in.price,
             "is_blocked": batch_in.is_blocked,
+            "manual_blocked": batch_in.is_blocked,
+            "ical_blocked": False,
             "min_nights": batch_in.min_nights,
         }
         for i in range(requested_count)
@@ -1168,7 +1338,10 @@ async def batch_pricing_exceptions(
             constraint="uq_pricing_exception_accommodation_date",
             set_={
                 "price": batch_in.price,
-                "is_blocked": batch_in.is_blocked,
+                "manual_blocked": batch_in.is_blocked,
+                # An iCal block is independent of the host's manual toggle: a
+                # manual unblock must not make an upstream-blocked date bookable.
+                "is_blocked": or_(batch_in.is_blocked, PricingException.ical_blocked),
                 "min_nights": batch_in.min_nights,
             },
         )

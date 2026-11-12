@@ -177,6 +177,39 @@ async def test_host_and_admin_can_obtain_fresh_token(
 
 
 @pytest.mark.asyncio
+async def test_rotation_revokes_previous_token(
+    client: AsyncClient,
+    test_accommodation: Accommodation,
+    host_token_headers: dict[str, str],
+):
+    """Rotating the feed token invalidates the previous token and keeps the new one valid."""
+    first_resp = await client.post(
+        f"/api/v1/accommodations/{test_accommodation.id}/calendar/token",
+        headers=host_token_headers,
+    )
+    assert first_resp.status_code == 200
+    first_token = first_resp.json()["token"]
+
+    second_resp = await client.post(
+        f"/api/v1/accommodations/{test_accommodation.id}/calendar/token",
+        headers=host_token_headers,
+    )
+    assert second_resp.status_code == 200
+    second_token = second_resp.json()["token"]
+    assert first_token != second_token
+
+    old_feed_resp = await client.get(
+        f"/api/v1/accommodations/{test_accommodation.id}/calendar.ics?token={first_token}"
+    )
+    assert old_feed_resp.status_code == 404
+
+    new_feed_resp = await client.get(
+        f"/api/v1/accommodations/{test_accommodation.id}/calendar.ics?token={second_token}"
+    )
+    assert new_feed_resp.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_token_ttl_boundary_validation():
     """Unit test verifying token validation boundary condition in UTC."""
     now_utc = datetime.now(timezone.utc)

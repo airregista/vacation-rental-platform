@@ -2,7 +2,7 @@ import socket
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -338,6 +338,55 @@ async def test_batch_pricing_exceptions(client: AsyncClient, admin_token: str):
     assert batch_res.json()["updated_count"] == 7
 
 
+class _FakeFeedResponse:
+    encoding = "utf-8"
+
+    def __init__(
+        self,
+        *,
+        ics_text: str = "",
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self.headers = headers or {}
+        self._ics_text = ics_text
+
+    async def aiter_bytes(self):
+        yield self._ics_text.encode("utf-8")
+
+    def raise_for_status(self) -> None:
+        return None
+
+
+class _FakeFeedStream:
+    def __init__(self, response: _FakeFeedResponse) -> None:
+        self._response = response
+
+    async def __aenter__(self):
+        return self._response
+
+    async def __aexit__(self, *args):
+        return False
+
+
+def _fake_feed_client(response: _FakeFeedResponse):
+    class _FakeFeedClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        def stream(self, *args, **kwargs):
+            return _FakeFeedStream(response)
+
+    return _FakeFeedClient
+
+
 @pytest.mark.asyncio
 async def test_external_calendar_sync_flow(
     client: AsyncClient,
@@ -393,16 +442,15 @@ SUMMARY:Airbnb (Not available)
 END:VEVENT
 END:VCALENDAR"""
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.text = ics_text
-    mock_resp.raise_for_status = MagicMock()
+    fake_response = _FakeFeedResponse(ics_text=ics_text)
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get, patch(
-        "socket.gethostbyname", return_value="93.184.215.14"
+    with patch(
+        "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
+        _fake_feed_client(fake_response),
+    ), patch(
+        "socket.getaddrinfo",
+        return_value=[("", "", "", "", ("93.184.216.34", 443))],
     ):
-        mock_get.return_value = mock_resp
-
         # Host sends POST /accommodations/{id}/calendar/sync
         sync_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
@@ -514,7 +562,7 @@ async def test_external_calendar_sync_ssrf_rejection(
     )
     assert promote_res.status_code == 200
 
-    # Host creates/updates accommodation with loopback calendar URL
+    # A loopback calendar URL is rejected when the accommodation is saved.
     acc_res = await client.post(
         f"{settings.API_V1_STR}/accommodations/",
         json={
@@ -530,33 +578,42 @@ async def test_external_calendar_sync_ssrf_rejection(
         },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
+    assert acc_res.status_code == 400
+    assert "public ip" in acc_res.json()["detail"].lower()
+
+    # Create a valid accommodation so the sync-time DNS checks can run.
+    acc_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "title": f"اقامتگاه تست اس‌اس‌آراف-{uuid.uuid4().hex[:6]}",
+            "address": "مازندران، چالوس",
+            "city_id": 1,
+            "category_id": 1,
+            "capacity": 2,
+            "max_capacity": 4,
+            "base_price": 950000,
+            "host_id": 2,
+            "external_calendar_url": "https://calendar.example.com/feed.ics",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
     assert acc_res.status_code == 201
     acc_id = acc_res.json()["id"]
 
-    # Host attempts syncing with http://127.0.0.1/admin.ics and receives HTTP 400 Bad Request
-    sync_res = await client.post(
-        f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
-        headers={"Authorization": f"Bearer {guest_token}"},
-    )
-    assert sync_res.status_code == 400
-    assert "Loopback" in sync_res.json()["detail"] or "forbidden" in sync_res.json()["detail"].lower()
-
     # Domain resolving to 127.0.0.1 is also rejected by DNS check
-    with patch("socket.gethostbyname", return_value="127.0.0.1"):
-        await client.put(
-            f"{settings.API_V1_STR}/accommodations/{acc_id}",
-            json={"external_calendar_url": "http://evil-dns.example.com/calendar.ics"},
-            headers={"Authorization": f"Bearer {guest_token}"},
-        )
+    with patch(
+        "socket.getaddrinfo",
+        return_value=[("", "", "", "", ("127.0.0.1", 443))],
+    ):
         dns_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
             headers={"Authorization": f"Bearer {guest_token}"},
         )
         assert dns_res.status_code == 400
-        assert "forbidden" in dns_res.json()["detail"].lower()
+        assert "public ip" in dns_res.json()["detail"].lower()
 
     # Domain failing DNS resolution returns HTTP 400
-    with patch("socket.gethostbyname", side_effect=socket.gaierror):
+    with patch("socket.getaddrinfo", side_effect=socket.gaierror):
         gaierror_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
             headers={"Authorization": f"Bearer {guest_token}"},
@@ -595,20 +652,23 @@ async def test_external_calendar_sync_redirect_ssrf_rejection(
     )
     acc_id = acc_res.json()["id"]
 
-    mock_redirect_resp = MagicMock()
-    mock_redirect_resp.status_code = 302
-    mock_redirect_resp.headers = {"location": "http://127.0.0.1/admin.ics"}
+    redirect_response = _FakeFeedResponse(
+        status_code=302, headers={"location": "http://127.0.0.1/admin.ics"}
+    )
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get, patch(
-        "socket.gethostbyname", return_value="93.184.215.14"
+    with patch(
+        "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
+        _fake_feed_client(redirect_response),
+    ), patch(
+        "socket.getaddrinfo",
+        return_value=[("", "", "", "", ("93.184.216.34", 443))],
     ):
-        mock_get.return_value = mock_redirect_resp
         sync_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",
             headers={"Authorization": f"Bearer {guest_token}"},
         )
         assert sync_res.status_code == 400
-        assert "forbidden" in sync_res.json()["detail"].lower() or "loopback" in sync_res.json()["detail"].lower()
+        assert "public ip" in sync_res.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
