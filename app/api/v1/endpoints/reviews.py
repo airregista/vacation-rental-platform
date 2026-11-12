@@ -11,7 +11,12 @@ from app.api.dependencies import CurrentUserDep, SessionDep
 from app.models.accommodation import Accommodation
 from app.models.reservation import Reservation
 from app.models.review import Review
-from app.schemas.review import ReviewAuthor, ReviewCreate, ReviewResponse
+from app.schemas.review import (
+    ReviewAuthor,
+    ReviewCreate,
+    ReviewEligibilityResponse,
+    ReviewResponse,
+)
 
 router = APIRouter(tags=["reviews"])
 
@@ -59,6 +64,93 @@ async def list_accommodation_reviews(
             )
         )
     return items
+
+
+@router.get(
+    "/accommodations/{accommodation_id}/reviews/eligibility",
+    response_model=ReviewEligibilityResponse,
+)
+async def review_eligibility(
+    accommodation_id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> ReviewEligibilityResponse:
+    """Tell the guest whether they can review this stay right now.
+
+    The UI uses this to surface a direct "write a review" CTA instead of
+    hiding the capability inside the trips page.
+    """
+    acc = (
+        (await db.execute(select(Accommodation).where(Accommodation.id == accommodation_id)))
+        .scalars()
+        .first()
+    )
+    if not acc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Accommodation not found",
+        )
+
+    reservations = (
+        (
+            await db.execute(
+                select(Reservation)
+                .where(
+                    Reservation.user_id == current_user.id,
+                    Reservation.accommodation_id == accommodation_id,
+                    Reservation.status.in_(("confirmed", "completed")),
+                )
+                .order_by(Reservation.check_out.desc(), Reservation.id.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    if not reservations:
+        return ReviewEligibilityResponse(can_review=False, reason="no_stay")
+
+    tehran_tz = ZoneInfo("Asia/Tehran")
+    now_tehran = datetime.now(tehran_tz)
+    checkout_times = {
+        r.id: datetime.combine(r.check_out, acc.check_out_time).replace(tzinfo=tehran_tz)
+        for r in reservations
+    }
+    finished = [r for r in reservations if now_tehran >= checkout_times[r.id]]
+
+    if not finished:
+        return ReviewEligibilityResponse(
+            can_review=False,
+            reservation_id=reservations[0].id,
+            reason="stay_not_finished",
+        )
+
+    reviewed_ids = set(
+        (
+            await db.execute(
+                select(Review.reservation_id).where(
+                    Review.reservation_id.in_([r.id for r in finished])
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    for reservation in finished:
+        if reservation.id not in reviewed_ids:
+            return ReviewEligibilityResponse(
+                can_review=True,
+                reservation_id=reservation.id,
+                reason=None,
+            )
+
+    return ReviewEligibilityResponse(
+        can_review=False,
+        reservation_id=finished[0].id,
+        has_review=True,
+        reason="already_reviewed",
+    )
 
 
 @router.post(

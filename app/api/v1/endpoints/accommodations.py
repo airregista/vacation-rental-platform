@@ -969,6 +969,7 @@ async def create_accommodation(
         check_in_time=acc_in.check_in_time,
         check_out_time=acc_in.check_out_time,
         rules=acc_in.rules,
+        custom_amenities=acc_in.custom_amenities,
         cancellation_policy=acc_in.cancellation_policy,
         is_active=acc_in.is_active,
         external_calendar_url=acc_in.external_calendar_url,
@@ -1066,6 +1067,9 @@ async def update_accommodation(
 
     update_data = acc_in.model_dump(exclude_unset=True)
     update_data.pop("amenity_ids", None)
+    # Explicit null means "leave unchanged", matching the schema contract.
+    if update_data.get("custom_amenities") is None:
+        update_data.pop("custom_amenities", None)
     if update_data.get("external_calendar_url"):
         validate_external_feed_url(
             update_data["external_calendar_url"], resolve=False
@@ -1161,6 +1165,40 @@ async def remove_accommodation_image(
 
     await db.delete(image)
     await db.commit()
+
+
+@router.post("/{id}/images/{image_id}/cover", response_model=AccommodationImageResponse)
+async def set_accommodation_cover_image(
+    id: int,
+    image_id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> AccommodationImageResponse:
+    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    _require_host_or_admin(acc, current_user)
+
+    stmt = select(AccommodationImage).where(
+        AccommodationImage.id == image_id,
+        AccommodationImage.accommodation_id == id,
+    )
+    image = (await db.execute(stmt)).scalars().first()
+    if not image:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Accommodation image not found",
+        )
+
+    reset_stmt = select(AccommodationImage).where(AccommodationImage.accommodation_id == id)
+    for img in (await db.execute(reset_stmt)).scalars().all():
+        img.is_cover = False
+    image.is_cover = True
+
+    await db.commit()
+    await db.refresh(image)
+    return AccommodationImageResponse.model_validate(image)
 
 
 @router.post("/{id}/pricing-exceptions", response_model=PricingExceptionResponse)

@@ -87,6 +87,9 @@ class CalendarDayInfo(BaseModel):
 class CancellationResponse(BaseModel):
     reservation_id: int
     status: str
+    cancellation_policy: str
+    hours_to_checkin: float
+    total_price: Decimal
     refund_amount: Decimal
     penalty_amount: Decimal
     message: str
@@ -95,6 +98,8 @@ class CancellationResponse(BaseModel):
 class CancellationPreviewResponse(BaseModel):
     reservation_id: int
     cancellation_policy: str
+    cancellation_free_hours: int | None = None
+    cancellation_penalty_percent: Decimal | None = None
     hours_to_checkin: float
     total_price: Decimal
     refundable_amount: Decimal

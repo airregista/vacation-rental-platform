@@ -33,3 +33,10 @@ class ReviewResponse(BaseModel):
     comment: str
     created_at: datetime
     user: ReviewAuthor | None = None
+
+
+class ReviewEligibilityResponse(BaseModel):
+    can_review: bool
+    reservation_id: int | None = None
+    has_review: bool = False
+    reason: str | None = None

@@ -2,13 +2,36 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.config import settings
 from app.schemas.amenity import AmenityResponse
 from app.schemas.category import CategoryResponse
 from app.schemas.geo import CityResponse
 from app.schemas.user import PublicHostResponse
+
+MAX_CUSTOM_AMENITIES = 15
+
+
+def _normalize_custom_amenities(items: list[str] | None) -> list[str] | None:
+    """Strip, drop blanks, and case-insensitively dedupe free-text amenities."""
+    if items is None:
+        return None
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        value = item.strip()
+        if not value:
+            continue
+        if not 2 <= len(value) <= 50:
+            raise ValueError("each custom amenity must be between 2 and 50 characters")
+        key = value.casefold()
+        if key not in seen:
+            seen.add(key)
+            normalized.append(value)
+    if len(normalized) > MAX_CUSTOM_AMENITIES:
+        raise ValueError(f"at most {MAX_CUSTOM_AMENITIES} custom amenities are allowed")
+    return normalized
 
 
 class AccommodationImageCreate(BaseModel):
@@ -89,11 +112,23 @@ class AccommodationCreate(BaseModel):
     check_in_time: time = time(14, 0)
     check_out_time: time = time(12, 0)
     rules: str | None = None
-    cancellation_policy: str = Field(default="flexible", pattern="^(flexible|moderate|strict)$")
+    cancellation_policy: str = Field(
+        default="flexible", pattern="^(flexible|moderate|strict|custom)$"
+    )
+    cancellation_free_hours: int = Field(default=24, ge=0)
+    cancellation_penalty_percent: Decimal = Field(
+        default=Decimal(50), ge=0, le=100
+    )
     is_active: bool = True
     external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] = Field(default_factory=list)
     images: list[AccommodationImageCreate] = Field(default_factory=list)
+    custom_amenities: list[str] = Field(default_factory=list)
+
+    @field_validator("custom_amenities")
+    @classmethod
+    def validate_custom_amenities(cls, value: list[str]) -> list[str]:
+        return _normalize_custom_amenities(value)
 
     @model_validator(mode="after")
     def validate_capacity(self) -> Self:
@@ -121,10 +156,20 @@ class AccommodationUpdate(BaseModel):
     check_in_time: time | None = None
     check_out_time: time | None = None
     rules: str | None = None
-    cancellation_policy: str | None = Field(default=None, pattern="^(flexible|moderate|strict)$")
+    cancellation_policy: str | None = Field(
+        default=None, pattern="^(flexible|moderate|strict|custom)$"
+    )
+    cancellation_free_hours: int | None = Field(default=None, ge=0)
+    cancellation_penalty_percent: Decimal | None = Field(default=None, ge=0, le=100)
     is_active: bool | None = None
     external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] | None = None
+    custom_amenities: list[str] | None = None
+
+    @field_validator("custom_amenities")
+    @classmethod
+    def validate_custom_amenities(cls, value: list[str] | None) -> list[str] | None:
+        return _normalize_custom_amenities(value)
 
     @model_validator(mode="after")
     def validate_capacity(self) -> Self:
@@ -178,6 +223,8 @@ class AccommodationDetail(BaseModel):
     check_out_time: time
     rules: str | None = None
     cancellation_policy: str = "flexible"
+    cancellation_free_hours: int = 24
+    cancellation_penalty_percent: Decimal = Decimal(50)
     is_active: bool
     created_at: datetime
     external_calendar_url: str | None = None
@@ -188,6 +235,7 @@ class AccommodationDetail(BaseModel):
     city: CityResponse | None = None
     images: list[AccommodationImageResponse] = Field(default_factory=list)
     amenities: list[AmenityResponse] = Field(default_factory=list)
+    custom_amenities: list[str] = Field(default_factory=list)
     average_rating: float | None = None
     reviews_count: int = 0
     calendar_ics_token: str | None = None

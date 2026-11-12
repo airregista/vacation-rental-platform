@@ -25,7 +25,10 @@ from app.schemas.reservation import (
     ReservationMessageResponse,
     ReservationResponse,
 )
-from app.services.cancellation_service import calculate_cancellation_refund
+from app.services.cancellation_service import (
+    calculate_cancellation_refund,
+    get_first_night_price,
+)
 from app.services.coupon_service import evaluate_coupon
 from app.services.pricing_service import calculate_reservation_price
 from app.services.reservation_service import (
@@ -415,7 +418,11 @@ async def preview_cancellation(
         )
 
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
-        reservation, reservation.accommodation
+        reservation,
+        reservation.accommodation,
+        first_night_price=await get_first_night_price(
+            db, reservation, reservation.accommodation
+        ),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -426,6 +433,8 @@ async def preview_cancellation(
     return CancellationPreviewResponse(
         reservation_id=reservation.id,
         cancellation_policy=getattr(reservation.accommodation, "cancellation_policy", "flexible"),
+        cancellation_free_hours=reservation.accommodation.cancellation_free_hours,
+        cancellation_penalty_percent=reservation.accommodation.cancellation_penalty_percent,
         hours_to_checkin=hours_to_checkin,
         total_price=reservation.total_price,
         refundable_amount=refundable,
@@ -476,7 +485,11 @@ async def cancel_reservation(
         )
 
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
-        reservation, reservation.accommodation
+        reservation,
+        reservation.accommodation,
+        first_night_price=await get_first_night_price(
+            db, reservation, reservation.accommodation
+        ),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -536,6 +549,11 @@ async def cancel_reservation(
     return CancellationResponse(
         reservation_id=reservation.id,
         status="cancelled",
+        cancellation_policy=getattr(
+            reservation.accommodation, "cancellation_policy", "flexible"
+        ),
+        hours_to_checkin=hours_to_checkin,
+        total_price=reservation.total_price,
         refund_amount=refundable,
         penalty_amount=penalty,
         message="Reservation cancelled successfully",

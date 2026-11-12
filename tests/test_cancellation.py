@@ -142,6 +142,59 @@ def test_calculate_refund_strict_policy():
     assert refundable == Decimal(0)
 
 
+def test_calculate_refund_custom_policy_uses_host_window_and_percent():
+    res = Reservation(
+        status="confirmed",
+        total_price=Decimal("1000000"),
+        check_in=date(2026, 11, 20),
+    )
+    acc = Accommodation(
+        check_in_time=time(14, 0),
+        cancellation_policy="custom",
+        cancellation_free_hours=48,
+        cancellation_penalty_percent=Decimal("25"),
+        base_price=Decimal("300000"),
+        cleaning_fee=Decimal("50000"),
+    )
+
+    # 60 hours before: inside the host's free-cancellation window
+    cancel_60h = datetime(2026, 11, 18, 2, 0, tzinfo=timezone.utc)
+    refundable, penalty, _ = calculate_cancellation_refund(res, acc, cancel_60h)
+    assert refundable == Decimal("1000000")
+    assert penalty == Decimal(0)
+
+    # 24 hours before: 25% penalty
+    cancel_24h = datetime(2026, 11, 19, 14, 0, tzinfo=timezone.utc)
+    refundable, penalty, _ = calculate_cancellation_refund(res, acc, cancel_24h)
+    assert penalty == Decimal("250000")
+    assert refundable == Decimal("750000")
+
+
+def test_calculate_refund_flexible_uses_actual_first_night_price():
+    res = Reservation(
+        status="confirmed",
+        total_price=Decimal("2000000"),
+        check_in=date(2026, 11, 20),
+    )
+    acc = Accommodation(
+        check_in_time=time(14, 0),
+        cancellation_policy="flexible",
+        base_price=Decimal("600000"),
+        cleaning_fee=Decimal("100000"),
+    )
+    cancel_dt = datetime(2026, 11, 20, 4, 0, tzinfo=TEHRAN_TZ)
+
+    refundable, penalty, _ = calculate_cancellation_refund(
+        res,
+        acc,
+        cancel_dt,
+        first_night_price=Decimal("900000"),
+    )
+
+    assert penalty == Decimal("1000000")  # 900000 first night + 100000 cleaning
+    assert refundable == Decimal("1000000")
+
+
 # ==========================================
 # 2. End-to-End API Integration Tests
 # ==========================================

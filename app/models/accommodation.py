@@ -22,6 +22,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -45,8 +46,16 @@ class Accommodation(Base):
         CheckConstraint("max_capacity >= capacity", name="chk_accommodation_max_capacity"),
         CheckConstraint("min_nights >= 1", name="chk_accommodation_min_nights"),
         CheckConstraint(
-            "cancellation_policy IN ('flexible', 'moderate', 'strict')",
+            "cancellation_policy IN ('flexible', 'moderate', 'strict', 'custom')",
             name="chk_accommodation_cancellation_policy",
+        ),
+        CheckConstraint(
+            "cancellation_free_hours >= 0",
+            name="chk_accommodation_cancellation_free_hours",
+        ),
+        CheckConstraint(
+            "cancellation_penalty_percent >= 0 AND cancellation_penalty_percent <= 100",
+            name="chk_accommodation_cancellation_penalty_percent",
         ),
         CheckConstraint(
             "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
@@ -93,8 +102,19 @@ class Accommodation(Base):
     check_in_time: Mapped[time] = mapped_column(Time, server_default="14:00", nullable=False)
     check_out_time: Mapped[time] = mapped_column(Time, server_default="12:00", nullable=False)
     rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    custom_amenities: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
     cancellation_policy: Mapped[str] = mapped_column(
         String(20), server_default="flexible", nullable=False
+    )
+    # Only used by the ``custom`` policy: free-cancellation window in hours
+    # and the percentage of the total withheld after that window.
+    cancellation_free_hours: Mapped[int] = mapped_column(
+        Integer, server_default="24", nullable=False
+    )
+    cancellation_penalty_percent: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), server_default="50", nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
     created_at: Mapped[datetime] = mapped_column(

@@ -273,6 +273,37 @@ async def test_cancellation_policy_crud_on_accommodation(client: AsyncClient, ad
     assert update_res.status_code == 200
     assert update_res.json()["cancellation_policy"] == "moderate"
 
+    # 4. Host-defined custom policy: window and penalty round-trip
+    custom_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={
+            "cancellation_policy": "custom",
+            "cancellation_free_hours": 48,
+            "cancellation_penalty_percent": 25,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert custom_res.status_code == 200
+    custom_data = custom_res.json()
+    assert custom_data["cancellation_policy"] == "custom"
+    assert custom_data["cancellation_free_hours"] == 48
+    assert float(custom_data["cancellation_penalty_percent"]) == 25.0
+
+    # 5. Out-of-range penalty and unknown policy are rejected
+    bad_percent = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"cancellation_penalty_percent": 101},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert bad_percent.status_code == 422
+
+    bad_policy = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"cancellation_policy": "anything"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert bad_policy.status_code == 422
+
 
 @pytest.mark.asyncio
 async def test_unpaired_date_search_rejected(client: AsyncClient):
@@ -1152,6 +1183,93 @@ async def test_create_accommodation_cover_image_assignment(
     assert images[1]["is_cover"] is True
 
 
+@pytest.mark.asyncio
+async def test_set_accommodation_cover_image(
+    client: AsyncClient,
+    admin_token: str,
+    guest_token: str,
+):
+    me_res = await client.get(
+        f"{settings.API_V1_STR}/auth/me",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert me_res.status_code == 200
+    host_id = me_res.json()["id"]
+
+    promote_res = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert promote_res.status_code == 200
+
+    other_res = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0913{uuid.uuid4().int % 10000000:07d}",
+            "password": "guestPassword123",
+            "first_name": "مهمان",
+            "last_name": "دیگر",
+        },
+    )
+    assert other_res.status_code == 201
+    other_token = other_res.json()["access_token"]
+
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "host_id": host_id,
+            "title": f"اقامتگاه تست کاور تصویر {uuid.uuid4().hex[:6]}",
+            "address": "آدرس کاور",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "is_active": True,
+            "images": [
+                {"image_url": "https://example.com/cover1.jpg", "is_cover": True, "sort_order": 0},
+                {"image_url": "https://example.com/cover2.jpg", "is_cover": False, "sort_order": 1},
+            ],
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+    first_image_id = create_res.json()["images"][0]["id"]
+    second_image_id = create_res.json()["images"][1]["id"]
+
+    cover_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/{second_image_id}/cover",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cover_res.status_code == 200
+    assert cover_res.json()["is_cover"] is True
+
+    detail_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert detail_res.status_code == 200
+    assert [img["id"] for img in detail_res.json()["images"] if img["is_cover"]] == [
+        second_image_id
+    ]
+
+    forbidden_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/{first_image_id}/cover",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert forbidden_res.status_code == 403
+
+    not_found_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/images/999999/cover",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert not_found_res.status_code == 404
+    assert not_found_res.json()["detail"] == "Accommodation image not found"
+
+
 
 
 
@@ -1196,3 +1314,134 @@ async def test_accommodation_coordinates_out_of_range_rejected(
         headers=headers,
     )
     assert update_res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_custom_amenities_create_and_detail(client: AsyncClient, admin_token: str):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"اقامتگاه با امکانات سفارشی {uuid.uuid4().hex[:6]}",
+            "address": "تهران، خیابان امکانات",
+            "base_price": 1200000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "custom_amenities": ["حیاط", "استخر"],
+        },
+        headers=headers,
+    )
+    assert create_res.status_code == 201
+    created = create_res.json()
+    assert created["custom_amenities"] == ["حیاط", "استخر"]
+
+    detail_res = await client.get(f"{settings.API_V1_STR}/accommodations/{created['id']}")
+    assert detail_res.status_code == 200
+    assert detail_res.json()["custom_amenities"] == ["حیاط", "استخر"]
+
+
+@pytest.mark.asyncio
+async def test_custom_amenities_update_replace_and_clear(client: AsyncClient, admin_token: str):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    create_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": category_id,
+            "city_id": city_id,
+            "title": f"اقامتگاه ویرایش امکانات سفارشی {uuid.uuid4().hex[:6]}",
+            "address": "تهران، خیابان ویرایش",
+            "base_price": 1300000,
+            "capacity": 2,
+            "max_capacity": 4,
+            "custom_amenities": ["حیاط"],
+        },
+        headers=headers,
+    )
+    assert create_res.status_code == 201
+    acc_id = create_res.json()["id"]
+
+    replace_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"custom_amenities": ["پارکینگ", "آسانسور"]},
+        headers=headers,
+    )
+    assert replace_res.status_code == 200
+    assert replace_res.json()["custom_amenities"] == ["پارکینگ", "آسانسور"]
+
+    # Omitting the field (and explicit null) leaves the list unchanged.
+    unchanged_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"custom_amenities": None},
+        headers=headers,
+    )
+    assert unchanged_res.status_code == 200
+    assert unchanged_res.json()["custom_amenities"] == ["پارکینگ", "آسانسور"]
+
+    clear_res = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"custom_amenities": []},
+        headers=headers,
+    )
+    assert clear_res.status_code == 200
+    assert clear_res.json()["custom_amenities"] == []
+
+    detail_res = await client.get(f"{settings.API_V1_STR}/accommodations/{acc_id}")
+    assert detail_res.status_code == 200
+    assert detail_res.json()["custom_amenities"] == []
+
+
+@pytest.mark.asyncio
+async def test_custom_amenities_validation_and_normalization(
+    client: AsyncClient, admin_token: str
+):
+    cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
+    city_id = cities_res.json()[0]["id"]
+    category_id = categories_res.json()[0]["id"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    payload = {
+        "category_id": category_id,
+        "city_id": city_id,
+        "title": f"اقامتگاه اعتبارسنجی امکانات {uuid.uuid4().hex[:6]}",
+        "address": "تهران، خیابان اعتبارسنجی",
+        "base_price": 1400000,
+        "capacity": 2,
+        "max_capacity": 4,
+    }
+
+    too_many = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={**payload, "custom_amenities": [f"امکان {i}" for i in range(16)]},
+        headers=headers,
+    )
+    assert too_many.status_code == 422
+
+    too_long = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={**payload, "custom_amenities": ["x" * 51]},
+        headers=headers,
+    )
+    assert too_long.status_code == 422
+
+    normalized = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            **payload,
+            "custom_amenities": [" حیاط ", "حیاط", "Pool", "pool", ""],
+        },
+        headers=headers,
+    )
+    assert normalized.status_code == 201
+    assert normalized.json()["custom_amenities"] == ["حیاط", "Pool"]
