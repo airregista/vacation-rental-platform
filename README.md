@@ -5,7 +5,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-4169E1.svg?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00.svg?style=flat&logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Alembic](https://img.shields.io/badge/Alembic-1.14+-black.svg?style=flat)](https://alembic.sqlalchemy.org/)
-[![Tests](https://img.shields.io/badge/Tests-138-brightgreen.svg?style=flat)](https://pytest.org)
+[![Tests](https://img.shields.io/badge/Tests-189-brightgreen.svg?style=flat)](https://pytest.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg?style=flat)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](LICENSE)
 
@@ -78,7 +78,7 @@ The PostgreSQL schema consists of normalized relational tables with comprehensiv
 - **Schema Migrations**: Alembic
 - **Authentication**: JWT Bearer Tokens (PyJWT) with bcrypt password hashing
 - **Data Validation & Settings**: Pydantic v2 & Pydantic Settings
-- **Testing**: `pytest`, `pytest-asyncio`, `httpx` (138 comprehensive automated tests)
+- **Testing**: `pytest`, `pytest-asyncio`, `httpx` (189 comprehensive automated tests)
 - **Code Quality**: `ruff` (linter & formatter), `mypy` (static type analysis)
 
 ---
@@ -221,7 +221,7 @@ creates the database if needed, drops and recreates only that database's
 `public` schema, runs `alembic upgrade head`, and then seeds. It never writes
 to the development database.
 
-The test suite contains 138 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
+The test suite contains 189 comprehensive asynchronous integration tests covering edge cases, concurrency race conditions, multi-host access scoping, payment gateway verification, and SSRF protections:
 
 ```bash
 # Run the complete test suite
@@ -259,7 +259,7 @@ mypy app/
 │   ├── seeds/                    # Deterministic database seeding scripts
 │   └── main.py                   # FastAPI application initialization & middleware
 ├── migrations/                   # Alembic environment and migration versions
-├── tests/                        # 138 Pytest integration and concurrency test cases
+├── tests/                        # 189 Pytest integration and concurrency test cases
 ├── .env.example                  # Environment configuration template
 ├── alembic.ini                   # Alembic configuration
 └── pyproject.toml                # Project metadata, Ruff, and Mypy configuration
