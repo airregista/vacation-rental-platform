@@ -6,10 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import type { UserResponse } from "@/types/auth"
+import type { PublicHost } from "@/types/auth"
 
 export interface HostCardProps {
-  host: UserResponse | null
+  host: PublicHost | null
   checkInTime: string
   checkOutTime: string
   cancellationPolicy: string

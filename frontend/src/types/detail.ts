@@ -1,5 +1,5 @@
 import type { City, Category, Amenity } from "@/types/accommodation"
-import type { UserResponse } from "@/types/auth"
+import type { PublicHost } from "@/types/auth"
 
 export interface AccommodationImage {
   id: number
@@ -32,7 +32,7 @@ export interface AccommodationDetailData {
   cancellation_policy: "flexible" | "moderate" | "strict"
   is_active: boolean
   created_at: string
-  host: UserResponse | null
+  host: PublicHost | null
   category: Category | null
   city: City | null
   images: AccommodationImage[]
