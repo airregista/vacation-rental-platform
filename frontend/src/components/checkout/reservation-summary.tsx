@@ -42,14 +42,24 @@ export function ReservationSummary({
     computeCheckoutBreakdown(reservation, accommodation)
 
   return (
-    <Card className={cn("border border-border/70 shadow-sm rounded-2xl overflow-hidden", className)}>
-      <CardHeader className="p-4 sm:p-5 pb-3">
-        <CardTitle className="text-base sm:text-lg font-bold">خلاصه رزرو</CardTitle>
+    <Card
+      className={cn(
+        "overflow-hidden rounded-3xl border-line bg-paper-card shadow-soft",
+        className
+      )}
+    >
+      <CardHeader className="p-5 pb-3 sm:p-6">
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">خلاصه اقامت</p>
+          <CardTitle className="text-lg font-black tracking-tight text-ink">
+            خلاصه رزرو
+          </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
+      <CardContent className="space-y-4 p-5 pt-0 sm:p-6 sm:pt-0">
         {/* Accommodation Preview */}
-        <div className="flex gap-3.5 items-start">
-          <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-muted shrink-0">
+        <div className="flex items-start gap-3.5">
+          <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-t-full rounded-b-xl border border-line bg-paper-deep">
             {coverImage ? (
               <Image
                 src={coverImage}
@@ -59,112 +69,115 @@ export function ReservationSummary({
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/60 bg-muted/60">
-                <Home className="h-6 w-6" />
-                <span className="text-[10px] mt-1">بدون تصویر</span>
+              <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-paper-deep text-ink-soft/70">
+                <Home className="size-6" />
+                <span className="text-[10px]">بدون تصویر</span>
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-sm sm:text-base leading-snug line-clamp-2 text-foreground">
+          <div className="min-w-0 flex-1">
+            <h3 className="line-clamp-2 text-sm font-black leading-6 text-ink sm:text-base">
               {title}
             </h3>
             {locationText && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
+              <div className="mt-1.5 flex items-center gap-1 text-xs text-ink-soft">
+                <MapPin className="size-3.5 shrink-0 text-brick" />
                 <span className="truncate">{locationText}</span>
               </div>
             )}
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-line" />
 
         {/* Stay Details */}
-        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm bg-muted/40 p-3 rounded-xl">
+        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line/60 bg-paper-deep/50 p-3.5 text-xs sm:text-sm">
           <div className="space-y-1">
-            <span className="text-muted-foreground text-xs flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-1 text-xs text-ink-soft">
+              <Calendar className="size-3.5 text-brick" />
               ورود:
             </span>
-            <p className="font-bold text-foreground">
+            <p className="font-bold tabular-nums text-ink">
               {formatPersianDate(reservation.check_in)}
             </p>
-            <span className="text-[11px] text-muted-foreground">از ساعت ۱۴:۰۰</span>
+            <span className="text-[11px] text-ink-soft">از ساعت ۱۴:۰۰</span>
           </div>
 
           <div className="space-y-1">
-            <span className="text-muted-foreground text-xs flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-1 text-xs text-ink-soft">
+              <Calendar className="size-3.5 text-brick" />
               خروج:
             </span>
-            <p className="font-bold text-foreground">
+            <p className="font-bold tabular-nums text-ink">
               {formatPersianDate(reservation.check_out)}
             </p>
-            <span className="text-[11px] text-muted-foreground">تا ساعت ۱۲:۰۰</span>
+            <span className="text-[11px] text-ink-soft">تا ساعت ۱۲:۰۰</span>
           </div>
 
-          <div className="col-span-2 pt-2 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-between border-t border-line/60 pt-2 text-xs tabular-nums text-ink-soft">
             <span>مدت اقامت: {new Intl.NumberFormat("fa-IR").format(reservation.total_nights)} شب</span>
             <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
+              <Users className="size-3.5" />
               تعداد مهمانان: {new Intl.NumberFormat("fa-IR").format(reservation.guests_count)} نفر
             </span>
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-line" />
 
         {/* Financial Breakdown */}
         <div className="space-y-2.5 text-xs sm:text-sm">
-          <div className="flex items-center justify-between text-muted-foreground">
+          <div className="flex items-center justify-between text-ink-soft">
             <span>
               هزینه اقامت ({new Intl.NumberFormat("fa-IR").format(reservation.total_nights)} شب)
             </span>
-            <span className="font-medium text-foreground">{formatToman(baseTotal)}</span>
+            <span className="font-medium tabular-nums text-ink">{formatToman(baseTotal)}</span>
           </div>
 
           {cleaningFee > 0 && (
-            <div className="flex items-center justify-between text-muted-foreground">
+            <div className="flex items-center justify-between text-ink-soft">
               <span>هزینه نظافت و خدمات</span>
-              <span className="font-medium text-foreground">{formatToman(cleaningFee)}</span>
+              <span className="font-medium tabular-nums text-ink">{formatToman(cleaningFee)}</span>
             </div>
           )}
 
           {discountAmount > 0 && reservation.coupon_code && (
-            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center justify-between text-trust">
               <span className="flex items-center gap-1">
-                <Tag className="h-3.5 w-3.5" />
+                <Tag className="size-3.5" />
                 تخفیف کد تخفیف ({reservation.coupon_code})
               </span>
-              <span className="font-medium">
+              <span className="font-medium tabular-nums">
                 - {formatToman(discountAmount)}
               </span>
             </div>
           )}
 
-          <Separator className="my-2" />
+          <Separator className="my-2 bg-line" />
 
-          <div className="flex items-center justify-between pt-1 text-sm sm:text-base font-bold">
-            <span className="text-foreground">مبلغ کل قابل پرداخت</span>
-            <span className="text-primary text-base sm:text-lg font-black font-mono">
+          <div className="flex items-center justify-between pt-1 text-sm font-bold sm:text-base">
+            <span className="text-ink">مبلغ کل قابل پرداخت</span>
+            <span className="text-base font-black tabular-nums text-brick sm:text-lg">
               {formatToman(totalPayable)}
             </span>
           </div>
+          <p className="text-[11px] leading-5 text-ink-soft">
+            نرخ هر شب بر اساس تقویم اقامتگاه محاسبه شده است.
+          </p>
         </div>
 
         {/* Trust Badges */}
-        <div className="pt-2 space-y-2 text-[11px] sm:text-xs text-muted-foreground border-t border-border/40">
+        <div className="space-y-2.5 border-t border-line/70 pt-4 text-[11px] text-ink-soft sm:text-xs">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+            <ShieldCheck className="size-4 shrink-0 text-trust" />
             <span>تضمین بازگشت آنی وجه در صورت مغایرت اقامتگاه</span>
           </div>
           <div className="flex items-center gap-2">
-            <Headphones className="h-4 w-4 text-blue-600 shrink-0" />
+            <Headphones className="size-4 shrink-0 text-gold" />
             <span>پشتیبانی ۲۴ ساعته در تمامی مراحل سفر</span>
           </div>
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+            <Lock className="size-4 shrink-0 text-brick" />
             <span>پرداخت امن متصل به درگاه شاپرک با رمزنگاری ۲۵۶ بیتی SSL</span>
           </div>
         </div>

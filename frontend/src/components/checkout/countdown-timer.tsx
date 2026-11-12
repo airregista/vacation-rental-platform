@@ -92,11 +92,11 @@ export function CountdownTimer({
     return (
       <Alert
         variant="destructive"
-        className={cn("border-destructive/30 bg-destructive/10 text-destructive", className)}
+        className={cn("border-destructive/30 bg-destructive/5 text-destructive", className)}
       >
-        <AlertCircle className="h-5 w-5" />
+        <AlertCircle className="size-5" />
         <AlertTitle className="text-base font-bold">مهلت پرداخت این رزرو به پایان رسیده است</AlertTitle>
-        <AlertDescription className="text-sm mt-1">
+        <AlertDescription className="mt-1 text-sm">
           این رزرو موقت به دلیل اتمام زمان ۳۰ دقیقه‌ای منقضی شد و تاریخ‌های انتخابی آزاد شدند. لطفا در صورت تمایل مجددا رزرو فرمایید.
         </AlertDescription>
       </Alert>
@@ -109,20 +109,23 @@ export function CountdownTimer({
       <Alert
         variant="warning"
         className={cn(
-          "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+          "border-gold/40 bg-gold-soft/70 text-ink",
           className
         )}
       >
-        <Clock className="h-5 w-5 animate-pulse text-amber-600 dark:text-amber-400" />
-        <AlertTitle className="text-base font-bold flex items-center justify-between">
+        <Clock className="size-5 animate-pulse text-brick" />
+        <AlertTitle className="flex items-center justify-between text-base font-bold">
           <span className="flex items-center gap-2">
             <span>زمان پرداخت رو به پایان است!</span>
           </span>
-          <span dir="ltr" className="font-mono text-base font-extrabold tracking-wider bg-amber-200/80 dark:bg-amber-900/60 px-2.5 py-0.5 rounded-md text-amber-900 dark:text-amber-100">
+          <span
+            dir="ltr"
+            className="rounded-md border border-gold/30 bg-paper-card px-2.5 py-0.5 font-mono text-base font-extrabold tabular-nums tracking-wider text-brick"
+          >
             {formattedTime}
           </span>
         </AlertTitle>
-        <AlertDescription className="text-sm mt-1">
+        <AlertDescription className="mt-1 text-sm">
           کمتر از ۵ دقیقه تا آزادسازی تاریخ‌ها باقی مانده است. لطفا پیش از انقضای زمان، پرداخت خود را نهایی کنید.
         </AlertDescription>
       </Alert>
@@ -133,28 +136,31 @@ export function CountdownTimer({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-secondary/30 bg-secondary/10 text-foreground",
+        "flex flex-col justify-between gap-3 rounded-2xl border border-line bg-paper-card p-4 text-ink shadow-soft sm:flex-row sm:items-center",
         className
       )}
     >
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-secondary/20 text-secondary-foreground shrink-0">
-          <Clock className="h-5 w-5" />
+        <div className="shrink-0 rounded-xl bg-gold-soft p-2 text-gold">
+          <Clock className="size-5" />
         </div>
         <div>
           <p className="text-sm font-medium">
             این رزرو موقت به مدت{" "}
-            <span dir="ltr" className="font-bold text-primary font-mono text-base px-1">
+            <span dir="ltr" className="px-1 font-mono text-base font-bold tabular-nums text-brick">
               {formattedTime}
             </span>{" "}
             دقیقه برای شما نگهداری شده است.
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="mt-0.5 text-xs text-ink-soft">
             پس از پایان این مهلت، تاریخ‌های این اقامتگاه برای سایر مسافران قابل رزرو خواهد شد.
           </p>
         </div>
       </div>
-      <Badge variant="secondary" className="self-start sm:self-auto font-mono text-xs px-2.5 py-1">
+      <Badge
+        variant="outline"
+        className="self-start border-gold/30 bg-gold-soft/60 px-2.5 py-1 font-mono text-xs tabular-nums text-ink sm:self-auto"
+      >
         <span dir="ltr">{formattedTime}</span> مانده
       </Badge>
     </div>

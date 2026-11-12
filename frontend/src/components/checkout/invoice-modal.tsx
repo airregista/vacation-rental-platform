@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { formatPersianDate } from "@/lib/format-fa"
+import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import {
   type InvoiceModalProps,
   computeCheckoutBreakdown,
@@ -53,12 +53,16 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
     computeCheckoutBreakdown(reservation, accommodation, payment.amount)
 
   const solarYear = getPersianYear(data.issuance_date || payment.paid_at)
-  const invoiceNumber = data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
-  const reservationCode = `MHM-${reservation.id.toString().padStart(5, "0")}`
+  const invoiceNumber = toPersianDigits(
+    data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
+  )
+  const reservationCode = toPersianDigits(
+    `MHM-${reservation.id.toString().padStart(5, "0")}`
+  )
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-4 sm:p-6 rounded-2xl printable-dialog-content">
+      <DialogContent className="printable-dialog-content max-h-[95vh] max-w-4xl overflow-y-auto rounded-3xl border-line bg-paper p-4 sm:p-6">
         <DialogHeader className="sr-only">
           <DialogTitle>فاکتور رسمی الکترونیک آشیانک</DialogTitle>
           <DialogDescription>صورت‌حساب رسمی خدمات اقامتی و گردشگری</DialogDescription>
@@ -85,13 +89,13 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
               }
               .printable-dialog-content {
                 position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
+                inset: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
                 max-height: none !important;
                 overflow: visible !important;
                 transform: none !important;
+                translate: none !important;
                 border: none !important;
                 box-shadow: none !important;
                 padding: 0 !important;
@@ -107,16 +111,10 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 display: none !important;
               }
               .printable-invoice-card {
-                --background: #ffffff !important;
-                --foreground: #111c2d !important;
-                --card: #ffffff !important;
-                --card-foreground: #111c2d !important;
-                --muted: #f5f5f4 !important;
-                --muted-foreground: #64748b !important;
-                --border: #e2e8f0 !important;
-                background-color: #ffffff !important;
-                color: #111c2d !important;
-                border: 1.5px solid #d8e3fb !important;
+                color-scheme: light !important;
+                background-color: white !important;
+                color: black !important;
+                border: 1.5px solid var(--line) !important;
                 padding: 16px !important;
                 width: 100% !important;
                 max-height: none !important;
@@ -128,12 +126,12 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
         }} />
 
         {/* Top Action Bar (hidden in print) */}
-        <div className="print-hide flex items-center justify-between pb-3 border-b border-border/80">
+        <div className="print-hide flex items-center justify-between gap-2 border-b border-line pb-3">
           <div className="flex items-center gap-2">
             <Button
               type="button"
               onClick={handlePrint}
-              className="gap-2 bg-primary text-primary-foreground font-bold rounded-xl h-10 px-4 text-xs sm:text-sm"
+              className="h-10 gap-2 px-4 text-xs font-bold sm:text-sm"
             >
               <Printer className="size-4" />
               چاپ فاکتور رسمی (A4)
@@ -142,68 +140,68 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
               type="button"
               variant="outline"
               onClick={onClose}
-              className="rounded-xl h-10 px-4 text-xs"
+              className="h-10 border-line bg-paper-card px-4 text-xs text-ink shadow-none hover:bg-paper"
             >
               بستن
             </Button>
           </div>
 
-          <Badge variant="outline" className="text-xs px-2.5 py-1 text-muted-foreground border-border">
+          <Badge variant="outline" className="border-line bg-paper-card px-2.5 py-1 text-xs text-ink-soft">
             فاکتور رسمی الکترونیک
           </Badge>
         </div>
 
         {/* Printable Invoice Container */}
-        <div className="printable-invoice-card bg-background rounded-xl p-4 sm:p-6 border border-border/70 space-y-6">
+        <div className="printable-invoice-card print-paper space-y-6 rounded-2xl border border-line bg-paper-card p-4 sm:p-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-primary/20">
+          <div className="flex flex-col justify-between gap-4 border-b-2 border-brick/20 pb-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
-              <div className="size-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black text-xl shadow-xs">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-brick text-xl font-black text-on-brick shadow-soft">
                 آ
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-black text-foreground">
+                <h1 className="text-base font-black tracking-tight text-ink sm:text-xl">
                   سامانه رزرو اقامتگاه آشیانک
                 </h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="mt-0.5 text-xs text-ink-soft">
                   صورت‌حساب رسمی الکترونیکی خدمات اقامتی و گردشگری
                 </p>
               </div>
             </div>
 
-            <div className="space-y-1 text-left text-xs text-muted-foreground font-medium sm:self-end">
+            <div className="space-y-1 text-left text-xs font-medium text-ink-soft sm:self-end">
               <div>
                 <span>شماره صورت‌حساب: </span>
-                <span className="font-mono font-bold text-foreground text-sm">{invoiceNumber}</span>
+                <span className="font-mono text-sm font-bold tabular-nums text-ink">{invoiceNumber}</span>
               </div>
               <div>
                 <span>تاریخ صدور: </span>
-                <span className="text-foreground">{formatPersianLongDate(data.issuance_date || payment.paid_at || new Date().toISOString())}</span>
+                <span className="tabular-nums text-ink">{formatPersianLongDate(data.issuance_date || payment.paid_at || new Date().toISOString())}</span>
               </div>
               <div>
                 <span>کد پیگیری شاپرک: </span>
-                <span className="font-mono font-bold text-foreground">{payment.tracking_code || "-"}</span>
+                <span dir="ltr" className="font-mono font-bold tabular-nums text-ink">{toPersianDigits(payment.tracking_code || "-")}</span>
               </div>
             </div>
           </div>
 
           {/* Traceability Metadata Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-muted/40 rounded-xl text-xs">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line/60 bg-paper-deep/50 p-3 text-xs sm:grid-cols-4">
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px] block">شماره رزرو آشیانک:</span>
-              <span className="font-mono font-bold text-primary">{reservationCode}</span>
+              <span className="block text-[11px] text-ink-soft">شماره رزرو آشیانک:</span>
+              <span className="font-mono font-bold tabular-nums text-brick">{reservationCode}</span>
             </div>
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px] block">شماره تراکنش پرداخت:</span>
-              <span className="font-mono font-medium">{payment.id}</span>
+              <span className="block text-[11px] text-ink-soft">شماره تراکنش پرداخت:</span>
+              <span className="font-mono font-medium tabular-nums text-ink">{toPersianDigits(payment.id)}</span>
             </div>
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px] block">وضعیت پرداخت:</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">موفق و تسویه‌شده</span>
+              <span className="block text-[11px] text-ink-soft">وضعیت پرداخت:</span>
+              <span className="font-bold text-trust">موفق و تسویه‌شده</span>
             </div>
             <div className="space-y-0.5">
-              <span className="text-muted-foreground text-[11px] block">درگاه پرداخت:</span>
-              <span className="font-medium">شاپرک (به‌پرداخت / سامان)</span>
+              <span className="block text-[11px] text-ink-soft">درگاه پرداخت:</span>
+              <span className="font-medium text-ink">شاپرک (به‌پرداخت / سامان)</span>
             </div>
           </div>
 
@@ -252,11 +250,11 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 </p>
                 <p>
                   <strong className="text-foreground">شماره تماس: </strong>
-                  <span className="font-mono">{guest?.phone || "-"}</span>
+                  <span className="font-mono">{toPersianDigits(guest?.phone || "-")}</span>
                 </p>
                 <p>
                   <strong className="text-foreground">کد ملی: </strong>
-                  <span className="font-mono">{guest?.national_code || "-"}</span>
+                  <span className="font-mono">{toPersianDigits(guest?.national_code || "-")}</span>
                 </p>
                 <p>
                   <strong className="text-foreground">پست الکترونیکی: </strong>
@@ -324,7 +322,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
 
                 {/* Row 3: Coupon Discount */}
                 {reservation.coupon_code && discountAmount > 0 && (
-                  <tr className="bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300">
+                  <tr className="bg-trust/10 text-trust">
                     <td className="p-3 text-center font-mono">{cleaningFee > 0 ? "۳" : "۲"}</td>
                     <td className="p-3">
                       <span className="font-medium">
@@ -346,7 +344,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-muted/30 border border-border/80">
             <div className="text-xs text-muted-foreground space-y-1">
               <p className="flex items-center gap-1.5 font-medium text-foreground">
-                <ShieldCheck className="size-4 text-emerald-600" />
+                <ShieldCheck className="size-4 text-trust" />
                 مالیات بر ارزش افزوده و کلیه عوارض قانونی خدمات پلتفرم در مبالغ فوق محاسبه شده است.
               </p>
               <p className="text-[11px]">
@@ -368,7 +366,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
               <span className="font-bold block text-foreground">
                 مهر و امضای دیجیتال سامانه مودیان و آشیانک
               </span>
-              <div className="size-14 mx-auto rounded-full border-2 border-dashed border-emerald-600/60 flex items-center justify-center text-emerald-600 font-bold text-[10px] leading-tight p-1">
+              <div className="size-14 mx-auto rounded-full border-2 border-dashed border-trust/60 flex items-center justify-center text-trust font-bold text-[10px] leading-tight p-1">
                 تایید مالیاتی سامانه
               </div>
               <span className="text-[10px] text-muted-foreground block font-mono">

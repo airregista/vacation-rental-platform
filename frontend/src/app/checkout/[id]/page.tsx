@@ -29,6 +29,11 @@ import { PaymentGatewayModal } from "@/components/checkout/payment-gateway-modal
 import { InvoiceModal } from "@/components/checkout/invoice-modal"
 import { cn } from "@/lib/utils"
 import {
+  describeCancellationPolicy,
+  getCancellationPolicyLabel,
+} from "@/lib/cancellation-policy"
+import { toPersianDigits } from "@/lib/format-fa"
+import {
   type ReservationDetail,
   type CheckoutAccommodationInfo,
   type PaymentResponse,
@@ -39,30 +44,6 @@ import {
 
 interface CheckoutPageProps {
   params: Promise<{ id: string }>
-}
-
-function getPolicyText(policy?: string): { title: string; description: string } {
-  switch (policy?.toLowerCase()) {
-    case "strict":
-      return {
-        title: "سخت‌گیرانه (Strict)",
-        description:
-          "لغو تا ۷ روز قبل از ورود با کسر شب اول و استرداد ۵۰٪ باقی‌مانده امکان‌پذیر است؛ پس از آن مبلغی مسترد نمی‌شود.",
-      }
-    case "moderate":
-      return {
-        title: "متعادل (Moderate)",
-        description:
-          "لغو تا ۵ روز قبل از تاریخ ورود شامل استرداد ۱۰۰٪ وجه است؛ پس از آن تا ۲۴ ساعت قبل شامل کسر شب اول می‌باشد.",
-      }
-    case "flexible":
-    default:
-      return {
-        title: "انعطاف‌پذیر (Flexible)",
-        description:
-          "لغو رزرو تا ۲۴ ساعت قبل از ساعت ورود (۱۴:۰۰) بدون جریمه و با بازگشت ۱۰۰٪ مبلغ پرداختی انجام می‌شود.",
-      }
-  }
 }
 
 function normalizeFaDigits(value: string): string {
@@ -235,11 +216,27 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
     })
   }, [])
 
-  // Payment success handler
-  const handlePaymentSuccess = React.useCallback((payment: PaymentResponse) => {
-    setLatestPayment(payment)
-    setReservation((prev) => (prev ? { ...prev, status: "confirmed" } : null))
-  }, [])
+  // Payment success handler: keep local state so direct visits / browser-back
+  // still show the inline confirmed banner, then hand off to the result page.
+  const handlePaymentSuccess = React.useCallback(
+    (payment: PaymentResponse) => {
+      setLatestPayment(payment)
+      setReservation((prev) => (prev ? { ...prev, status: "confirmed" } : null))
+      router.push(`/checkout/${payment.reservation_id}/success`)
+    },
+    [router]
+  )
+
+  // Terminal gateway failures get their own screen; generic network errors
+  // stay inline in the modal with retry.
+  const handlePaymentFailure = React.useCallback(
+    (reason: string) => {
+      router.push(
+        `/checkout/${reservationId}/failed?reason=${encodeURIComponent(reason)}`
+      )
+    },
+    [router, reservationId]
+  )
 
   // Handle terminal status change from payment gateway (e.g. 409 conflict or expiration)
   const handleReservationStatusChange = React.useCallback(
@@ -286,20 +283,20 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   // Invalid ID Guard
   if (!reservationId || isNaN(reservationId)) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center p-6 space-y-4 rounded-2xl border-border">
-          <div className="size-14 mx-auto rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+      <div className="flex min-h-[70vh] items-center justify-center bg-paper p-4 text-ink">
+        <Card className="w-full max-w-md space-y-5 rounded-3xl border-line bg-paper-card p-8 text-center shadow-soft">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brick-soft/70 text-brick-deep">
             <AlertCircle className="size-7" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="text-lg font-bold">شناسه رزرو نامعتبر است</h1>
-            <p className="text-sm text-muted-foreground">شناسه ارسال شده برای رزرو صحیح نمی‌باشد.</p>
+            <h1 className="text-lg font-black tracking-tight text-ink">شناسه رزرو نامعتبر است</h1>
+            <p className="text-sm leading-6 text-ink-soft">شناسه ارسال شده برای رزرو صحیح نمی‌باشد.</p>
           </div>
           <Button
             type="button"
             variant="outline"
             onClick={() => router.push("/")}
-            className="w-full rounded-xl"
+            className="w-full border-line bg-paper-card text-ink shadow-none hover:bg-paper"
           >
             صفحه اصلی
           </Button>
@@ -311,21 +308,21 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   // Authentication Guard
   if (!isAuthLoading && !isAuthenticated) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center p-6 space-y-4 rounded-2xl border-border">
-          <div className="size-14 mx-auto rounded-full bg-primary/10 text-primary flex items-center justify-center">
+      <div className="flex min-h-[70vh] items-center justify-center bg-paper p-4 text-ink">
+        <Card className="w-full max-w-md space-y-5 rounded-3xl border-line bg-paper-card p-8 text-center shadow-soft">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brick-soft/70 text-brick-deep">
             <Lock className="size-7" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="text-xl font-bold">ورود به حساب کاربری</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl font-black tracking-tight text-ink">ورود به حساب کاربری</h1>
+            <p className="text-sm leading-6 text-ink-soft">
               برای مشاهده جزئیات فاکتور، تکمیل رزرو و اتصال به درگاه بانکی، ابتدا وارد حساب کاربری خود شوید.
             </p>
           </div>
           <Button
             type="button"
             onClick={openOtpModal}
-            className="w-full h-11 bg-primary text-primary-foreground font-bold rounded-xl"
+            className="h-11 w-full font-bold"
           >
             ورود / ثبت‌نام سریع با شماره موبایل
           </Button>
@@ -337,9 +334,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   // Loading State
   if (isLoading || isAuthLoading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 p-4">
-        <Loader2 className="size-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground font-medium">در حال دریافت اطلاعات رزرو...</p>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 bg-paper p-4 text-ink">
+        <Loader2 className="size-8 animate-spin text-brick" />
+        <p className="text-sm font-medium text-ink-soft">در حال دریافت اطلاعات رزرو...</p>
       </div>
     )
   }
@@ -347,28 +344,28 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   // Error State
   if (fetchError || !reservation) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center p-6 space-y-4 rounded-2xl border-border">
-          <div className="size-14 mx-auto rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+      <div className="flex min-h-[70vh] items-center justify-center bg-paper p-4 text-ink">
+        <Card className="w-full max-w-md space-y-5 rounded-3xl border-line bg-paper-card p-8 text-center shadow-soft">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <AlertCircle className="size-7" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="text-lg font-bold">خطا در بارگذاری رزرو</h1>
-            <p className="text-sm text-muted-foreground">{fetchError || "رزرو مورد نظر یافت نشد."}</p>
+            <h1 className="text-lg font-black tracking-tight text-ink">خطا در بارگذاری رزرو</h1>
+            <p className="text-sm leading-6 text-ink-soft">{fetchError || "رزرو مورد نظر یافت نشد."}</p>
           </div>
           <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/")}
-              className="flex-1 rounded-xl"
+              className="flex-1 border-line bg-paper-card text-ink shadow-none hover:bg-paper"
             >
               صفحه اصلی
             </Button>
             <Button
               type="button"
               onClick={handleRetry}
-              className="flex-1 rounded-xl bg-primary text-primary-foreground"
+              className="flex-1 font-bold"
             >
               تلاش مجدد
             </Button>
@@ -383,7 +380,16 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   const isCancelled = reservation.status === "cancelled"
   const isCompleted = reservation.status === "completed"
 
-  const policyInfo = getPolicyText(accommodation?.cancellation_policy)
+  const policyLabel = getCancellationPolicyLabel(
+    accommodation?.cancellation_policy
+  )
+  const policyDescription = describeCancellationPolicy(
+    accommodation?.cancellation_policy,
+    {
+      freeHours: accommodation?.cancellation_free_hours,
+      penaltyPercent: accommodation?.cancellation_penalty_percent,
+    }
+  )
   const isPhoneValid = isValidIranianMobile(guestPhone)
   const isNationalCodeValid = isValidNationalCode(guestNationalCode)
   const isFormValid =
@@ -403,87 +409,90 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             : null
 
   return (
-    <div className="min-h-screen bg-background pb-28 sm:pb-16 pt-4 sm:pt-8">
-      <div className="container mx-auto px-4 max-w-6xl space-y-6">
+    <div className="min-h-screen bg-paper pb-28 pt-4 text-ink sm:pb-16 sm:pt-8">
+      <div className="container mx-auto max-w-6xl space-y-6 px-4">
         {/* Navigation Breadcrumb / Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href={`/accommodations/${reservation.accommodation_id}`}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft transition-colors hover:text-brick sm:text-sm"
           >
             <ArrowRight className="size-4" />
             <span>بازگشت به صفحه اقامتگاه</span>
           </Link>
-          <span className="text-xs font-mono text-muted-foreground">
-            شناسه رزرو: MHM-{reservation.id.toString().padStart(5, "0")}
+          <span className="text-[11px] text-ink-soft">
+            شناسه رزرو:{" "}
+            <bdi dir="ltr" className="font-semibold tabular-nums text-ink">
+              MHM-{toPersianDigits(reservation.id.toString().padStart(5, "0"))}
+            </bdi>
           </span>
         </div>
 
         {/* 3-Step Checkout Stepper */}
-        <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-xs">
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+        <div className="rounded-3xl border border-line bg-paper-card p-4 shadow-soft sm:p-5">
+          <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
             {/* Step 1 */}
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={cn(
-                  "size-8 sm:size-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold",
+                  "flex size-9 items-center justify-center rounded-full text-xs font-bold sm:text-sm",
                   isConfirmed || isCompleted
-                    ? "bg-emerald-600 text-white"
-                    : "bg-primary text-primary-foreground"
+                    ? "bg-trust text-on-brick"
+                    : "bg-brick text-on-brick"
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۱"}
               </div>
-              <span className="text-xs sm:text-sm font-bold text-foreground">مشخصات مهمانان</span>
-              <span className="hidden sm:inline text-[11px] text-muted-foreground">اطلاعات مسافران</span>
+              <span className="text-xs font-bold text-ink sm:text-sm">مشخصات مهمانان</span>
+              <span className="hidden text-[11px] text-ink-soft sm:inline">اطلاعات مسافران</span>
             </div>
 
             {/* Step 2 */}
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={cn(
-                  "size-8 sm:size-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold",
+                  "flex size-9 items-center justify-center rounded-full text-xs font-bold sm:text-sm",
                   isConfirmed || isCompleted
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-trust text-on-brick"
                     : isPending
-                    ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-brick text-on-brick ring-4 ring-brick/15"
+                    : "bg-paper-deep text-ink-soft"
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۲"}
               </div>
               <span
                 className={cn(
-                  "text-xs sm:text-sm font-bold",
-                  isPending ? "text-primary" : "text-foreground"
+                  "text-xs font-bold sm:text-sm",
+                  isPending ? "text-brick" : "text-ink"
                 )}
               >
                 شیوه پرداخت
               </span>
-              <span className="hidden sm:inline text-[11px] text-muted-foreground">درگاه امن شاپرک</span>
+              <span className="hidden text-[11px] text-ink-soft sm:inline">درگاه امن شاپرک</span>
             </div>
 
             {/* Step 3 */}
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={cn(
-                  "size-8 sm:size-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold",
+                  "flex size-9 items-center justify-center rounded-full text-xs font-bold sm:text-sm",
                   isConfirmed || isCompleted
-                    ? "bg-emerald-600 text-white ring-4 ring-emerald-500/20"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-trust text-on-brick ring-4 ring-trust/15"
+                    : "bg-paper-deep text-ink-soft"
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۳"}
               </div>
               <span
                 className={cn(
-                  "text-xs sm:text-sm font-bold",
-                  isConfirmed || isCompleted ? "text-emerald-600 font-extrabold" : "text-muted-foreground"
+                  "text-xs font-bold sm:text-sm",
+                  isConfirmed || isCompleted ? "font-black text-trust" : "text-ink-soft"
                 )}
               >
                 صدور فاکتور و ووچر
               </span>
-              <span className="hidden sm:inline text-[11px] text-muted-foreground">تایید نهایی اقامتگاه</span>
+              <span className="hidden text-[11px] text-ink-soft sm:inline">تایید نهایی اقامتگاه</span>
             </div>
           </div>
         </div>
@@ -500,27 +509,27 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
         {/* Confirmed State Hero Banner */}
         {isConfirmed && (
-          <Card className="border-emerald-500/40 bg-emerald-500/10 p-5 sm:p-6 rounded-2xl">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+          <Card className="rounded-3xl border-trust/25 bg-trust-soft/60 p-5 shadow-soft sm:p-6">
+            <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-right">
               <div className="flex items-center gap-3">
-                <div className="size-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-trust text-on-brick">
                   <CheckCircle2 className="size-7" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-black text-emerald-950 dark:text-emerald-100">
+                  <h2 className="text-base font-black tracking-tight text-ink sm:text-lg">
                     رزرو شما با موفقیت تایید و پرداخت گردید
                   </h2>
-                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
+                  <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
                     کد پیگیری و اطلاعات ورود برای شماره همراه شما پیامک شد.
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex w-full gap-2 sm:w-auto">
                 <Button
                   type="button"
                   disabled={!invoiceData}
                   onClick={() => setIsInvoiceModalOpen(true)}
-                  className="flex-1 sm:flex-none gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 text-xs sm:text-sm font-bold"
+                  className="h-11 flex-1 gap-2 rounded-xl bg-trust text-xs font-bold text-on-brick hover:bg-trust/90 sm:flex-none sm:text-sm"
                 >
                   <FileText className="size-4" />
                   مشاهده و چاپ فاکتور رسمی
@@ -529,14 +538,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   type="button"
                   variant="outline"
                   onClick={() => router.push("/trips")}
-                  className="flex-1 sm:flex-none rounded-xl h-11 text-xs sm:text-sm border-emerald-600/40 text-emerald-900 dark:text-emerald-200"
+                  className="h-11 flex-1 rounded-xl border-line bg-paper-card/70 text-xs font-semibold text-ink shadow-none hover:bg-paper sm:flex-none sm:text-sm"
                 >
                   سفرهای من
                 </Button>
               </div>
             </div>
             {paymentLookupError && (
-              <p className="text-xs sm:text-sm text-destructive font-medium mt-3 text-center sm:text-right">
+              <p className="mt-3 text-center text-xs font-medium text-destructive sm:text-right sm:text-sm">
                 {paymentLookupError}
               </p>
             )}
@@ -546,27 +555,27 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         {/* Completed State Banner (T1): a completed reservation has no
             confirmed banner, but its invoice must still be reachable. */}
         {isCompleted && (
-          <Card className="border-emerald-500/40 bg-emerald-500/10 p-5 sm:p-6 rounded-2xl">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+          <Card className="rounded-3xl border-trust/25 bg-trust-soft/60 p-5 shadow-soft sm:p-6">
+            <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-right">
               <div className="flex items-center gap-3">
-                <div className="size-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-trust text-on-brick">
                   <CheckCircle2 className="size-7" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-black text-emerald-950 dark:text-emerald-100">
+                  <h2 className="text-base font-black tracking-tight text-ink sm:text-lg">
                     اقامت شما با موفقیت به پایان رسید
                   </h2>
-                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 mt-0.5">
+                  <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
                     فاکتور رسمی این رزرو در دسترس است.
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex w-full gap-2 sm:w-auto">
                 <Button
                   type="button"
                   disabled={!invoiceData}
                   onClick={() => setIsInvoiceModalOpen(true)}
-                  className="flex-1 sm:flex-none gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 text-xs sm:text-sm font-bold"
+                  className="h-11 flex-1 gap-2 rounded-xl bg-trust text-xs font-bold text-on-brick hover:bg-trust/90 sm:flex-none sm:text-sm"
                 >
                   <FileText className="size-4" />
                   مشاهده و چاپ فاکتور رسمی
@@ -575,14 +584,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   type="button"
                   variant="outline"
                   onClick={() => router.push("/trips")}
-                  className="flex-1 sm:flex-none rounded-xl h-11 text-xs sm:text-sm border-emerald-600/40 text-emerald-900 dark:text-emerald-200"
+                  className="h-11 flex-1 rounded-xl border-line bg-paper-card/70 text-xs font-semibold text-ink shadow-none hover:bg-paper sm:flex-none sm:text-sm"
                 >
                   سفرهای من
                 </Button>
               </div>
             </div>
             {paymentLookupError && (
-              <p className="text-xs sm:text-sm text-destructive font-medium mt-3 text-center sm:text-right">
+              <p className="mt-3 text-center text-xs font-medium text-destructive sm:text-right sm:text-sm">
                 {paymentLookupError}
               </p>
             )}
@@ -591,17 +600,17 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
         {/* Cancelled / Expired State Banner */}
         {isCancelled && (
-          <Card className="border-destructive/30 bg-destructive/5 p-5 sm:p-6 rounded-2xl">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+          <Card className="rounded-3xl border-destructive/30 bg-destructive/5 p-5 shadow-soft sm:p-6">
+            <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-right">
               <div className="flex items-center gap-3">
-                <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
                   <AlertCircle className="size-7" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-destructive">
+                  <h2 className="text-base font-black tracking-tight text-destructive sm:text-lg">
                     این رزرو منقضی یا لغو شده است
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
                     {formatCancellationReason(reservation.cancellation_reason)}
                   </p>
                 </div>
@@ -609,7 +618,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               <Button
                 type="button"
                 onClick={() => router.push(`/accommodations/${reservation.accommodation_id}`)}
-                className="w-full sm:w-auto rounded-xl h-11 bg-primary text-primary-foreground font-bold"
+                className="h-11 w-full font-bold sm:w-auto"
               >
                 رزرو مجدد این اقامتگاه
               </Button>
@@ -618,24 +627,29 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         )}
 
         {/* Main Content 2-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
           {/* Left Column: Guest & Payment Settings */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="space-y-6 lg:col-span-7">
             {/* Guest Contact Details Card */}
-            <Card className="border-border/80 rounded-2xl">
-              <CardHeader className="p-4 sm:p-5 pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <User className="size-4 text-primary" />
-                    مشخصات تحویل‌گیرنده و مهمان اصلی
-                  </CardTitle>
-                  <span className="text-[11px] text-muted-foreground">برای ارائه به میزبان و بیمه</span>
+            <Card className="rounded-3xl border-line bg-paper-card shadow-soft">
+              <CardHeader className="p-5 pb-3 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold tracking-[0.18em] text-brick">مهمان</p>
+                    <CardTitle className="flex items-center gap-2.5 text-base font-black tracking-tight text-ink">
+                      <span className="flex size-8 items-center justify-center rounded-lg bg-brick-soft/60 text-brick-deep">
+                        <User className="size-4" />
+                      </span>
+                      مشخصات تحویل‌گیرنده و مهمان اصلی
+                    </CardTitle>
+                  </div>
+                  <span className="text-[11px] text-ink-soft">برای ارائه به میزبان و بیمه</span>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <CardContent className="space-y-4 p-5 pt-0 sm:p-6 sm:pt-0">
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>نام و نام خانوادگی *</span>
                     </label>
                     <Input
@@ -644,14 +658,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       value={guestName}
                       onChange={(e) => setCustomGuestName(e.target.value)}
                       placeholder="مطابق با کارت ملی"
-                      className="h-11 rounded-xl"
+                      className="h-11 border-line bg-paper text-ink"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>شماره موبایل *</span>
-                      <span className="text-[11px] text-muted-foreground">ارسال پیامک تایید</span>
+                      <span className="text-[11px] font-normal text-ink-soft">ارسال پیامک تایید</span>
                     </label>
                     <Input
                       type="tel"
@@ -659,13 +673,13 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       disabled={!isPending}
                       value={guestPhone}
                       onChange={(e) => setCustomGuestPhone(e.target.value)}
-                      placeholder="۰۹۱۲XXXXXXX"
-                      className="h-11 rounded-xl font-mono text-left"
+                      placeholder="۰۹۱۲۱۲۳۴۵۶۷"
+                      className="h-11 border-line bg-paper text-left tabular-nums text-ink"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>کد ملی (اختیاری)</span>
                     </label>
                     <Input
@@ -675,14 +689,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       value={guestNationalCode}
                       onChange={(e) => setGuestNationalCode(e.target.value)}
                       placeholder="۱۰ رقم کد ملی"
-                      className="h-11 rounded-xl font-mono text-left"
+                      className="h-11 border-line bg-paper text-left tabular-nums text-ink"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>ایمیل (اختیاری)</span>
-                      <span className="text-[11px] text-muted-foreground">ارسال فاکتور الکترونیک</span>
+                      <span className="text-[11px] font-normal text-ink-soft">ارسال فاکتور الکترونیک</span>
                     </label>
                     <Input
                       type="email"
@@ -691,25 +705,30 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       value={guestEmail}
                       onChange={(e) => setCustomGuestEmail(e.target.value)}
                       placeholder="name@example.com"
-                      className="h-11 rounded-xl text-left"
+                      className="h-11 border-line bg-paper text-left tabular-nums text-ink"
                     />
                   </div>
                 </div>
                 {isPending && guestFormError && (
-                  <p className="text-xs text-destructive font-medium">{guestFormError}</p>
+                  <p className="text-xs font-medium text-destructive">{guestFormError}</p>
                 )}
               </CardContent>
             </Card>
 
             {/* Payment Gateway Selector Card */}
-            <Card className="border-border/80 rounded-2xl">
-              <CardHeader className="p-4 sm:p-5 pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <CreditCard className="size-4 text-primary" />
-                  شیوه و درگاه پرداخت
-                </CardTitle>
+            <Card className="rounded-3xl border-line bg-paper-card shadow-soft">
+              <CardHeader className="p-5 pb-3 sm:p-6">
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold tracking-[0.18em] text-brick">پرداخت</p>
+                  <CardTitle className="flex items-center gap-2.5 text-base font-black tracking-tight text-ink">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-brick-soft/60 text-brick-deep">
+                      <CreditCard className="size-4" />
+                    </span>
+                    شیوه و درگاه پرداخت
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
+              <CardContent className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
                 <RadioGroup
                   value={gateway}
                   onValueChange={setGateway}
@@ -719,22 +738,22 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <label
                     htmlFor="page-gw-mellat"
                     className={cn(
-                      "flex items-center justify-between p-3.5 rounded-xl border text-xs sm:text-sm cursor-pointer transition-colors",
+                      "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "mellat"
-                        ? "border-primary bg-primary/5 font-bold"
-                        : "border-border hover:bg-muted/40"
+                        ? "border-brick bg-brick-soft/40 font-bold"
+                        : "border-line bg-paper hover:border-line-strong"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <RadioGroupItem value="mellat" id="page-gw-mellat" />
                       <div>
-                        <span className="font-bold text-foreground">به‌پرداخت ملت (شاپرک)</span>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <span className="font-bold text-ink">به‌پرداخت ملت (شاپرک)</span>
+                        <p className="mt-0.5 text-[11px] text-ink-soft">
                           پایدارترین درگاه شتابی • کارت تمامی بانک‌ها
                         </p>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="text-[11px]">
+                    <Badge variant="secondary" className="text-[11px] font-bold">
                       پیشنهادی
                     </Badge>
                   </label>
@@ -742,17 +761,17 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <label
                     htmlFor="page-gw-sep"
                     className={cn(
-                      "flex items-center justify-between p-3.5 rounded-xl border text-xs sm:text-sm cursor-pointer transition-colors",
+                      "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "sep"
-                        ? "border-primary bg-primary/5 font-bold"
-                        : "border-border hover:bg-muted/40"
+                        ? "border-brick bg-brick-soft/40 font-bold"
+                        : "border-line bg-paper hover:border-line-strong"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <RadioGroupItem value="sep" id="page-gw-sep" />
                       <div>
-                        <span className="font-bold text-foreground">پرداخت الکترونیک سامان کیش (سپ)</span>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <span className="font-bold text-ink">پرداخت الکترونیک سامان کیش (سپ)</span>
+                        <p className="mt-0.5 text-[11px] text-ink-soft">
                           شبکه رسمی شاپرک • تسویه آنی
                         </p>
                       </div>
@@ -762,22 +781,22 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <label
                     htmlFor="page-gw-snapppay"
                     className={cn(
-                      "flex items-center justify-between p-3.5 rounded-xl border text-xs sm:text-sm cursor-pointer transition-colors",
+                      "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "snapppay"
-                        ? "border-primary bg-primary/5 font-bold"
-                        : "border-border hover:bg-muted/40"
+                        ? "border-brick bg-brick-soft/40 font-bold"
+                        : "border-line bg-paper hover:border-line-strong"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <RadioGroupItem value="snapppay" id="page-gw-snapppay" />
                       <div>
-                        <span className="font-bold text-foreground">پرداخت اقساطی اسنپ‌پی (BNPL)</span>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <span className="font-bold text-ink">پرداخت اقساطی اسنپ‌پی (BNPL)</span>
+                        <p className="mt-0.5 text-[11px] text-ink-soft">
                           پرداخت در ۴ قسط مساوی بدون کارمزد و ضامن
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-[11px]">
+                    <Badge variant="outline" className="border-line text-[11px] text-ink-soft">
                       ۴ قسط
                     </Badge>
                   </label>
@@ -786,20 +805,25 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             </Card>
 
             {/* Cancellation Policy and Agreement */}
-            <Card className="border-border/80 rounded-2xl">
-              <CardHeader className="p-4 sm:p-5 pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Info className="size-4 text-primary" />
-                  قوانین کنسلی و شرایط اقامت
-                </CardTitle>
+            <Card className="rounded-3xl border-line bg-paper-card shadow-soft">
+              <CardHeader className="p-5 pb-3 sm:p-6">
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold tracking-[0.18em] text-brick">شرایط</p>
+                  <CardTitle className="flex items-center gap-2.5 text-base font-black tracking-tight text-ink">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-brick-soft/60 text-brick-deep">
+                      <Info className="size-4" />
+                    </span>
+                    قوانین کنسلی و شرایط اقامت
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 text-xs sm:text-sm space-y-1">
-                  <div className="flex items-center justify-between font-bold text-foreground">
-                    <span>قوانین استرداد: {policyInfo.title}</span>
+              <CardContent className="space-y-4 p-5 pt-0 sm:p-6 sm:pt-0">
+                <div className="space-y-1 rounded-2xl border border-line/70 bg-paper p-3.5 text-xs sm:text-sm">
+                  <div className="flex items-center justify-between font-bold text-ink">
+                    <span>قوانین استرداد: {policyLabel}</span>
                   </div>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {policyInfo.description}
+                  <p className="leading-6 text-ink-soft">
+                    {policyDescription}
                   </p>
                 </div>
 
@@ -813,7 +837,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   />
                   <label
                     htmlFor="terms"
-                    className="text-xs sm:text-sm text-foreground cursor-pointer leading-snug select-none"
+                    className="cursor-pointer select-none text-xs leading-6 text-ink sm:text-sm"
                   >
                     <span className="font-bold">قوانین و مقررات آشیانک</span>، شرایط کنسلی این اقامتگاه و قوانین ورود و خروج را مطالعه نموده و با آن موافقم.
                   </label>
@@ -823,19 +847,19 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
             {/* Desktop Direct Pay CTA */}
             {isPending && (
-              <div className="hidden lg:block pt-2">
+              <div className="hidden pt-1 lg:block">
                 <Button
                   type="button"
                   disabled={!isFormValid}
                   onClick={() => setIsPaymentModalOpen(true)}
-                  className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-black text-base shadow-md hover:bg-primary/90 gap-2"
+                  className="h-12 w-full gap-2 text-base font-black shadow-lift"
                 >
                   <Lock className="size-5" />
                   انتقال به درگاه امن بانکی و پرداخت (
                   {formatFaPrice(reservation.total_price)} تومان)
                 </Button>
                 {!isFormValid && guestFormError && (
-                  <p className="text-center text-xs text-muted-foreground mt-2">
+                  <p className="mt-2 text-center text-xs text-ink-soft">
                     {guestFormError}
                   </p>
                 )}
@@ -844,7 +868,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           </div>
 
           {/* Right Column: Order Summary Sidebar (Desktop) */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="space-y-6 lg:col-span-5">
             <ReservationSummary
               reservation={reservation}
               accommodation={accommodation}
@@ -856,10 +880,10 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
       {/* Mobile Sticky Bottom Bar */}
       {isPending && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t border-border p-3.5 px-4 shadow-lg flex items-center justify-between gap-3">
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-line bg-paper-card/95 p-3.5 px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-dock backdrop-blur-md lg:hidden">
           <div>
-            <span className="text-[11px] text-muted-foreground block">مبلغ کل قابل پرداخت:</span>
-            <div className="font-black text-primary font-mono text-base">
+            <span className="block text-[11px] text-ink-soft">مبلغ کل قابل پرداخت:</span>
+            <div className="text-base font-black tabular-nums text-brick">
               {formatFaPrice(reservation.total_price)} تومان
             </div>
           </div>
@@ -867,7 +891,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             type="button"
             disabled={!isFormValid}
             onClick={() => setIsPaymentModalOpen(true)}
-            className="flex-1 max-w-[200px] h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm gap-2"
+            className="h-11 max-w-[200px] flex-1 gap-2 text-sm font-bold"
           >
             <Lock className="size-4" />
             پرداخت امن
@@ -884,6 +908,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           initialGateway={gateway}
           onSuccess={handlePaymentSuccess}
           onStatusChange={handleReservationStatusChange}
+          onFailure={handlePaymentFailure}
         />
       )}
 

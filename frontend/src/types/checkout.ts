@@ -29,7 +29,9 @@ export interface CheckoutAccommodationInfo {
   address?: string | null
   base_price?: number
   cleaning_fee?: number
-  cancellation_policy?: "flexible" | "moderate" | "strict" | string
+  cancellation_policy?: "flexible" | "moderate" | "strict" | "custom" | string
+  cancellation_free_hours?: number
+  cancellation_penalty_percent?: number
   images?: Array<{
     id: number
     image_url: string
@@ -95,6 +97,7 @@ export interface PaymentGatewayModalProps {
   onSuccess: (payment: PaymentResponse) => void
   initialGateway?: string
   onStatusChange?: (status: "cancelled", reason: string) => void
+  onFailure?: (reason: string) => void
 }
 
 export interface InvoiceModalProps {
