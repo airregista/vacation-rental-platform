@@ -1,5 +1,7 @@
 export function toPersianDigits(n: number | string): string {
-  return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(Number(n) || 0)
+  // Convert character-by-character so leading zeros survive: IDs such as
+  // "0042", OTPs, card numbers and timers must not be re-parsed as numbers.
+  return String(n).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])
 }
 
 export function formatPersianDate(dateStr: string): string {

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Theme is driven by a `.dark` class on <html>; the inline script in the root
+   layout sets it before first paint so there is no light flash. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Vazirmatn variable font (wght 100-900), bundled locally so Persian text
    renders in Vazirmatn even on machines without it installed. Source:
    rastikerdar/vazirmatn releases (v33.003), fonts/webfonts/Vazirmatn[wght].woff2. */
@@ -14,27 +18,57 @@
 
 @layer base {
   :root {
-    --background: #FAFAF9; /* Warm Stone White */
-    --foreground: #111C2D; /* Deep Slate */
-    --card: #FFFFFF; /* Pure Crisp White */
-    --card-foreground: #111C2D;
-    --popover: #FFFFFF;
-    --popover-foreground: #111C2D;
-    --primary: #F05A28; /* Terracotta Coral */
-    --primary-foreground: #FFFFFF;
-    --secondary: #D97706; /* Warm Amber */
-    --secondary-foreground: #FFFFFF;
-    --muted: #F5F5F4; /* Soft Alabaster */
-    --muted-foreground: #64748B; /* Secondary Slate */
-    --accent: #0D9488; /* Persian Teal */
-    --accent-foreground: #FFFFFF;
-    --destructive: #DC2626;
-    --destructive-foreground: #FFFFFF;
-    --border: #E7E5E4; /* Muted Warm Gray */
-    --input: #E7E5E4;
-    --ring: #F05A28;
+    color-scheme: light;
+
+    /* Paper & Brick — the product's one design language. */
+    --paper: #f6efe4;
+    --paper-deep: #ece0cd;
+    --paper-card: #fcf7ee;
+    --ink: #202a36;
+    --ink-soft: #625f58;
+    --brick: #a94f2f;
+    --brick-deep: #7f3a22;
+    --brick-soft: #e6c8b7;
+    --trust: #1f5d55;
+    --trust-deep: #173f3a;
+    --trust-soft: #d9e7e2;
+    --gold: #b07d34;
+    --gold-soft: #f0e0bf;
+    --line: #d8c9b4;
+    --line-strong: #bda98f;
+    --on-brick: #fdf8f1;
+    --night: #202a36;
+    --night-foreground: #f6efe4;
+
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --card: var(--paper-card);
+    --card-foreground: var(--ink);
+    --popover: var(--paper-card);
+    --popover-foreground: var(--ink);
+    --primary: var(--brick);
+    --primary-foreground: var(--on-brick);
+    --secondary: var(--gold);
+    --secondary-foreground: var(--ink);
+    --muted: var(--paper-deep);
+    --muted-foreground: var(--ink-soft);
+    --accent: var(--trust);
+    --accent-foreground: var(--on-brick);
+    --destructive: #b3261e;
+    --destructive-foreground: #ffffff;
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--brick);
     --radius: 1rem;
     --font-vazirmatn: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    /* Persian digits and Latin card/OTP codes must still render in Vazirmatn;
+       the system monospace fallback breaks the site's typography. */
+    --font-mono: var(--font-vazirmatn);
+
+    /* Elevation — warm, low-contrast ambient light. */
+    --elevation-soft: 0 1px 2px rgb(32 42 54 / 0.04), 0 8px 24px -18px rgb(32 42 54 / 0.35);
+    --elevation-lift: 0 18px 40px -30px rgb(32 42 54 / 0.5);
+    --elevation-dock: 0 24px 60px -24px rgb(32 42 54 / 0.38);
 
     /* Hero diorama palette — golden-hour Persian courtyard */
     --hero-sky: #fbf1e1;
@@ -70,11 +104,84 @@
     --hero-light-key: #ffd6a5;
     --hero-light-rim: #9fc0d8;
   }
+
+  /* Nocturnal comfort: deep basalt surfaces, glowing coral, warm amber and
+     patina teal. Shadows deepen; hairline borders replace hard elevation. */
+  .dark {
+    color-scheme: dark;
+
+    --paper: #121316;
+    --paper-deep: #1b1b1f;
+    --paper-card: #1e2024;
+    --ink: #f1f0f4;
+    --ink-soft: #b9b2a7;
+    --brick: #ff9a76;
+    --brick-deep: #ffb59f;
+    --brick-soft: #3b2118;
+    --trust: #74d7ca;
+    --trust-deep: #0d2f2b;
+    --trust-soft: #16302d;
+    --gold: #e3b05f;
+    --gold-soft: #33271a;
+    --line: #2b2d34;
+    --line-strong: #4a4c54;
+    --on-brick: #2a1209;
+    --night: #0b0c0e;
+    --night-foreground: #f1f0f4;
+
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --card: var(--paper-card);
+    --card-foreground: var(--ink);
+    --popover: #282a30;
+    --popover-foreground: var(--ink);
+    --primary: var(--brick);
+    --primary-foreground: var(--on-brick);
+    --secondary: var(--gold);
+    --secondary-foreground: #241a0d;
+    --muted: var(--paper-deep);
+    --muted-foreground: var(--ink-soft);
+    --accent: var(--trust);
+    --accent-foreground: #082421;
+    --destructive: #ff8a80;
+    --destructive-foreground: #2a0806;
+    --border: var(--line);
+    --input: #33353c;
+    --ring: var(--brick);
+
+    --elevation-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -20px rgb(0 0 0 / 0.7);
+    --elevation-lift: 0 18px 40px -26px rgb(0 0 0 / 0.8);
+    --elevation-dock: 0 24px 60px -20px rgb(0 0 0 / 0.75);
+  }
+
+  /* The hero diorama is a fixed golden-hour scene; it keeps its light palette
+     in dark mode so the illustrated sky and ink stay truthful. */
+  .hero-tokens {
+    color-scheme: light;
+    color: var(--foreground);
+    --background: #f6efe4;
+    --foreground: #202a36;
+    --card: #fcf7ee;
+    --card-foreground: #202a36;
+    --muted: #ece0cd;
+    --muted-foreground: #625f58;
+    --primary: #a94f2f;
+    --primary-foreground: #fdf8f1;
+    --secondary: #b07d34;
+    --border: #d8c9b4;
+    --input: #d8c9b4;
+    --ring: #a94f2f;
+  }
 }
 
 @theme inline {
   --breakpoint-2xl: 90rem;
   --font-sans: var(--font-vazirmatn);
+  --font-mono: var(--font-vazirmatn);
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.015em;
+  --text-display--font-weight: 800;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -124,6 +231,27 @@
   --color-hero-light-ground: var(--hero-light-ground);
   --color-hero-light-key: var(--hero-light-key);
   --color-hero-light-rim: var(--hero-light-rim);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-paper-card: var(--paper-card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brick: var(--brick);
+  --color-brick-deep: var(--brick-deep);
+  --color-brick-soft: var(--brick-soft);
+  --color-trust: var(--trust);
+  --color-trust-deep: var(--trust-deep);
+  --color-trust-soft: var(--trust-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-on-brick: var(--on-brick);
+  --color-night: var(--night);
+  --color-night-foreground: var(--night-foreground);
+  --shadow-soft: var(--elevation-soft);
+  --shadow-lift: var(--elevation-lift);
+  --shadow-dock: var(--elevation-dock);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -137,6 +265,15 @@ body {
 /* Mobile Safe Area utilities */
 .safe-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Horizontal rails keep their snap behaviour without a visible scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Hero entrance — staggered, transform-only so it never affects layout. */
@@ -166,6 +303,13 @@ body {
 
 .hero-fade {
   animation: hero-fade 0.6s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise,
+  .hero-fade {
+    animation: none;
+  }
 }
 
 /* Soft grounding shadow + warm bounce under the floating diorama. */
@@ -273,5 +417,71 @@ body {
 
   .hero-scene-veil {
     opacity: 0;
+  }
+}
+
+/* Very light paper grain; keeps large flat fields from looking like plastic. */
+.paper-grain {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--ink) 5%, transparent) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 6px 6px;
+}
+
+/* Printable invoice: drop the site chrome and force ink-on-white regardless
+   of the active theme, so a dark-mode user still prints a readable page. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body > header,
+  body > footer,
+  body > nav,
+  .print-hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  /* Invoices are paper, even when the screen is in dark mode. Re-declare the
+     light tokens on the printed sheet so borders and tinted rows stay legible. */
+  .print-paper,
+  .invoice-page {
+    color-scheme: light;
+    --paper: #f6efe4;
+    --paper-deep: #ece0cd;
+    --paper-card: #fcf7ee;
+    --ink: #202a36;
+    --ink-soft: #625f58;
+    --brick: #a94f2f;
+    --trust: #1f5d55;
+    --gold: #b07d34;
+    --line: #d8c9b4;
+    --line-strong: #bda98f;
+    --background: #ffffff;
+    --foreground: var(--ink);
+    --card: #ffffff;
+    --card-foreground: var(--ink);
+    --muted: var(--paper-deep);
+    --muted-foreground: var(--ink-soft);
+    --border: var(--line);
+    --input: var(--line);
+    background: #ffffff !important;
+    color: var(--ink);
+  }
+
+  .invoice-page .invoice-sheet {
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .invoice-page .invoice-sheet * {
+    color: #111c2d !important;
+    border-color: #d8d0c4 !important;
   }
 }
