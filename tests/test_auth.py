@@ -579,12 +579,14 @@ async def test_otp_persisted_in_database(client: AsyncClient):
 
     # Expired codes still fail
     expired_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         session.add(
             OTPCode(
                 phone=expired_phone,
                 code="1234",
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+                created_at=now - timedelta(minutes=5),
+                expires_at=now - timedelta(minutes=1),
             )
         )
         await session.commit()

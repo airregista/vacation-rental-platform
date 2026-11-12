@@ -629,6 +629,7 @@ async def test_host_payout_ledger_and_settlement_flow(
         db_res = await session.get(Reservation, res_id)
         assert db_res is not None
         db_res.check_in = date.today()
+        db_res.total_nights = (db_res.check_out - db_res.check_in).days
         await session.commit()
 
     # Admin settles payout via POST /payments/host/payouts/{id}/settle

@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
@@ -42,7 +42,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 
     # Check email uniqueness if provided
     if user_in.email:
-        stmt = select(User).where(func.lower(User.email) == user_in.email)
+        stmt = select(User).where(User.email == user_in.email)
         result = await db.execute(stmt)
         if result.scalars().first():
             raise HTTPException(
@@ -83,7 +83,7 @@ async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Toke
     client_ip = request.client.host if request.client else "unknown"
     rate_key = f"{client_ip}:{identifier.lower()}"
     check_login_rate_limit(rate_key)
-    stmt = select(User).where(or_(User.phone == identifier, func.lower(User.email) == identifier))
+    stmt = select(User).where(or_(User.phone == identifier, User.email == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 
@@ -120,7 +120,7 @@ async def update_me(
             current_user.email = None
         elif user_update.email != current_user.email:
             stmt = select(User).where(
-                func.lower(User.email) == user_update.email, User.id != current_user.id
+                User.email == user_update.email, User.id != current_user.id
             )
             result = await db.execute(stmt)
             if result.scalars().first():

@@ -262,8 +262,8 @@ async def test_wishlist_returns_real_rating(
     async with AsyncSessionLocal() as session:
         db_res2 = await session.get(Reservation, res2_id)
         assert db_res2 is not None
-        db_res2.check_in = date.today() - timedelta(days=3)
-        db_res2.check_out = date.today() - timedelta(days=1)
+        db_res2.check_in = date.today() - timedelta(days=6)
+        db_res2.check_out = date.today() - timedelta(days=4)
         await session.commit()
 
     review2 = await client.post(
@@ -585,7 +585,7 @@ async def test_review_integrity_error_mapped_to_400(
         db_res = await session.get(Reservation, res_id)
         assert db_res is not None
         db_res.check_in = date.today() - timedelta(days=5)
-        db_res.check_out = date.today() - timedelta(days=2)
+        db_res.check_out = date.today() - timedelta(days=3)
         await session.commit()
 
     with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=IntegrityError("statement", {}, Exception())):

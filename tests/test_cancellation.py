@@ -424,6 +424,7 @@ async def test_cannot_cancel_after_checkin_time_has_arrived(client: AsyncClient,
         assert db_res is not None
         assert db_acc is not None
         db_res.check_in = past_dt.date()
+        db_res.total_nights = (db_res.check_out - db_res.check_in).days
         db_acc.check_in_time = past_dt.time().replace(microsecond=0)
         await session.commit()
 
