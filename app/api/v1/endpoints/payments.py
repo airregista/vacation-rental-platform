@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -32,6 +32,7 @@ async def checkout_payment(
     req: PaymentInitiateRequest,
     current_user: CurrentUserDep,
     db: SessionDep,
+    response: Response,
 ) -> PaymentInitiateResponse:
     stmt = (
         select(Reservation)
@@ -77,6 +78,9 @@ async def checkout_payment(
         )
     ).scalars().first()
     if existing:
+        # Reusing a pending payment is not a creation, so report 200 instead of
+        # the route's default 201.
+        response.status_code = status.HTTP_200_OK
         return PaymentInitiateResponse(
             payment_id=existing.id,
             reservation_id=reservation.id,
@@ -154,6 +158,20 @@ async def verify_payment(
             .execution_options(populate_existing=True)
         )
     ).scalars().first()
+
+    # A concurrent verification may have completed while this request waited
+    # for the reservation lock. Re-read the payment before rejecting on the
+    # reservation status so duplicate verifications stay idempotent (200).
+    payment = (
+        await db.execute(
+            select(Payment)
+            .where(Payment.id == req.payment_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
+    if payment and payment.status == "success":
+        return PaymentResponse.model_validate(payment)
+
     if not reservation or reservation.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

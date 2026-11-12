@@ -26,6 +26,7 @@ from app.schemas.reservation import (
     ReservationResponse,
 )
 from app.services.cancellation_service import calculate_cancellation_refund
+from app.services.coupon_service import evaluate_coupon
 from app.services.pricing_service import calculate_reservation_price
 from app.services.reservation_service import (
     check_booking_overlap,
@@ -149,13 +150,14 @@ async def create_reservation(
         coupon_stmt = select(Coupon).where(Coupon.code == calc.coupon_code).with_for_update()
         coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
         if coupon_obj:
-            if (
-                coupon_obj.usage_limit is not None
-                and coupon_obj.used_count >= coupon_obj.usage_limit
-            ):
+            # Re-validate under the lock: the coupon may have expired, been
+            # deactivated, or hit its usage limit since the price calculation.
+            evaluation = evaluate_coupon(
+                coupon_obj, calc.nights_total + calc.extra_guest_total
+            )
+            if not evaluation.is_valid:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Coupon code usage limit has been reached",
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message
                 )
             coupon_obj.used_count += 1
 

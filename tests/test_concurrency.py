@@ -503,8 +503,8 @@ async def test_checkout_reuses_existing_pending_payment(
         json={"reservation_id": reservation_id},
         headers=headers,
     )
-    assert first.status_code in (200, 201)
-    assert second.status_code in (200, 201)
+    assert first.status_code == 201
+    assert second.status_code == 200
     assert first.json()["payment_id"] == second.json()["payment_id"]
     assert first.json()["tracking_code"] == second.json()["tracking_code"]
 

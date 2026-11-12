@@ -119,7 +119,8 @@ export function BookingWidget({
         // it and surface the backend message instead.
         const INVALID_COUPON_DETAILS = [
           "Invalid or inactive coupon code",
-          "Coupon code has expired or is not yet valid",
+          "Coupon has expired",
+          "Coupon is not yet active",
         ]
         if (
           appliedCoupon &&
