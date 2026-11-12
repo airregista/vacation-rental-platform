@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
-_DEFAULT_TEST_URL = "postgresql+asyncpg://postgres@localhost:5432/jabama_test"
+_DEFAULT_TEST_URL = "postgresql+asyncpg://postgres@localhost:5432/ashianak_test"
 _TEST_URL = os.environ.get("TEST_DATABASE_URL") or _DEFAULT_TEST_URL
 _TEST_DB = make_url(_TEST_URL)
 

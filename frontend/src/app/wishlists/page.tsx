@@ -25,7 +25,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-const FOLDERS_STORAGE_KEY = "jabama_wishlist_folders"
+const FOLDERS_STORAGE_KEY = "ashianak_wishlist_folders"
 
 const DEFAULT_FOLDERS: WishlistFolder[] = [
   { id: "all", name: "همه نشان‌شده‌ها", accommodation_ids: [] },

@@ -9,7 +9,7 @@
   - Migrations: `& "C:\Users\user\miniconda3\envs\ai_bootcamp\python.exe" -m alembic current`
 
 ## Database Architecture
-- PostgreSQL Cluster: Local port 5432 (`jabama_db`)
+- PostgreSQL Cluster: Local port 5432 (`ashianak_db`)
 - Async Driver: `asyncpg` via SQLAlchemy 2.0
 - Migrations: Managed through Alembic under `migrations/`
 - Connection Pooling: Configured with `AsyncAdaptedQueuePool`

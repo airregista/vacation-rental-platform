@@ -49,7 +49,7 @@ async def seed():
         if not admin:
             admin = User(
                 phone="09120000000",
-                email="admin@jabama.local",
+                email="admin@ashianak.local",
                 # Demo account: public development credential, guarded by ensure_demo_seeding_allowed.
                 password_hash=get_password_hash(
                     resolve_demo_password(settings.SEED_ADMIN_PASSWORD, "admin123")
@@ -67,7 +67,7 @@ async def seed():
         if not guest_check:
             guest = User(
                 phone="09121111111",
-                email="guest@jabama.local",
+                email="guest@ashianak.local",
                 # Demo account: public development credential, guarded by ensure_demo_seeding_allowed.
                 password_hash=get_password_hash(
                     resolve_demo_password(settings.SEED_GUEST_PASSWORD, "guest123")

@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = "jabama_db"
+    POSTGRES_DB: str = "ashianak_db"
     DATABASE_URL: str | None = None
     ENABLE_STARTUP_SEED: bool = False
     SEED_ADMIN_PASSWORD: str = ""

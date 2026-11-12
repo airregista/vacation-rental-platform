@@ -122,8 +122,8 @@ POSTGRES_SERVER=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=
-POSTGRES_DB=jabama_db
-DATABASE_URL=postgresql+asyncpg://postgres@localhost:5432/jabama_db
+POSTGRES_DB=ashianak_db
+DATABASE_URL=postgresql+asyncpg://postgres@localhost:5432/ashianak_db
 
 # Demo accounts (with publicly documented passwords) are seeded only in a demo ENVIRONMENT.
 ENABLE_STARTUP_SEED=False
@@ -216,7 +216,7 @@ The API is organized into 12 core resource routers. Counts are grouped by featur
 ## Automated Test Suite
 
 Tests run against a disposable database whose name must end in `_test`.
-The default is `jabama_test`; override it with `TEST_DATABASE_URL`. The suite
+The default is `ashianak_test`; override it with `TEST_DATABASE_URL`. The suite
 creates the database if needed, drops and recreates only that database's
 `public` schema, runs `alembic upgrade head`, and then seeds. It never writes
 to the development database.

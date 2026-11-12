@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 
-const STORAGE_KEY = "jabama_travel_date_poll"
+const STORAGE_KEY = "ashianak_travel_date_poll"
 
 const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   {
