@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, Identity, String, func
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Identity, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,6 +16,18 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("role IN ('guest', 'host', 'admin')", name="chk_users_role"),
+        CheckConstraint("phone ~ '^09[0-9]{9}$'", name="chk_users_phone_format"),
+        CheckConstraint(
+            "shaba_number IS NULL OR shaba_number ~ '^IR[0-9]{24}$'",
+            name="chk_users_shaba_format",
+        ),
+        CheckConstraint(
+            "email IS NULL OR email = lower(email)",
+            name="chk_users_email_lowercase",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     phone: Mapped[str] = mapped_column(String(15), unique=True, index=True, nullable=False)

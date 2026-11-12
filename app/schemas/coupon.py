@@ -58,8 +58,8 @@ class CouponCreate(BaseModel):
             if self.valid_until.tzinfo
             else self.valid_until.replace(tzinfo=timezone.utc)
         )
-        if until_dt < from_dt:
-            raise ValueError("valid_until must be on or after valid_from")
+        if until_dt <= from_dt:
+            raise ValueError("valid_until must be after valid_from")
         self.valid_from = from_dt
         self.valid_until = until_dt
         return self

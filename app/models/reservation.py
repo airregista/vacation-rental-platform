@@ -39,6 +39,22 @@ class Reservation(Base):
             "status IN ('pending', 'confirmed', 'cancelled', 'completed')",
             name="chk_reservation_status",
         ),
+        CheckConstraint(
+            "refund_amount IS NULL OR refund_amount >= 0",
+            name="chk_reservation_refund_non_negative",
+        ),
+        CheckConstraint(
+            "penalty_amount IS NULL OR penalty_amount >= 0",
+            name="chk_reservation_penalty_non_negative",
+        ),
+        CheckConstraint(
+            "coalesce(refund_amount, 0) + coalesce(penalty_amount, 0) <= total_price",
+            name="chk_reservation_refund_penalty_total",
+        ),
+        CheckConstraint(
+            "total_nights = (check_out - check_in)",
+            name="chk_reservation_total_nights_matches_dates",
+        ),
         Index("ix_reservations_overlap", "accommodation_id", "status", "check_in", "check_out"),
         Index("ix_reservations_user_created", "user_id", "created_at"),
         Index("ix_reservations_status_created", "status", "created_at"),

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import CheckConstraint, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -15,6 +15,10 @@ class OTPCode(Base):
     """
 
     __tablename__ = "otp_codes"
+    __table_args__ = (
+        CheckConstraint("code ~ '^[0-9]{4,6}$'", name="chk_otp_code_format"),
+        CheckConstraint("expires_at > created_at", name="chk_otp_expiry_after_creation"),
+    )
 
     phone: Mapped[str] = mapped_column(String(15), primary_key=True, nullable=False)
     code: Mapped[str] = mapped_column(String(6), nullable=False)

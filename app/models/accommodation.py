@@ -47,6 +47,16 @@ class Accommodation(Base):
             "cancellation_policy IN ('flexible', 'moderate', 'strict')",
             name="chk_accommodation_cancellation_policy",
         ),
+        CheckConstraint(
+            "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
+            name="chk_accommodation_latitude",
+        ),
+        CheckConstraint(
+            "longitude IS NULL OR (longitude >= -180 AND longitude <= 180)",
+            name="chk_accommodation_longitude",
+        ),
+        CheckConstraint("rooms_count >= 0", name="chk_accommodation_rooms_count"),
+        CheckConstraint("beds_count >= 0", name="chk_accommodation_beds_count"),
         Index("ix_accommodations_active_created", "is_active", "created_at"),
         Index("ix_accommodations_active_city_price", "is_active", "city_id", "base_price"),
         Index("ix_accommodations_lat_lng", "latitude", "longitude"),
