@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.schemas.amenity import AmenityResponse
 from app.schemas.category import CategoryResponse
 from app.schemas.geo import CityResponse
-from app.schemas.user import UserResponse
+from app.schemas.user import PublicHostResponse
 
 
 class AccommodationImageCreate(BaseModel):
@@ -40,6 +40,8 @@ class PricingExceptionResponse(BaseModel):
     date: date
     price: Decimal | None = None
     is_blocked: bool
+    manual_blocked: bool
+    ical_blocked: bool
     min_nights: int | None = None
 
 
@@ -181,7 +183,7 @@ class AccommodationDetail(BaseModel):
     external_calendar_url: str | None = None
     last_calendar_sync_at: datetime | None = None
 
-    host: UserResponse | None = None
+    host: PublicHostResponse | None = None
     category: CategoryResponse | None = None
     city: CityResponse | None = None
     images: list[AccommodationImageResponse] = Field(default_factory=list)

@@ -16,10 +16,22 @@ def normalize_iranian_phone(phone_str: str) -> str:
     return f"0{match.group(1)}"
 
 
+BCRYPT_MAX_PASSWORD_BYTES = 72
+
+
+def validate_password_length(value: str) -> str:
+    if len(value.encode("utf-8")) > BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(
+            "Password must be at most 72 bytes when UTF-8 encoded "
+            "(Persian/Arabic characters use 2 bytes each)"
+        )
+    return value
+
+
 class UserRegister(BaseModel):
     phone: str = Field(min_length=11, max_length=11, pattern=r"^09\d{9}$")
     email: str | None = None
-    password: str = Field(min_length=6, max_length=100)
+    password: str = Field(min_length=6, max_length=72)
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
 
@@ -38,10 +50,20 @@ class UserRegister(BaseModel):
             raise ValueError("Invalid email address format")
         return clean
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_password_length(v)
+
 
 class UserLogin(BaseModel):
     login: str = Field(max_length=254, description="Phone number or email address")
-    password: str
+    password: str = Field(min_length=1, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_password_length(v)
 
     @field_validator("login", mode="before")
     @classmethod
@@ -95,6 +117,22 @@ class UserResponse(BaseModel):
     role: str
     avatar_url: str | None = None
     shaba_number: str | None = Field(default=None, pattern=r"^IR\d{24}$")
+    created_at: datetime
+
+
+class PublicHostResponse(BaseModel):
+    """Fields safe to expose on a public accommodation page.
+
+    Never add phone, email, shaba_number, role, or password material here.
+    Owners and admins read the full record through /auth/me or /users/*.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
     created_at: datetime
 
 

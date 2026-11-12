@@ -6,6 +6,12 @@ import jwt
 
 from app.core.config import settings
 
+# A fixed bcrypt hash of a random throwaway string. It is only used to spend
+# the same CPU time when a login identifier does not exist, so response time
+# does not reveal whether an account is registered. It is not a credential;
+# no real account uses it, and its plaintext is irrelevant.
+DUMMY_PASSWORD_HASH = "$2b$12$v.Wf9Uzp3T0tq.fa1E.wC.D2MF6YfIbBdd1RiiNJ/jjrIIqaBy9KW"
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:

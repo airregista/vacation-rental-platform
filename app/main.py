@@ -1,13 +1,18 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 import app.models as _models  # noqa: F401 - ensure models are registered
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import AsyncSessionLocal, engine
 from app.seeds.seed_data import seed
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -67,5 +72,18 @@ async def root():
 
 
 @app.get("/health", tags=["health"])
-async def health_check():
-    return {"status": "ok", "database": "connected"}
+async def health_check() -> JSONResponse:
+    """Readiness probe: return 503 when the database cannot answer."""
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Database health probe failed")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "disconnected"},
+        )
+    return JSONResponse(
+        status_code=200,
+        content={"status": "ok", "database": "connected"},
+    )

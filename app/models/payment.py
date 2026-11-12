@@ -54,6 +54,10 @@ class HostPayout(Base):
         CheckConstraint("payout_amount >= 0", name="chk_payout_amount"),
         CheckConstraint("commission_amount >= 0", name="chk_payout_commission"),
         CheckConstraint("status IN ('pending', 'completed', 'cancelled')", name="chk_payout_status"),
+        CheckConstraint(
+            "total_booking_amount = commission_amount + payout_amount",
+            name="chk_payout_arithmetic",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)

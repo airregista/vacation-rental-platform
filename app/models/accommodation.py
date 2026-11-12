@@ -47,6 +47,16 @@ class Accommodation(Base):
             "cancellation_policy IN ('flexible', 'moderate', 'strict')",
             name="chk_accommodation_cancellation_policy",
         ),
+        CheckConstraint(
+            "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
+            name="chk_accommodation_latitude",
+        ),
+        CheckConstraint(
+            "longitude IS NULL OR (longitude >= -180 AND longitude <= 180)",
+            name="chk_accommodation_longitude",
+        ),
+        CheckConstraint("rooms_count >= 0", name="chk_accommodation_rooms_count"),
+        CheckConstraint("beds_count >= 0", name="chk_accommodation_beds_count"),
         Index("ix_accommodations_active_created", "is_active", "created_at"),
         Index("ix_accommodations_active_city_price", "is_active", "city_id", "base_price"),
         Index("ix_accommodations_lat_lng", "latitude", "longitude"),
@@ -85,15 +95,16 @@ class Accommodation(Base):
     cancellation_policy: Mapped[str] = mapped_column(
         String(20), server_default="flexible", nullable=False
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, server_default="true", index=True, nullable=False
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     external_calendar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     last_calendar_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    calendar_feed_token_version: Mapped[int] = mapped_column(
+        Integer, server_default="0", default=0, nullable=False
     )
 
     host: Mapped["User"] = relationship("User", back_populates="hosted_accommodations")
@@ -144,6 +155,10 @@ class PricingException(Base):
             "min_nights IS NULL OR min_nights >= 1",
             name="chk_pricing_exception_min_nights",
         ),
+        CheckConstraint(
+            "is_blocked = (manual_blocked OR ical_blocked)",
+            name="chk_pricing_exception_block_flags",
+        ),
         Index(
             "ix_pricing_exceptions_blocked",
             "accommodation_id",
@@ -154,11 +169,17 @@ class PricingException(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     accommodation_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), index=True, nullable=False
+        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), nullable=False
     )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    manual_blocked: Mapped[bool] = mapped_column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
+    ical_blocked: Mapped[bool] = mapped_column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
     min_nights: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
     accommodation: Mapped["Accommodation"] = relationship(

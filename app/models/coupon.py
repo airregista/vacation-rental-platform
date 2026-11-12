@@ -25,6 +25,19 @@ class Coupon(Base):
         ),
         CheckConstraint("discount_value > 0", name="chk_coupon_discount_value"),
         CheckConstraint("min_booking_amount >= 0", name="chk_coupon_min_booking_amount"),
+        CheckConstraint("valid_until > valid_from", name="chk_coupon_validity_range"),
+        CheckConstraint("used_count >= 0", name="chk_coupon_used_count"),
+        CheckConstraint(
+            "usage_limit IS NULL OR usage_limit > 0", name="chk_coupon_usage_limit"
+        ),
+        CheckConstraint(
+            "discount_type <> 'percentage' OR discount_value <= 100",
+            name="chk_coupon_percentage_range",
+        ),
+        CheckConstraint(
+            "max_discount_amount IS NULL OR max_discount_amount >= 0",
+            name="chk_coupon_max_discount",
+        ),
     )
 
     # ponytail: surrogate integer ID; UUID/external slug can be added if public reference needed

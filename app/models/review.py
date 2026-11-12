@@ -49,7 +49,7 @@ class Review(Base):
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
     )
     accommodation_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), index=True, nullable=False
+        BigInteger, ForeignKey("accommodations.id", ondelete="CASCADE"), nullable=False
     )
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     cleanliness_rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)

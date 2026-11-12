@@ -48,21 +48,28 @@ def _raise_too_many(retry_after: int) -> NoReturn:
     )
 
 
-def check_login_rate_limit(key: str) -> None:
+def _effective_limit(limit: int | None) -> int:
+    if limit is None:
+        return settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS
+    return limit
+
+
+def check_login_rate_limit(key: str, *, limit: int | None = None) -> None:
     """Read-only pre-check: raise 429 when the key is already over the limit."""
+    effective_limit = _effective_limit(limit)
     now = time.monotonic()
     with _lock:
         bucket = _attempts.get(key)
         if bucket is None:
             return
         _prune(bucket, now)
-        if len(bucket) < settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS:
+        if len(bucket) < effective_limit:
             return
         retry_after = _retry_after(bucket, now)
     _raise_too_many(retry_after)
 
 
-def check_and_record_failed_login(key: str) -> None:
+def check_and_record_failed_login(key: str, *, limit: int | None = None) -> None:
     """Record one failed attempt and raise 429 when it crosses the limit.
 
     The append and the threshold decision happen under the same lock, so a
@@ -70,14 +77,18 @@ def check_and_record_failed_login(key: str) -> None:
     the limit. Every call records, even the ones that raise: an attacker who
     keeps retrying keeps the window full, and a legitimate user clears it by
     logging in successfully.
+
+    ``limit`` lets a coarse per-IP bucket use a higher threshold than the
+    per-identifier bucket. The same helper is used for OTP sends and verifies.
     """
+    effective_limit = _effective_limit(limit)
     now = time.monotonic()
     with _lock:
         _sweep(now)
         bucket = _attempts.setdefault(key, deque())
         _prune(bucket, now)
         bucket.append(now)
-        if len(bucket) <= settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS:
+        if len(bucket) <= effective_limit:
             return
         retry_after = _retry_after(bucket, now)
     _raise_too_many(retry_after)

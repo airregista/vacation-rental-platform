@@ -391,6 +391,24 @@ async def test_otp_send_and_verify_flow(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_passwords_are_bounded_by_bcrypt_limit(client: AsyncClient):
+    url = f"{settings.API_V1_STR}/auth/register"
+    base = {"phone": "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"}
+
+    too_long = await client.post(url, json={**base, "password": "a" * 73})
+    assert too_long.status_code == 422
+
+    # 37 Persian characters are 74 UTF-8 bytes.
+    persian_too_long = await client.post(
+        url, json={**base, "password": "\u0627" * 37}
+    )
+    assert persian_too_long.status_code == 422
+
+    ok = await client.post(url, json={**base, "password": "a" * 72})
+    assert ok.status_code == 201
+
+
+@pytest.mark.asyncio
 async def test_become_host_flow(client: AsyncClient):
     random_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
     await client.post(
@@ -579,12 +597,14 @@ async def test_otp_persisted_in_database(client: AsyncClient):
 
     # Expired codes still fail
     expired_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         session.add(
             OTPCode(
                 phone=expired_phone,
                 code="1234",
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+                created_at=now - timedelta(minutes=5),
+                expires_at=now - timedelta(minutes=1),
             )
         )
         await session.commit()
