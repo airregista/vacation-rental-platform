@@ -31,7 +31,8 @@ not copy the local `.env` to the server.
 | `ALLOWED_ORIGINS` | JSON list of exact frontend origins | Example: `["https://app.example.com","https://www.example.com"]`. No wildcard; CORS allows credentials. |
 | `ENABLE_STARTUP_SEED` | `False` | Keep demo seeding off. The seed itself also refuses to create demo accounts outside the demo environments. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` (8 hours) | Bearer tokens are stored in `localStorage`; keep this short. Raise it only with an explicit product decision. |
-| `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `10` (default) | Failed password attempts allowed per window. |
+| `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `10` (default) | Failed password or OTP attempts allowed per identifier per window. |
+| `LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP` | `50` (default) | Failed attempts allowed per source IP per window, shared by login, OTP send, and OTP verify. Stops identifier rotation. |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` (default) | Rolling window for the login limiter. |
 
 Generate the key without committing it:

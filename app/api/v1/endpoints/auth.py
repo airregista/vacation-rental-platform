@@ -2,11 +2,13 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentUserDep, SessionDep
+from app.core.config import settings
 from app.core.rate_limit import (
     check_and_record_failed_login,
     check_login_rate_limit,
@@ -58,7 +60,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
     new_user = User(
         phone=user_in.phone,
         email=user_in.email,
-        password_hash=get_password_hash(user_in.password),
+        password_hash=await run_in_threadpool(get_password_hash, user_in.password),
         first_name=user_in.first_name,
         last_name=user_in.last_name,
         role="guest",
@@ -86,17 +88,30 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
 async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Token:
     identifier = login_data.login.strip()
     client_ip = request.client.host if request.client else "unknown"
-    rate_key = f"{client_ip}:{identifier.lower()}"
+    rate_key = f"login:{client_ip}:{identifier.lower()}"
+    ip_rate_key = f"login-ip:{client_ip}"
     check_login_rate_limit(rate_key)
+    check_login_rate_limit(
+        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+    )
     stmt = select(User).where(or_(User.phone == identifier, User.email == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 
     password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
-    password_ok = verify_password(login_data.password, password_hash)
+    password_ok = await run_in_threadpool(
+        verify_password, login_data.password, password_hash
+    )
 
     if user is None or not password_ok:
+        # Count the failure against both the identifier and the source IP.
+        # The IP bucket is intentionally not cleared on success: otherwise a
+        # malicious registered user could reset it by logging into their own
+        # account between bursts.
         check_and_record_failed_login(rate_key)
+        check_and_record_failed_login(
+            ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials. Incorrect phone/email or password",
@@ -157,7 +172,15 @@ async def update_me(
 
 
 @router.post("/otp/send", response_model=OTPResponse)
-async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
+async def send_otp(
+    req: UserOTPRequest, request: Request, db: SessionDep
+) -> OTPResponse:
+    client_ip = request.client.host if request.client else "unknown"
+    ip_rate_key = f"otp-send-ip:{client_ip}"
+    check_login_rate_limit(
+        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+    )
+
     # Prune expired codes to avoid unbounded table growth. OTP codes live
     # in PostgreSQL (not in-process memory) so a code sent by one worker
     # can be verified by another and survives restarts.
@@ -192,6 +215,11 @@ async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"لطفاً {int(60 - elapsed)} ثانیه دیگر دوباره تلاش کنید",
             )
+    # Count only sends that pass the per-phone cooldown: rejected retries do no
+    # DB write and should not consume the caller's IP budget.
+    check_and_record_failed_login(
+        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+    )
     await db.execute(stmt)
     await db.commit()
     return OTPResponse(
@@ -202,11 +230,20 @@ async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
 
 
 @router.post("/otp/verify", response_model=Token)
-async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
+async def verify_otp(
+    payload: UserOTPVerify, request: Request, db: SessionDep
+) -> Token:
     phone = payload.phone
     code = payload.code
-    otp_rate_key = f"otp:{phone}"
+    client_ip = request.client.host if request.client else "unknown"
+    # Scope the per-phone lockout to the requesting IP: a third party cannot
+    # lock the victim's phone by sending wrong codes from another address.
+    otp_rate_key = f"otp:{client_ip}:{phone}"
+    otp_ip_key = f"otp-ip:{client_ip}"
     check_login_rate_limit(otp_rate_key)
+    check_login_rate_limit(
+        otp_ip_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+    )
 
     # Atomically consume the OTP: the DELETE only removes a live row
     # matching this phone+code, so two concurrent verifies can never both
@@ -223,6 +260,9 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
     ).scalars().first()
     if consumed is None:
         check_and_record_failed_login(otp_rate_key)
+        check_and_record_failed_login(
+            otp_ip_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
+        )
         otp_row = (
             (await db.execute(select(OTPCode).where(OTPCode.phone == phone))).scalars().first()
         )
@@ -252,7 +292,9 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
     if not user:
         user = User(
             phone=phone,
-            password_hash=get_password_hash(secrets.token_hex(16)),
+            password_hash=await run_in_threadpool(
+                get_password_hash, secrets.token_hex(16)
+            ),
             first_name=payload.first_name or "کاربر",
             last_name=payload.last_name or "مهمان",
             role="guest",

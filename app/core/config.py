@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 hours
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS: int = Field(default=10, ge=1)
+    LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP: int = Field(default=50, ge=1)
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=300, ge=1)
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
     CALENDAR_MAX_BLOCK_DAYS: int = 90  # Max days between start_date and end_date in batch blocking
