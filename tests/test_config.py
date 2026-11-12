@@ -131,3 +131,8 @@ def test_fallback_database_url_encodes_special_characters(monkeypatch):
         POSTGRES_DB="ashianak",
     )
     assert "p%40ss%3Aword" in result.async_database_url
+
+
+def test_default_access_token_ttl_is_eight_hours():
+    result = Settings(_env_file=None, ENVIRONMENT="development", SECRET_KEY="")
+    assert result.ACCESS_TOKEN_EXPIRE_MINUTES == 480

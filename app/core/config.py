@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 hours
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS: int = Field(default=10, ge=1)
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=300, ge=1)
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)

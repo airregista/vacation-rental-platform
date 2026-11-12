@@ -30,7 +30,7 @@ not copy the local `.env` to the server.
 | `DB_POOL_RECYCLE` | `1800` (default) | Seconds before a pooled connection is recycled. Lower it below any firewall/pooler idle timeout. |
 | `ALLOWED_ORIGINS` | JSON list of exact frontend origins | Example: `["https://app.example.com","https://www.example.com"]`. No wildcard; CORS allows credentials. |
 | `ENABLE_STARTUP_SEED` | `False` | Keep demo seeding off. The seed itself also refuses to create demo accounts outside the demo environments. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | e.g. `1440` | Shorten it if the product can tolerate more frequent logins. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` (8 hours) | Bearer tokens are stored in `localStorage`; keep this short. Raise it only with an explicit product decision. |
 | `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `10` (default) | Failed password attempts allowed per window. |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` (default) | Rolling window for the login limiter. |
 
@@ -156,6 +156,17 @@ Before scaling horizontally, move the limiter state to a shared store such as
 Redis or PostgreSQL. Until then, run a single worker if the login throttle must
 be accurate. This is a scaling decision, not a local-development blocker.
 
+Behind a reverse proxy, start uvicorn with proxy headers enabled so the
+limiter sees the real client IP instead of `127.0.0.1`:
+
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+  --proxy-headers --forwarded-allow-ips=127.0.0.1
+```
+
+`--forwarded-allow-ips` must name only the proxy addresses. Trusting every
+source lets a client spoof `X-Forwarded-For` and rotate the limiter key.
+
 ## 6. CORS and the frontend
 
 - Set `ALLOWED_ORIGINS` to the exact scheme + host + port of each frontend.
@@ -175,8 +186,10 @@ curl -fsS https://api.example.com/
 ```
 
 Expected: `{"status":"ok","database":"connected"}` and the root health payload.
-The `/health` response is a liveness response; also exercise the database by
-logging in and calling an authenticated endpoint.
+`/health` performs a real `SELECT 1`; it returns `503` with
+`{"status":"unhealthy","database":"disconnected"}` when the database is
+unreachable. A `200` therefore proves both the process and its database
+connection are healthy.
 
 Then check:
 
@@ -208,7 +221,67 @@ pytest -q
 - [ ] `.env` is not tracked by git and is not readable by other users.
 - [ ] The post-deploy smoke test passed.
 
-## 9. Rollback
+## 9. Reverse proxy and edge limits
+
+The in-process limiter is a per-identifier backstop. Add a coarse per-IP limit
+at the edge so credential stuffing and OTP probing are slowed before they
+reach Python. Example nginx configuration:
+
+```nginx
+# http { } context
+limit_req_zone $binary_remote_addr zone=auth:10m rate=60r/m;
+limit_req_zone $binary_remote_addr zone=api:10m  rate=30r/s;
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    client_max_body_size 2m;
+    proxy_read_timeout   30s;
+
+    # Throttle credential-entry endpoints only. /auth/me, /auth/become-host,
+    # and /auth/register must not share this 60r/m bucket.
+    location ~ ^/api/v1/auth/(login|otp/send|otp/verify)$ {
+        limit_req zone=auth burst=10 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/v1/accommodations/ {
+        # Calendar sync performs outbound fetches; keep its budget separate.
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+`60r/m` with `burst=10` allows a normal login/OTP sequence but not a scripted
+burst; tune it from real traffic. The regex matches only the three
+credential-entry paths, so `/api/v1/auth/me` and `/api/v1/auth/become-host`
+fall through to the unthrottled `location /`. The edge limit is not a
+replacement for the per-identifier limiter, and it is not shared across nginx
+instances either.
+
+## 10. Rollback
 
 - Keep the previous release available so the app can be restarted on it.
 - Schema rollbacks are not automatic: use Alembic downgrades only when the
