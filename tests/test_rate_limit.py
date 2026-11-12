@@ -135,3 +135,57 @@ async def test_login_identifier_length_is_bounded(client: AsyncClient) -> None:
     # identifier), otherwise the limit is tighter than intended.
     at_limit = await client.post(url, json={"login": "a" * 254, "password": "x"})
     assert at_limit.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_otp_verify_is_rate_limited_per_phone(client: AsyncClient):
+    phone = "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"
+    sent = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone}
+    )
+    assert sent.status_code == 200
+
+    for _ in range(settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS):
+        response = await client.post(
+            f"{settings.API_V1_STR}/auth/otp/verify",
+            json={"phone": phone, "code": "9999"},
+        )
+        assert response.status_code == 400
+
+    blocked = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": phone, "code": "1234"},
+    )
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
+
+
+@pytest.mark.asyncio
+async def test_otp_success_clears_failed_attempts(client: AsyncClient):
+    phone = "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"
+    await client.post(f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone})
+
+    bad = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": phone, "code": "9999"},
+    )
+    assert bad.status_code == 400
+
+    ok = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": phone, "code": "1234"},
+    )
+    assert ok.status_code == 200
+
+    for _ in range(settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS):
+        response = await client.post(
+            f"{settings.API_V1_STR}/auth/otp/verify",
+            json={"phone": phone, "code": "9999"},
+        )
+        assert response.status_code == 400
+
+    blocked = await client.post(
+        f"{settings.API_V1_STR}/auth/otp/verify",
+        json={"phone": phone, "code": "1234"},
+    )
+    assert blocked.status_code == 429

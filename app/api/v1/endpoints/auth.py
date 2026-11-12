@@ -205,6 +205,8 @@ async def send_otp(req: UserOTPRequest, db: SessionDep) -> OTPResponse:
 async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
     phone = payload.phone
     code = payload.code
+    otp_rate_key = f"otp:{phone}"
+    check_login_rate_limit(otp_rate_key)
 
     # Atomically consume the OTP: the DELETE only removes a live row
     # matching this phone+code, so two concurrent verifies can never both
@@ -220,6 +222,7 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
         )
     ).scalars().first()
     if consumed is None:
+        check_and_record_failed_login(otp_rate_key)
         otp_row = (
             (await db.execute(select(OTPCode).where(OTPCode.phone == phone))).scalars().first()
         )
@@ -239,6 +242,8 @@ async def verify_otp(payload: UserOTPVerify, db: SessionDep) -> Token:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="کد تایید وارد شده نامعتبر است (کد آزمایشی: 1234)",
         )
+
+    clear_login_attempts(otp_rate_key)
 
     stmt = select(User).where(User.phone == phone)
     result = await db.execute(stmt)
