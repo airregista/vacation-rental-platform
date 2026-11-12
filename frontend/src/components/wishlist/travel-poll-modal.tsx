@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 
 const STORAGE_KEY = "ashianak_travel_date_poll"
+const LEGACY_STORAGE_KEY = "jabama_travel_date_poll"
 
 const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   {
@@ -155,7 +156,10 @@ export function TravelPollModal({
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const stored = localStorage.getItem(STORAGE_KEY)
+        const currentStored = localStorage.getItem(STORAGE_KEY)
+        const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY)
+        const stored = currentStored ?? legacyStored
+        const migratedFromLegacy = currentStored === null && legacyStored !== null
         if (stored) {
           const parsed = JSON.parse(stored) as DatePollOption[]
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -186,7 +190,7 @@ export function TravelPollModal({
                   )
                 : upcoming
               setOptions(normalised)
-              if (needsNormalise || droppedPast) {
+              if (needsNormalise || droppedPast || migratedFromLegacy) {
                 try {
                   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalised))
                 } catch {
@@ -195,6 +199,7 @@ export function TravelPollModal({
               }
             }
           }
+          if (migratedFromLegacy) localStorage.removeItem(LEGACY_STORAGE_KEY)
         }
       } catch {
         // Fallback to initial options

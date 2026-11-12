@@ -60,6 +60,9 @@ async def seed():
             )
             db.add(admin)
             await db.flush()
+        elif admin.email == "admin@jabama.local":
+            # Rebrand demo rows created before the Ashianak rename.
+            admin.email = "admin@ashianak.local"
 
         guest_check = (
             (await db.execute(select(User).where(User.phone == "09121111111"))).scalars().first()
@@ -77,6 +80,9 @@ async def seed():
                 role="guest",
             )
             db.add(guest)
+        elif guest_check.email == "guest@jabama.local":
+            # Rebrand demo rows created before the Ashianak rename.
+            guest_check.email = "guest@ashianak.local"
 
         await db.flush()
 

@@ -131,6 +131,13 @@ ENABLE_STARTUP_SEED=False
 
 The sample assumes a passwordless local `postgres` user. If your local PostgreSQL user has a password, set `POSTGRES_PASSWORD` and mirror the same password in the userinfo of `DATABASE_URL`.
 
+> **Upgrading an existing checkout:** the local databases were renamed to `ashianak_db` and `ashianak_test`. If your cluster still has `jabama_db` or `jabama_test`, rename whichever old database exists before running migrations (stop connected clients first):
+> ```sql
+> ALTER DATABASE jabama_db RENAME TO ashianak_db;
+> ALTER DATABASE jabama_test RENAME TO ashianak_test;
+> ```
+> The test suite creates `ashianak_test` automatically if it is missing.
+
 `ENVIRONMENT` is required. Outside the demo environments (`development`, `dev`, `local`, `test`, `testing`) the API refuses to start when `SECRET_KEY` is missing, a placeholder, or shorter than 32 characters; rotating the key invalidates all existing JWTs and calendar feed links.
 
 ### 3. Install Dependencies

@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const FOLDERS_STORAGE_KEY = "ashianak_wishlist_folders"
+const LEGACY_FOLDERS_STORAGE_KEY = "jabama_wishlist_folders"
 
 const DEFAULT_FOLDERS: WishlistFolder[] = [
   { id: "all", name: "همه نشان‌شده‌ها", accommodation_ids: [] },
@@ -116,7 +117,8 @@ export default function WishlistsPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const stored = localStorage.getItem(FOLDERS_STORAGE_KEY)
+        const legacyStored = localStorage.getItem(LEGACY_FOLDERS_STORAGE_KEY)
+        const stored = localStorage.getItem(FOLDERS_STORAGE_KEY) ?? legacyStored
         if (stored) {
           const parsed: unknown = JSON.parse(stored)
           if (Array.isArray(parsed)) {
@@ -128,6 +130,7 @@ export default function WishlistsPage() {
               setFolders(valid)
             }
           }
+          if (legacyStored) localStorage.removeItem(LEGACY_FOLDERS_STORAGE_KEY)
         }
       } catch {
         // Fall back to the default folders on JSON parse failure

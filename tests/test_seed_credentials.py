@@ -1,6 +1,9 @@
 import pytest
+from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.user import User
 from app.seeds.seed_data import (
     DEMO_SEED_ENVIRONMENTS,
     ensure_demo_seeding_allowed,
@@ -33,3 +36,37 @@ async def test_seed_refuses_production_before_opening_a_connection(monkeypatch) 
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     with pytest.raises(RuntimeError):
         await seed()
+
+
+@pytest.mark.asyncio
+async def test_seed_rebrands_legacy_demo_emails() -> None:
+    async with AsyncSessionLocal() as session:
+        admin = (
+            (await session.execute(select(User).where(User.phone == "09120000000")))
+            .scalars()
+            .one()
+        )
+        guest = (
+            (await session.execute(select(User).where(User.phone == "09121111111")))
+            .scalars()
+            .one()
+        )
+        admin.email = "admin@jabama.local"
+        guest.email = "guest@jabama.local"
+        await session.commit()
+
+    await seed()
+
+    async with AsyncSessionLocal() as session:
+        admin = (
+            (await session.execute(select(User).where(User.phone == "09120000000")))
+            .scalars()
+            .one()
+        )
+        guest = (
+            (await session.execute(select(User).where(User.phone == "09121111111")))
+            .scalars()
+            .one()
+        )
+        assert admin.email == "admin@ashianak.local"
+        assert guest.email == "guest@ashianak.local"
