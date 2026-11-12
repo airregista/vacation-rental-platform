@@ -47,7 +47,9 @@ export interface AccommodationCreateForm {
   rooms_count: number
   beds_count: number
   rules: string
-  cancellation_policy: "flexible" | "moderate" | "strict"
+  cancellation_policy: "flexible" | "moderate" | "strict" | "custom"
+  cancellation_free_hours?: number
+  cancellation_penalty_percent?: number
   min_nights?: number
   is_active: boolean
   images: { image_url: string; is_cover: boolean; sort_order: number }[]

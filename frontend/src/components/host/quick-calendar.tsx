@@ -5,7 +5,8 @@ import { useState, useEffect, useSyncExternalStore } from "react"
 import { AlertCircle } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { JalaliDateField } from "@/components/shared/date-field"
+import { PersianNumberInput } from "@/components/shared/persian-number-input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
@@ -207,31 +208,19 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
   const form = (
     <div className="space-y-4 py-2 text-right" dir="rtl">
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label htmlFor="qc-start-date" className="text-xs font-bold text-foreground">
-            تاریخ شروع
-          </label>
-          <Input
-            id="qc-start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="qc-end-date" className="text-xs font-bold text-foreground">
-            تاریخ پایان
-          </label>
-          <Input
-            id="qc-end-date"
-            type="date"
-            min={startDate || undefined}
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-11 rounded-xl text-sm"
-          />
-        </div>
+        <JalaliDateField
+          boxed
+          label="تاریخ شروع"
+          value={startDate}
+          onChange={setStartDate}
+        />
+        <JalaliDateField
+          boxed
+          label="تاریخ پایان"
+          value={endDate}
+          min={startDate}
+          onChange={setEndDate}
+        />
       </div>
 
       {!datesValid && startDate !== "" && endDate !== "" && (
@@ -245,13 +234,12 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
           <label htmlFor="qc-price" className="text-xs font-bold text-foreground">
             نرخ جدید (تومان)
           </label>
-          <Input
+          <PersianNumberInput
             id="qc-price"
-            type="number"
             min={0}
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            value={price.trim() === "" ? null : Number(price)}
+            emptyValue={null}
+            onValueChange={(value) => setPrice(value === null ? "" : String(value))}
             placeholder="مثلاً ۲٬۵۰۰٬۰۰۰"
             className="h-11 rounded-xl text-sm"
           />
@@ -260,14 +248,14 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
           <label htmlFor="qc-min-nights" className="text-xs font-bold text-foreground">
             حداقل اقامت (شب)
           </label>
-          <Input
+          <PersianNumberInput
             id="qc-min-nights"
-            type="number"
             min={1}
-            step={1}
-            inputMode="numeric"
-            value={minNights}
-            onChange={(e) => setMinNights(e.target.value)}
+            value={minNights.trim() === "" ? null : Number(minNights)}
+            emptyValue={null}
+            onValueChange={(value) =>
+              setMinNights(value === null ? "" : String(value))
+            }
             placeholder="اختیاری"
             className="h-11 rounded-xl text-sm"
           />

@@ -1,30 +1,32 @@
 "use client"
 
-import * as React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
+import { apiClient } from "@/lib/api-client"
 import {
-  Plus,
-  Minus,
-  Trash2,
-  LogIn,
-  AlertCircle,
-  Sparkles,
-  CheckCircle2,
-  ImagePlus,
-} from "lucide-react"
-import { useAuth } from "@/context/auth-context"
-import { apiClient, ApiError } from "@/lib/api-client"
+  describeCancellationPolicy,
+  getCancellationPolicyLabel,
+} from "@/lib/cancellation-policy"
 import type { AccommodationCreateForm } from "@/types/host"
 import type { Category, City, Amenity } from "@/types/accommodation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Skeleton } from "@/components/ui/skeleton"
+import { HostAccessGate } from "@/components/host/host-access-gate"
+import { HostPageLayout } from "@/components/host/host-page-layout"
+import { FormSection } from "@/components/host/form-section"
+import { NumberStepper } from "@/components/host/number-stepper"
+import { AmenityPicker } from "@/components/host/amenity-picker"
+import { ImageUploader } from "@/components/host/image-uploader"
+import { PolicySelector } from "@/components/host/policy-selector"
+import { CityCombobox } from "@/components/shared/city-combobox"
+import { PersianNumberInput } from "@/components/shared/persian-number-input"
+import {
+  fetchAllPages,
+  formatFaNumber,
+  formatToman,
+  getApiErrorMessage,
+} from "@/components/host/host-utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
 const WIZARD_STEPS = [
   { n: 1, label: "دسته‌بندی و مشخصات" },
@@ -40,153 +44,92 @@ const WIZARD_STEPS = [
   { n: 3, label: "ظرفیت و امکانات" },
   { n: 4, label: "قیمت‌گذاری" },
   { n: 5, label: "قوانین و تایید" },
-]
-
-const POLICY_OPTIONS = [
-  { value: "flexible", label: "انعطاف‌پذیر" },
-  { value: "moderate", label: "متوسط" },
-  { value: "strict", label: "سخت‌گیرانه" },
 ] as const
 
-function Stepper({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-  min: number
-  max: number
-}) {
-  return (
-    <div className="flex items-center justify-between p-3 rounded-xl border border-input bg-background">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => onChange(Math.max(min, value - 1))}
-          disabled={value <= min}
-          aria-label={`کاهش ${label}`}
-          className="size-8 rounded-full"
-        >
-          <Minus className="size-3.5" />
-        </Button>
-        <span className="w-6 text-center text-sm font-bold font-price">
-          {new Intl.NumberFormat("fa-IR").format(value)}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => onChange(Math.min(max, value + 1))}
-          disabled={value >= max}
-          aria-label={`افزایش ${label}`}
-          className="size-8 rounded-full"
-        >
-          <Plus className="size-3.5" />
-        </Button>
-      </div>
-    </div>
-  )
+type CreateFormState = AccommodationCreateForm & {
+  custom_amenities: string[]
 }
 
-// Paginated fetch: loop skip/limit=100 until a short page, otherwise the
-// endpoint's limit cap (100) silently truncates the list (T3: cities).
-async function fetchAll<T>(path: string): Promise<T[]> {
-  const all: T[] = []
-  let skip = 0
-  for (;;) {
-    const page = await apiClient.get<T[]>(`${path}?skip=${skip}&limit=100`)
-    const batch = Array.isArray(page) ? page : []
-    all.push(...batch)
-    if (batch.length < 100) break
-    skip += 100
-  }
-  return all
+const initialForm: CreateFormState = {
+  title: "",
+  description: "",
+  address: "",
+  city_id: 0,
+  category_id: 0,
+  base_price: 0,
+  cleaning_fee: 0,
+  capacity: 2,
+  max_capacity: 4,
+  extra_guest_fee: 0,
+  rooms_count: 1,
+  beds_count: 1,
+  rules: "",
+  cancellation_policy: "flexible",
+  cancellation_free_hours: 24,
+  cancellation_penalty_percent: 50,
+  min_nights: 1,
+  is_active: true,
+  images: [],
+  amenity_ids: [],
+  custom_amenities: [],
 }
 
-export default function NewAccommodationPage() {
+function NewAccommodationContent() {
   const router = useRouter()
-  const { token, isLoading, isHost, becomeHost, openOtpModal } = useAuth()
 
-  const [form, setForm] = useState<AccommodationCreateForm>({
-    title: "",
-    description: "",
-    address: "",
-    city_id: 0,
-    category_id: 0,
-    base_price: 0,
-    cleaning_fee: 0,
-    capacity: 2,
-    max_capacity: 4,
-    extra_guest_fee: 0,
-    rooms_count: 1,
-    beds_count: 1,
-    rules: "",
-    cancellation_policy: "flexible",
-    min_nights: 1,
-    is_active: true,
-    images: [],
-    amenity_ids: [],
-  })
+  const [form, setForm] = useState<CreateFormState>(initialForm)
   const [step, setStep] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
   const [cities, setCities] = useState<City[]>([])
   const [amenities, setAmenities] = useState<Amenity[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [isPromoting, setIsPromoting] = useState(false)
-  const [promoteError, setPromoteError] = useState<string | null>(null)
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [createdId, setCreatedId] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Load the option lists on mount (public endpoints).
   useEffect(() => {
     let isMounted = true
-    async function loadOptions() {
+
+    const loadOptions = async () => {
       try {
         const [cats, cits, amens] = await Promise.all([
           apiClient.get<Category[]>("/categories/"),
-          fetchAll<City>("/geo/cities"),
+          fetchAllPages<City>("/geo/cities"),
           apiClient.get<Amenity[]>("/amenities/"),
         ])
-        if (isMounted) {
-          setCategories(Array.isArray(cats) ? cats : [])
-          setCities(Array.isArray(cits) ? cits : [])
-          setAmenities(Array.isArray(amens) ? amens : [])
-        }
-      } catch (err: unknown) {
-        if (isMounted) {
-          if (err instanceof ApiError) {
-            setLoadError(err.detail || err.message || "بارگذاری گزینه‌ها با خطا مواجه شد.")
-          } else {
-            setLoadError("بارگذاری گزینه‌ها با خطا مواجه شد.")
-          }
-        }
+        if (!isMounted) return
+        setCategories(Array.isArray(cats) ? cats : [])
+        setCities(Array.isArray(cits) ? cits : [])
+        setAmenities(Array.isArray(amens) ? amens : [])
+        setLoadError(null)
+      } catch (error: unknown) {
+        if (!isMounted) return
+        setLoadError(
+          getApiErrorMessage(error, "بارگذاری گزینه‌های دسته‌بندی و شهر با خطا مواجه شد.")
+        )
+      } finally {
+        if (isMounted) setIsLoadingOptions(false)
       }
     }
+
     void loadOptions()
     return () => {
       isMounted = false
     }
   }, [])
 
-  const set = <K extends keyof AccommodationCreateForm>(
+  const set = <K extends keyof CreateFormState>(
     key: K,
-    value: AccommodationCreateForm[K]
+    value: CreateFormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  const stepValid = (s: number): boolean => {
-    switch (s) {
+  const stepValid = (currentStep: number): boolean => {
+    switch (currentStep) {
       case 1:
         return (
           form.category_id > 0 &&
@@ -212,7 +155,13 @@ export default function NewAccommodationPage() {
           Number.isInteger(form.min_nights ?? 1)
         )
       case 5:
-        return true
+        return (
+          Number.isInteger(form.cancellation_free_hours ?? 24) &&
+          (form.cancellation_free_hours ?? 24) >= 0 &&
+          Number.isFinite(form.cancellation_penalty_percent ?? 50) &&
+          (form.cancellation_penalty_percent ?? 50) >= 0 &&
+          (form.cancellation_penalty_percent ?? 50) <= 100
+        )
       default:
         return false
     }
@@ -220,45 +169,62 @@ export default function NewAccommodationPage() {
 
   const formValid = [1, 2, 3, 4, 5].every(stepValid)
 
-  const coverIndex = form.images.findIndex((img) => img.is_cover)
+  const goToStep = (nextStep: number) => {
+    setStep(nextStep)
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
 
-  const addImage = () => {
+  const addImage = (image: AccommodationCreateForm["images"][number]) => {
     setForm((prev) => ({
       ...prev,
-      images: [
-        ...prev.images,
-        {
-          image_url: "",
-          is_cover: prev.images.length === 0,
-          sort_order: prev.images.length,
-        },
-      ],
+      images: image.is_cover
+        ? [
+            ...prev.images.map((item) => ({ ...item, is_cover: false })),
+            image,
+          ]
+        : [...prev.images, image],
     }))
   }
 
-  const updateImageUrl = (index: number, url: string) => {
-    setForm((prev) => ({
-      ...prev,
-      images: prev.images.map((img, i) => (i === index ? { ...img, image_url: url } : img)),
-    }))
-  }
-
-  const removeImage = (index: number) => {
+  const removeImage = (target: AccommodationCreateForm["images"][number]) => {
     setForm((prev) => {
-      const rest = prev.images.filter((_, i) => i !== index)
-      const reindexed = rest.map((img, i) => ({ ...img, sort_order: i }))
-      if (reindexed.length > 0 && !reindexed.some((img) => img.is_cover)) {
-        reindexed[0].is_cover = true
+      const rest = prev.images.filter(
+        (image) => image.sort_order !== target.sort_order
+      )
+      const reindexed = rest.map((image, imageIndex) => ({
+        ...image,
+        sort_order: imageIndex,
+      }))
+      if (reindexed.length > 0 && !reindexed.some((image) => image.is_cover)) {
+        reindexed[0] = { ...reindexed[0], is_cover: true }
       }
       return { ...prev, images: reindexed }
     })
   }
 
-  const setCover = (index: number) => {
+  const setImageCover = (target: AccommodationCreateForm["images"][number]) => {
     setForm((prev) => ({
       ...prev,
-      images: prev.images.map((img, i) => ({ ...img, is_cover: i === index })),
+      images: prev.images.map((image) => ({
+        ...image,
+        is_cover: image.sort_order === target.sort_order,
+      })),
     }))
+  }
+
+  const setPolicy = (value: AccommodationCreateForm["cancellation_policy"]) => {
+    setForm((prev) => {
+      if (prev.cancellation_policy === value) return prev
+      return {
+        ...prev,
+        cancellation_policy: value,
+        ...(value === "custom"
+          ? {}
+          : { cancellation_free_hours: 24, cancellation_penalty_percent: 50 }),
+      }
+    })
   }
 
   const toggleAmenity = (amenityId: number) => {
@@ -270,166 +236,103 @@ export default function NewAccommodationPage() {
     }))
   }
 
+  const addCustomAmenity = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      custom_amenities: [...prev.custom_amenities, name],
+    }))
+  }
+
+  const removeCustomAmenity = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      custom_amenities: prev.custom_amenities.filter((item) => item !== name),
+    }))
+  }
+
   const handleSubmit = async () => {
     if (!formValid) return
     setIsSubmitting(true)
     setSubmitError(null)
-    // Keep only filled image URLs, re-index, and guarantee exactly one cover.
-    const images = form.images
-      .filter((img) => img.image_url.trim() !== "")
-      .map((img, idx) => ({
-        image_url: img.image_url.trim(),
-        is_cover: img.is_cover,
-        sort_order: idx,
-      }))
-    if (images.length > 0 && !images.some((img) => img.is_cover)) {
+
+    const images = form.images.map((image, index) => ({
+      image_url: image.image_url,
+      is_cover: image.is_cover,
+      sort_order: index,
+    }))
+    if (images.length > 0 && !images.some((image) => image.is_cover)) {
       images[0].is_cover = true
     }
+
     try {
-      const res = await apiClient.post<{ id: number }>("/accommodations/", {
+      const response = await apiClient.post<{ id: number }>("/accommodations/", {
         ...form,
         images,
         min_nights: form.min_nights ?? 1,
+        cancellation_free_hours: form.cancellation_free_hours ?? 24,
+        cancellation_penalty_percent: form.cancellation_penalty_percent ?? 50,
       })
-      setCreatedId(res.id)
+      setCreatedId(response.id)
       setIsPreviewOpen(false)
       setIsSuccessOpen(true)
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.detail || err.message || "ثبت اقامتگاه با خطا مواجه شد.")
-      } else {
-        setSubmitError("ثبت اقامتگاه با خطا مواجه شد.")
-      }
+    } catch (error: unknown) {
+      setSubmitError(getApiErrorMessage(error, "ثبت اقامتگاه با خطا مواجه شد."))
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleBecomeHost = async () => {
-    setPromoteError(null)
-    setIsPromoting(true)
-    try {
-      await becomeHost()
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setPromoteError(err.detail || err.message || "خطایی در ارتقای نقش کاربری رخ داد.")
-      } else {
-        setPromoteError("خطایی در ارتقای نقش کاربری رخ داد.")
-      }
-    } finally {
-      setIsPromoting(false)
-    }
-  }
-
-  const selectedCategory = categories.find((c) => c.id === form.category_id)
-  const selectedCity = cities.find((c) => c.id === form.city_id)
-  const selectedAmenities = amenities.filter((a) => form.amenity_ids.includes(a.id))
-  const policyLabel =
-    POLICY_OPTIONS.find((p) => p.value === form.cancellation_policy)?.label || "انعطاف‌پذیر"
-
-  const formatToman = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6" dir="rtl">
-        <Skeleton className="h-8 w-64 rounded-lg" />
-        <Skeleton className="h-96 w-full rounded-2xl" />
-      </div>
-    )
-  }
-
-  if (!token) {
-    return (
-      <main className="container mx-auto px-4 py-16 text-right" dir="rtl">
-        <Card className="max-w-md mx-auto text-center p-8 rounded-2xl border border-border shadow-sm">
-          <CardContent className="space-y-6 pt-4">
-            <div className="space-y-2">
-              <h1 className="text-xl font-bold text-foreground">ثبت اقامتگاه جدید</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                برای ثبت اقامتگاه، لطفاً وارد حساب کاربری خود شوید.
-              </p>
-            </div>
-            <Button onClick={openOtpModal} className="w-full gap-2 font-bold py-5">
-              <LogIn className="w-4 h-4" />
-              <span>ورود یا ثبت‌نام</span>
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    )
-  }
-
-  if (!isHost) {
-    return (
-      <main className="container mx-auto px-4 py-16 text-right" dir="rtl">
-        <Card className="max-w-md mx-auto text-center p-8 rounded-2xl border border-border shadow-sm">
-          <CardContent className="space-y-6 pt-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto">
-              <Sparkles className="w-8 h-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-xl font-bold text-foreground">میزبان شوید</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                برای ثبت اقامتگاه، ابتدا حساب کاربری خود را به میزبان ارتقا دهید.
-              </p>
-            </div>
-            {promoteError && (
-              <Alert variant="destructive" className="text-right">
-                <AlertCircle className="w-4 h-4" />
-                <AlertTitle>خطا</AlertTitle>
-                <AlertDescription>{promoteError}</AlertDescription>
-              </Alert>
-            )}
-            <Button
-              onClick={handleBecomeHost}
-              disabled={isPromoting}
-              className="w-full gap-2 font-bold py-5"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>میزبان شوید (ارتقای حساب)</span>
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    )
-  }
+  const selectedCategory = categories.find((item) => item.id === form.category_id)
+  const selectedCity = cities.find((item) => item.id === form.city_id)
+  const selectedAmenities = amenities.filter((item) =>
+    form.amenity_ids.includes(item.id)
+  )
+  const policyLabel = getCancellationPolicyLabel(form.cancellation_policy)
+  const policySummary = describeCancellationPolicy(form.cancellation_policy, {
+    freeHours: form.cancellation_free_hours ?? 24,
+    penaltyPercent: form.cancellation_penalty_percent ?? 50,
+  })
 
   return (
-    <main className="container mx-auto px-4 py-8 pb-28 text-right" dir="rtl">
-      <header className="space-y-1 pb-4">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">
-          ثبت اقامتگاه جدید
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          در ۵ مرحله اقامتگاه خود را ثبت کنید.
-        </p>
-      </header>
+    <div className="pb-28">
+      {loadError ? (
+        <Alert variant="destructive" className="mb-5">
+          <AlertCircle className="size-4" />
+          <AlertTitle>بارگذاری گزینه‌ها انجام نشد</AlertTitle>
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      ) : null}
 
-      {/* Pinned top progress bar (sticks below the site header) */}
-      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur py-3 border-b border-border/60 mb-6">
+      <div className="sticky top-16 z-30 -mx-4 mb-5 border-b border-line/60 bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
         <ol className="flex items-center gap-1 sm:gap-2">
-          {WIZARD_STEPS.map((s) => {
-            const isActive = s.n === step
-            const isDone = s.n < step
+          {WIZARD_STEPS.map((item) => {
+            const isActive = item.n === step
+            const isDone = item.n < step
             return (
-              <li key={s.n} className="flex-1 flex items-center gap-2 min-w-0">
+              <li
+                key={item.n}
+                className="flex min-w-0 flex-1 items-center gap-2"
+                aria-current={isActive ? "step" : undefined}
+              >
                 <span
-                  className={`shrink-0 size-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                  className={
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "grid size-7 shrink-0 place-items-center rounded-full bg-brick text-[11px] font-black text-on-brick"
                       : isDone
-                        ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground"
-                  }`}
+                        ? "grid size-7 shrink-0 place-items-center rounded-full bg-brick/15 text-[11px] font-black text-brick"
+                        : "grid size-7 shrink-0 place-items-center rounded-full bg-paper-deep text-[11px] font-black text-ink-soft"
+                  }
                 >
-                  {new Intl.NumberFormat("fa-IR").format(s.n)}
+                  {formatFaNumber(item.n)}
                 </span>
                 <span
-                  className={`text-[11px] sm:text-xs font-medium truncate ${
-                    isActive ? "text-foreground" : "text-muted-foreground"
-                  }`}
+                  className={
+                    isActive
+                      ? "truncate text-[11px] font-bold text-ink sm:text-xs"
+                      : "truncate text-[11px] font-medium text-ink-soft sm:text-xs"
+                  }
                 >
-                  {s.label}
+                  {item.label}
                 </span>
               </li>
             )
@@ -437,371 +340,313 @@ export default function NewAccommodationPage() {
         </ol>
       </div>
 
-      {loadError && (
-        <Alert variant="destructive" className="text-right mb-4">
-          <AlertCircle className="w-4 h-4" />
-          <AlertTitle>خطا</AlertTitle>
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      )}
-
-      <Card className="rounded-2xl">
-        <CardContent className="space-y-6 p-4 sm:p-6">
-          {step === 1 && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-foreground">دسته‌بندی</span>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <Button
-                      key={cat.id}
-                      type="button"
-                      variant={form.category_id === cat.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => set("category_id", cat.id)}
-                      className="rounded-full"
-                    >
-                      {cat.title}
-                    </Button>
-                  ))}
-                  {categories.length === 0 && (
-                    <span className="text-xs text-muted-foreground">در حال بارگذاری…</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="wizard-city" className="text-xs font-bold text-foreground">
-                  شهر
-                </label>
-                <select
-                  id="wizard-city"
-                  value={form.city_id || ""}
-                  onChange={(e) => set("city_id", e.target.value ? Number(e.target.value) : 0)}
-                  aria-label="انتخاب شهر"
-                  className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="" className="text-foreground bg-background">
-                    شهر را انتخاب کنید
-                  </option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id} className="text-foreground bg-background">
-                      {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="wizard-title" className="text-xs font-bold text-foreground">
-                  عنوان اقامتگاه
-                </label>
-                <Input
-                  id="wizard-title"
-                  value={form.title}
-                  onChange={(e) => set("title", e.target.value)}
-                  placeholder="مثلاً ویلای جنگلی چالوس"
-                  className="h-11 rounded-xl"
-                />
-                <p className="text-[11px] text-muted-foreground">حداقل ۳ حرف</p>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="wizard-address" className="text-xs font-bold text-foreground">
-                  آدرس
-                </label>
-                <Input
-                  id="wizard-address"
-                  value={form.address}
-                  onChange={(e) => set("address", e.target.value)}
-                  placeholder="آدرس کامل اقامتگاه"
-                  className="h-11 rounded-xl"
-                />
-                <p className="text-[11px] text-muted-foreground">حداقل ۵ حرف</p>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="wizard-description" className="text-xs font-bold text-foreground">
-                  توضیحات
-                </label>
-                <Textarea
-                  id="wizard-description"
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  placeholder="اقامتگاه خود را معرفی کنید…"
-                  className="rounded-xl min-h-24"
-                />
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                لینک تصاویر اقامتگاه را وارد کنید. یکی از تصاویر را به‌عنوان تصویر اصلی
-                انتخاب کنید.
-              </p>
-              {form.images.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  هنوز تصویری اضافه نشده است — افزودن تصویر اختیاری است.
-                </p>
-              )}
-              <RadioGroup
-                value={coverIndex >= 0 ? String(coverIndex) : ""}
-                onValueChange={(v) => setCover(Number(v))}
-              >
-                {form.images.map((img, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-input bg-background"
+      {step === 1 ? (
+        <FormSection
+          eyebrow="گام یک"
+          title="دسته‌بندی و مشخصات اقامتگاه"
+          description="مهمان‌ها اول با عنوان، شهر و نوع اقامتگاه شما روبه‌رو می‌شوند؛ این بخش را دقیق تکمیل کنید."
+        >
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-ink">دسته‌بندی</span>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <Button
+                    key={category.id}
+                    type="button"
+                    variant={form.category_id === category.id ? "default" : "outline"}
+                    size="sm"
+                    shape="pill"
+                    onClick={() => set("category_id", category.id)}
+                    aria-pressed={form.category_id === category.id}
                   >
-                    {img.image_url.trim() !== "" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={img.image_url}
-                        alt={`تصویر ${i + 1}`}
-                        onError={(e) => {
-                          ;(e.target as HTMLImageElement).style.display = "none"
-                        }}
-                        className="size-16 shrink-0 rounded-lg object-cover bg-muted"
-                      />
-                    ) : (
-                      <div className="size-16 shrink-0 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                        <ImagePlus className="w-6 h-6 opacity-50" />
-                      </div>
-                    )}
-                    <Input
-                      value={img.image_url}
-                      onChange={(e) => updateImageUrl(i, e.target.value)}
-                      placeholder="https://…"
-                      dir="ltr"
-                      className="h-11 rounded-xl text-left flex-1 min-w-0"
-                    />
-                    <label className="flex items-center gap-1.5 text-xs font-medium shrink-0 cursor-pointer">
-                      <RadioGroupItem value={String(i)} id={`cover-${i}`} />
-                      <span>اصلی</span>
-                    </label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeImage(i)}
-                      aria-label="حذف تصویر"
-                      className="size-8 rounded-full text-muted-foreground hover:text-destructive shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                    {category.title}
+                  </Button>
                 ))}
-              </RadioGroup>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addImage}
-                className="gap-2 font-bold"
-              >
-                <Plus className="w-4 h-4" />
-                <span>افزودن تصویر</span>
-              </Button>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Stepper
-                  label="ظرفیت پایه (مهمان)"
-                  value={form.capacity}
-                  onChange={(v) => set("capacity", v)}
-                  min={1}
-                  max={200}
-                />
-                <Stepper
-                  label="حداکثر ظرفیت (مهمان)"
-                  value={form.max_capacity}
-                  onChange={(v) => set("max_capacity", v)}
-                  min={form.capacity}
-                  max={200}
-                />
-                <Stepper
-                  label="تعداد اتاق"
-                  value={form.rooms_count}
-                  onChange={(v) => set("rooms_count", v)}
-                  min={0}
-                  max={30}
-                />
-                <Stepper
-                  label="تعداد تخت"
-                  value={form.beds_count}
-                  onChange={(v) => set("beds_count", v)}
-                  min={0}
-                  max={30}
-                />
+                {isLoadingOptions ? (
+                  <span className="text-xs text-ink-soft">در حال بارگذاری…</span>
+                ) : null}
+                {!isLoadingOptions && categories.length === 0 ? (
+                  <span className="text-xs text-ink-soft">دسته‌بندی‌ای ثبت نشده است.</span>
+                ) : null}
               </div>
-              {form.max_capacity < form.capacity && (
-                <p className="text-xs text-destructive font-medium">
-                  حداکثر ظرفیت نمی‌تواند کمتر از ظرفیت پایه باشد.
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="wizard-city" className="text-xs font-bold text-ink">
+                شهر
+              </label>
+              <CityCombobox
+                id="wizard-city"
+                cities={cities}
+                value={form.city_id}
+                onChange={(cityId) => set("city_id", cityId)}
+                isLoading={isLoadingOptions}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="wizard-title" className="text-xs font-bold text-ink">
+                عنوان اقامتگاه
+              </label>
+              <Input
+                id="wizard-title"
+                value={form.title}
+                onChange={(event) => set("title", event.target.value)}
+                placeholder="مثلاً ویلای جنگلی چالوس"
+                className="h-11 border-line bg-paper-card"
+              />
+              <p className="text-[11px] text-ink-soft">حداقل ۳ حرف</p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="wizard-address" className="text-xs font-bold text-ink">
+                آدرس
+              </label>
+              <Input
+                id="wizard-address"
+                value={form.address}
+                onChange={(event) => set("address", event.target.value)}
+                placeholder="آدرس کامل اقامتگاه"
+                className="h-11 border-line bg-paper-card"
+              />
+              <p className="text-[11px] text-ink-soft">حداقل ۵ حرف</p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="wizard-description" className="text-xs font-bold text-ink">
+                توضیحات
+              </label>
+              <Textarea
+                id="wizard-description"
+                value={form.description}
+                onChange={(event) => set("description", event.target.value)}
+                placeholder="اقامتگاه خود را معرفی کنید؛ فضا، منظره و تجربه اقامت را بنویسید…"
+                className="min-h-28 border-line bg-paper-card"
+              />
+            </div>
+          </div>
+        </FormSection>
+      ) : null}
+
+      {step === 2 ? (
+        <FormSection
+          eyebrow="گام دو"
+          title="تصاویر اقامتگاه"
+          description="تصاویر را از دستگاه خود بارگذاری کنید و یکی از آن‌ها را به‌عنوان تصویر کاور انتخاب کنید."
+        >
+          <ImageUploader
+            images={form.images}
+            onAdd={addImage}
+            onRemove={removeImage}
+            onSetCover={setImageCover}
+            emptyText="هنوز تصویری اضافه نشده است — افزودن تصویر اختیاری است، اما اقامتگاه‌های دارای عکس بیشتر دیده می‌شوند."
+          />
+        </FormSection>
+      ) : null}
+
+      {step === 3 ? (
+        <div className="space-y-4">
+          <FormSection
+            eyebrow="گام سه"
+            title="ظرفیت و چیدمان"
+            description="ظرفیت پایه، حداکثر مهمان و تعداد اتاق و تخت را مشخص کنید."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NumberStepper
+                label="ظرفیت پایه (مهمان)"
+                value={form.capacity}
+                onChange={(value) => set("capacity", value)}
+                min={1}
+                max={200}
+                hint="تعداد مهمان بدون هزینه اضافه"
+              />
+              <NumberStepper
+                label="حداکثر ظرفیت (مهمان)"
+                value={form.max_capacity}
+                onChange={(value) => set("max_capacity", value)}
+                min={form.capacity}
+                max={200}
+                hint="با هزینه مهمان اضافه"
+              />
+              <NumberStepper
+                label="تعداد اتاق"
+                value={form.rooms_count}
+                onChange={(value) => set("rooms_count", value)}
+                min={0}
+                max={30}
+              />
+              <NumberStepper
+                label="تعداد تخت"
+                value={form.beds_count}
+                onChange={(value) => set("beds_count", value)}
+                min={0}
+                max={30}
+              />
+            </div>
+            {form.max_capacity < form.capacity ? (
+              <p className="mt-3 text-xs font-medium text-destructive">
+                حداکثر ظرفیت نمی‌تواند کمتر از ظرفیت پایه باشد.
+              </p>
+            ) : null}
+          </FormSection>
+
+          <FormSection
+            title="امکانات"
+            description="امکاناتی را که در اختیار مهمان قرار می‌دهید انتخاب کنید."
+          >
+            <AmenityPicker
+              amenities={amenities}
+              selectedIds={form.amenity_ids}
+              onToggle={toggleAmenity}
+              isLoading={isLoadingOptions}
+              customAmenities={form.custom_amenities}
+              onAddCustom={addCustomAmenity}
+              onRemoveCustom={removeCustomAmenity}
+            />
+          </FormSection>
+        </div>
+      ) : null}
+
+      {step === 4 ? (
+        <FormSection
+          eyebrow="گام چهار"
+          title="قیمت‌گذاری"
+          description="نرخ پایه هر شب و هزینه‌های جانبی را وارد کنید. همه مبالغ به تومان است."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="wizard-base-price" className="text-xs font-bold text-ink">
+                نرخ پایه هر شب (تومان)
+              </label>
+              <PersianNumberInput
+                id="wizard-base-price"
+                min={0}
+                value={form.base_price}
+                onValueChange={(value) => set("base_price", value ?? 0)}
+                className="h-11 border-line bg-paper-card tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="wizard-extra-fee" className="text-xs font-bold text-ink">
+                هزینه مهمان اضافه (تومان)
+              </label>
+              <PersianNumberInput
+                id="wizard-extra-fee"
+                min={0}
+                value={form.extra_guest_fee}
+                onValueChange={(value) => set("extra_guest_fee", value ?? 0)}
+                className="h-11 border-line bg-paper-card tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="wizard-cleaning-fee" className="text-xs font-bold text-ink">
+                هزینه نظافت (تومان)
+              </label>
+              <PersianNumberInput
+                id="wizard-cleaning-fee"
+                min={0}
+                value={form.cleaning_fee}
+                onValueChange={(value) => set("cleaning_fee", value ?? 0)}
+                className="h-11 border-line bg-paper-card tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="wizard-min-nights" className="text-xs font-bold text-ink">
+                حداقل اقامت (شب)
+              </label>
+              <PersianNumberInput
+                id="wizard-min-nights"
+                min={1}
+                value={form.min_nights ?? 1}
+                emptyValue={1}
+                onValueChange={(value) => set("min_nights", value || 1)}
+                className="h-11 border-line bg-paper-card tabular-nums"
+              />
+              {!Number.isInteger(form.min_nights ?? 1) ? (
+                <p className="text-xs font-medium text-destructive">
+                  حداقل اقامت باید عدد صحیح باشد.
                 </p>
-              )}
-
-              <div className="space-y-2 pt-2">
-                <span className="text-xs font-bold text-foreground">امکانات</span>
-                {amenities.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">در حال بارگذاری…</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {amenities.map((amenity) => (
-                      <label
-                        key={amenity.id}
-                        className="flex items-center gap-2 p-3 rounded-xl border border-input bg-background cursor-pointer text-sm"
-                      >
-                        <Checkbox
-                          checked={form.amenity_ids.includes(amenity.id)}
-                          onCheckedChange={() => toggleAmenity(amenity.id)}
-                        />
-                        <span>{amenity.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ) : null}
             </div>
-          )}
+          </div>
+        </FormSection>
+      ) : null}
 
-          {step === 4 && (
+      {step === 5 ? (
+        <div className="space-y-4">
+          <FormSection
+            eyebrow="گام پنج"
+            title="قوانین و تایید نهایی"
+            description="سیاست لغو رزرو و مقررات اقامتگاه را مشخص کنید؛ سپس پیش‌نمایش را بررسی کنید."
+          >
             <div className="space-y-5">
-              <div className="space-y-2">
-                <label htmlFor="wizard-base-price" className="text-xs font-bold text-foreground">
-                  نرخ پایه هر شب (تومان)
-                </label>
-                <Input
-                  id="wizard-base-price"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={form.base_price}
-                  onChange={(e) => set("base_price", Number(e.target.value) || 0)}
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="wizard-extra-fee" className="text-xs font-bold text-foreground">
-                  هزینه مهمان اضافه (تومان)
-                </label>
-                <Input
-                  id="wizard-extra-fee"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={form.extra_guest_fee}
-                  onChange={(e) => set("extra_guest_fee", Number(e.target.value) || 0)}
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="wizard-cleaning-fee" className="text-xs font-bold text-foreground">
-                  هزینه نظافت (تومان)
-                </label>
-                <Input
-                  id="wizard-cleaning-fee"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={form.cleaning_fee}
-                  onChange={(e) => set("cleaning_fee", Number(e.target.value) || 0)}
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="wizard-min-nights" className="text-xs font-bold text-foreground">
-                  حداقل اقامت (شب)
-                </label>
-                <Input
-                  id="wizard-min-nights"
-                  type="number"
-                  min={1}
-                  step={1}
-                  inputMode="numeric"
-                  value={form.min_nights ?? 1}
-                  onChange={(e) => set("min_nights", Number(e.target.value) || 1)}
-                  className="h-11 rounded-xl"
-                />
-                {!Number.isInteger(form.min_nights ?? 1) && (
-                  <p className="text-xs text-destructive font-medium">
-                    حداقل اقامت باید عدد صحیح باشد.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl border border-input bg-muted/40 space-y-1">
-                  <span className="text-xs text-muted-foreground">ساعت ورود</span>
-                  <p className="text-sm font-bold font-price">۱۴:۰۰</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1 rounded-xl border border-line/70 bg-paper-deep/40 p-3">
+                  <span className="text-[11px] text-ink-soft">ساعت ورود</span>
+                  <p className="text-sm font-black tabular-nums text-ink">۱۴:۰۰</p>
                 </div>
-                <div className="p-3 rounded-xl border border-input bg-muted/40 space-y-1">
-                  <span className="text-xs text-muted-foreground">ساعت خروج</span>
-                  <p className="text-sm font-bold font-price">۱۲:۰۰</p>
+                <div className="space-y-1 rounded-xl border border-line/70 bg-paper-deep/40 p-3">
+                  <span className="text-[11px] text-ink-soft">ساعت خروج</span>
+                  <p className="text-sm font-black tabular-nums text-ink">۱۲:۰۰</p>
                 </div>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                ساعت ورود و خروج پیش‌فرض سامانه است و در این نسخه قابل تغییر نیست.
+              <p className="text-[11px] leading-6 text-ink-soft">
+                ساعت ورود و خروج پیش‌فرض سامانه است و در این مرحله قابل تغییر نیست؛
+                پس از ثبت می‌توانید از صفحه ویرایش آن را تنظیم کنید.
               </p>
 
               <div className="space-y-2">
-                <span className="text-xs font-bold text-foreground">سیاست لغو رزرو</span>
-                <div className="flex flex-wrap gap-2">
-                  {POLICY_OPTIONS.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={form.cancellation_policy === opt.value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => set("cancellation_policy", opt.value)}
-                      className="rounded-full"
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
+                <span className="text-xs font-bold text-ink">سیاست لغو رزرو</span>
+                <PolicySelector
+                  value={form.cancellation_policy}
+                  onChange={setPolicy}
+                  freeHours={form.cancellation_free_hours ?? 24}
+                  penaltyPercent={form.cancellation_penalty_percent ?? 50}
+                  onFreeHoursChange={(value) =>
+                    set("cancellation_free_hours", value)
+                  }
+                  onPenaltyPercentChange={(value) =>
+                    set("cancellation_penalty_percent", value)
+                  }
+                />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="wizard-rules" className="text-xs font-bold text-foreground">
+                <label htmlFor="wizard-rules" className="text-xs font-bold text-ink">
                   قوانین اقامتگاه
                 </label>
                 <Textarea
                   id="wizard-rules"
                   value={form.rules}
-                  onChange={(e) => set("rules", e.target.value)}
-                  placeholder="مثلاً ورود حیوان خانگی ممنوع است…"
-                  className="rounded-xl min-h-24"
+                  onChange={(event) => set("rules", event.target.value)}
+                  placeholder="مثلاً ورود حیوان خانگی ممنوع است، ساعت سکوت بعد از ۲۳ است…"
+                  className="min-h-28 border-line bg-paper-card"
                 />
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </FormSection>
+        </div>
+      ) : null}
 
-      {/* Sticky wizard bottom bar — the only way to move between steps */}
-      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur safe-pb">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 backdrop-blur safe-pb">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Button
             type="button"
             variant="outline"
-            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            onClick={() => goToStep(Math.max(1, step - 1))}
             disabled={step === 1}
-            className="h-11 px-6 font-bold"
+            className="h-11 border-line bg-transparent px-5 font-bold"
           >
             مرحله قبل
           </Button>
+          <p className="hidden text-xs text-ink-soft sm:block">
+            مرحله {formatFaNumber(step)} از {formatFaNumber(WIZARD_STEPS.length)}
+          </p>
           {step < 5 ? (
             <Button
               type="button"
-              onClick={() => setStep((s) => Math.min(5, s + 1))}
+              onClick={() => goToStep(Math.min(5, step + 1))}
               disabled={!stepValid(step)}
               className="h-11 px-6 font-bold"
             >
@@ -820,107 +665,118 @@ export default function NewAccommodationPage() {
         </div>
       </div>
 
-      {/* Preview modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-lg text-right max-h-[85vh] overflow-y-auto" dir="rtl">
+        <DialogContent
+          dir="rtl"
+          className="max-h-[85vh] overflow-y-auto text-right sm:max-w-lg"
+        >
           <DialogHeader>
             <DialogTitle>پیش‌نمایش اقامتگاه</DialogTitle>
             <DialogDescription>
               اطلاعات را بررسی کنید؛ پس از ثبت، اقامتگاه شما منتشر می‌شود.
             </DialogDescription>
           </DialogHeader>
-          <dl className="space-y-2 text-sm py-2">
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">عنوان</dt>
-              <dd className="font-medium">{form.title || "—"}</dd>
+
+          <dl className="space-y-2 py-2 text-sm">
+            <div className="flex justify-between gap-4 border-b border-line/50 pb-2">
+              <dt className="text-ink-soft">عنوان</dt>
+              <dd className="font-bold text-ink">{form.title || "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">دسته‌بندی</dt>
-              <dd className="font-medium">{selectedCategory?.title || "—"}</dd>
+              <dt className="text-ink-soft">دسته‌بندی</dt>
+              <dd className="font-medium text-ink">{selectedCategory?.title || "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">شهر</dt>
-              <dd className="font-medium">{selectedCity?.name || "—"}</dd>
+              <dt className="text-ink-soft">شهر</dt>
+              <dd className="font-medium text-ink">{selectedCity?.name || "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">آدرس</dt>
-              <dd className="font-medium text-left">{form.address || "—"}</dd>
+              <dt className="shrink-0 text-ink-soft">آدرس</dt>
+              <dd className="text-left font-medium text-ink">{form.address || "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">ظرفیت</dt>
-              <dd className="font-medium font-price">
-                {new Intl.NumberFormat("fa-IR").format(form.capacity)} تا{" "}
-                {new Intl.NumberFormat("fa-IR").format(form.max_capacity)} مهمان
+              <dt className="text-ink-soft">ظرفیت</dt>
+              <dd className="font-medium tabular-nums text-ink">
+                {formatFaNumber(form.capacity)} تا {formatFaNumber(form.max_capacity)} مهمان
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">اتاق / تخت</dt>
-              <dd className="font-medium font-price">
-                {new Intl.NumberFormat("fa-IR").format(form.rooms_count)} اتاق /{" "}
-                {new Intl.NumberFormat("fa-IR").format(form.beds_count)} تخت
+              <dt className="text-ink-soft">اتاق / تخت</dt>
+              <dd className="font-medium tabular-nums text-ink">
+                {formatFaNumber(form.rooms_count)} اتاق / {formatFaNumber(form.beds_count)} تخت
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">امکانات</dt>
-              <dd className="font-medium">
-                {selectedAmenities.length > 0
-                  ? selectedAmenities.map((a) => a.name).join("، ")
+              <dt className="text-ink-soft">امکانات</dt>
+              <dd className="font-medium text-ink">
+                {selectedAmenities.length > 0 || form.custom_amenities.length > 0
+                  ? [
+                      ...selectedAmenities.map((amenity) => amenity.name),
+                      ...form.custom_amenities,
+                    ].join("، ")
                   : "—"}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">تصاویر</dt>
-              <dd className="font-medium font-price">
-                {new Intl.NumberFormat("fa-IR").format(
-                  form.images.filter((img) => img.image_url.trim() !== "").length
-                )}{" "}
-                تصویر
+              <dt className="text-ink-soft">تصاویر</dt>
+              <dd className="font-medium tabular-nums text-ink">
+                {formatFaNumber(form.images.length)} تصویر
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">نرخ پایه هر شب</dt>
-              <dd className="font-medium font-price">{formatToman(form.base_price)} تومان</dd>
+              <dt className="text-ink-soft">نرخ پایه هر شب</dt>
+              <dd className="font-bold tabular-nums text-brick">
+                {formatToman(form.base_price)} تومان
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">هزینه مهمان اضافه / نظافت</dt>
-              <dd className="font-medium font-price">
+              <dt className="text-ink-soft">هزینه مهمان اضافه / نظافت</dt>
+              <dd className="font-medium tabular-nums text-ink">
                 {formatToman(form.extra_guest_fee)} / {formatToman(form.cleaning_fee)} تومان
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">حداقل اقامت</dt>
-              <dd className="font-medium font-price">
-                {new Intl.NumberFormat("fa-IR").format(form.min_nights ?? 1)} شب
+              <dt className="text-ink-soft">حداقل اقامت</dt>
+              <dd className="font-medium tabular-nums text-ink">
+                {formatFaNumber(form.min_nights ?? 1)} شب
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">ورود / خروج</dt>
-              <dd className="font-medium font-price">۱۴:۰۰ / ۱۲:۰۰</dd>
+              <dt className="text-ink-soft">ورود / خروج</dt>
+              <dd className="font-medium tabular-nums text-ink">۱۴:۰۰ / ۱۲:۰۰</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">سیاست لغو</dt>
-              <dd className="font-medium">{policyLabel}</dd>
+              <dt className="shrink-0 text-ink-soft">سیاست لغو</dt>
+              <dd className="space-y-1 text-right font-medium text-ink">
+                <span className="block">{policyLabel}</span>
+                <span className="block text-[11px] leading-6 text-ink-soft">
+                  {policySummary}
+                </span>
+              </dd>
             </div>
-            {form.rules.trim() !== "" && (
+            {form.rules.trim() !== "" ? (
               <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">قوانین</dt>
-                <dd className="font-medium text-left">{form.rules}</dd>
+                <dt className="shrink-0 text-ink-soft">قوانین</dt>
+                <dd className="text-left font-medium text-ink">{form.rules}</dd>
               </div>
-            )}
+            ) : null}
           </dl>
-          {submitError && (
-            <Alert variant="destructive" className="text-right">
-              <AlertCircle className="w-4 h-4" />
-              <AlertTitle>خطا</AlertTitle>
+
+          {submitError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>ثبت انجام نشد</AlertTitle>
               <AlertDescription>{submitError}</AlertDescription>
             </Alert>
-          )}
+          ) : null}
+
           <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsPreviewOpen(false)}
               disabled={isSubmitting}
+              className="border-line bg-transparent"
             >
               بازگشت به ویرایش
             </Button>
@@ -928,26 +784,34 @@ export default function NewAccommodationPage() {
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting || !formValid}
-              className="font-bold"
+              className="gap-2 font-bold"
             >
-              {isSubmitting ? "در حال ثبت…" : "ثبت نهایی اقامتگاه"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  <span>در حال ثبت…</span>
+                </>
+              ) : (
+                <span>ثبت نهایی اقامتگاه</span>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Congratulations modal */}
       <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
-        <DialogContent className="sm:max-w-md text-center" dir="rtl">
+        <DialogContent dir="rtl" className="text-center sm:max-w-md">
           <DialogHeader className="items-center">
-            <CheckCircle2 className="w-14 h-14 text-primary" />
+            <span className="grid size-16 place-items-center rounded-b-3xl rounded-t-full bg-trust/10 text-trust">
+              <CheckCircle2 className="size-8" aria-hidden="true" />
+            </span>
             <DialogTitle className="text-lg">اقامتگاه شما ثبت شد!</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="leading-7">
               تبریک! اقامتگاه شما با موفقیت ثبت و منتشر شد. مهمانان از همین حالا
-              می‌توانند آن را مشاهده و رزرو کنند.
+              می‌توانند آن را ببینند و رزرو کنند.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-col gap-2">
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
               type="button"
               onClick={() => {
@@ -962,13 +826,34 @@ export default function NewAccommodationPage() {
               type="button"
               variant="outline"
               onClick={() => router.push("/host/dashboard")}
-              className="w-full font-bold"
+              className="w-full border-line bg-transparent font-bold"
             >
               بازگشت به داشبورد میزبان
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </div>
+  )
+}
+
+export default function NewAccommodationPage() {
+  return (
+    <HostPageLayout
+      showNav={false}
+      eyebrow="اقامتگاه جدید"
+      title="ثبت اقامتگاه جدید"
+      description="در پنج گام اقامتگاه خود را معرفی کنید؛ اطلاعات هر گام ذخیره می‌شود تا در پایان یک اقامتگاه کامل ثبت شود."
+      backHref="/host/dashboard"
+      backLabel="بازگشت به داشبورد میزبان"
+      contentClassName="max-w-5xl"
+    >
+      <HostAccessGate
+        title="ثبت اقامتگاه جدید"
+        description="برای ثبت اقامتگاه، ابتدا وارد حساب کاربری خود شوید و حساب را به میزبان ارتقا دهید."
+      >
+        <NewAccommodationContent />
+      </HostAccessGate>
+    </HostPageLayout>
   )
 }
