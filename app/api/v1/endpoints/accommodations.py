@@ -858,7 +858,7 @@ async def sync_external_calendar(
 
     if dates_to_block:
         values = [
-            {"accommodation_id": acc.id, "date": d, "is_blocked": True}
+            {"accommodation_id": acc.id, "date": d, "is_blocked": True, "source": "ical"}
             for d in sorted(dates_to_block)
         ]
         insert_stmt = (
@@ -870,6 +870,18 @@ async def sync_external_calendar(
             )
         )
         await db.execute(insert_stmt)
+
+    delete_stmt = delete(PricingException).where(
+        PricingException.accommodation_id == acc.id,
+        PricingException.source == "ical",
+        PricingException.date >= today,
+        PricingException.date < max_future,
+    )
+    if dates_to_block:
+        delete_stmt = delete_stmt.where(
+            PricingException.date.notin_(sorted(dates_to_block))
+        )
+    await db.execute(delete_stmt)
 
     now_utc = datetime.now(timezone.utc)
     acc.last_calendar_sync_at = now_utc
@@ -1205,6 +1217,7 @@ async def upsert_pricing_exception(
         existing.price = ex_in.price
         existing.is_blocked = ex_in.is_blocked
         existing.min_nights = ex_in.min_nights
+        existing.source = "manual"
         exception_obj = existing
     else:
         exception_obj = PricingException(
@@ -1213,6 +1226,7 @@ async def upsert_pricing_exception(
             price=ex_in.price,
             is_blocked=ex_in.is_blocked,
             min_nights=ex_in.min_nights,
+            source="manual",
         )
         db.add(exception_obj)
 
@@ -1259,6 +1273,7 @@ async def batch_pricing_exceptions(
             "price": batch_in.price,
             "is_blocked": batch_in.is_blocked,
             "min_nights": batch_in.min_nights,
+            "source": "manual",
         }
         for i in range(requested_count)
     ]
@@ -1272,6 +1287,7 @@ async def batch_pricing_exceptions(
                 "price": batch_in.price,
                 "is_blocked": batch_in.is_blocked,
                 "min_nights": batch_in.min_nights,
+                "source": "manual",
             },
         )
     )
