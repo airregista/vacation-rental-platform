@@ -85,14 +85,30 @@ Production uses two non-superuser roles:
         -f scripts/provision_production_db.sql
    ```
 
-3. Run the migrations as the owner role:
+3. Take a backup and verify restore procedures before every migration.
+
+4. Run the integrity preflight from the release checkout. It is read-only and
+   exits non-zero when existing rows would violate the constraints added by
+   revision `94d16e6e59ff`:
+
+   ```bash
+   psql -d "$PGDATABASE" -v ON_ERROR_STOP=1 \
+     -f scripts/preflight_integrity_constraints.sql
+   ```
+
+   If it reports violations, repair the data with the data owner and re-run.
+   Do not weaken or skip a constraint to make the migration pass. The dev-only
+   cleanup in plan 053, Step 1 (hardcoded reservation IDs) must not be applied
+   to production.
+
+5. Run the migrations as the owner role:
 
    ```bash
    DATABASE_URL='postgresql+asyncpg://ashianak_owner:...@DB_HOST:5432/ashianak?ssl=require' \
      alembic upgrade head
    ```
 
-4. Run the API as the app role:
+6. Run the API as the app role:
 
    ```dotenv
    DATABASE_URL=postgresql+asyncpg://ashianak_app:...@DB_HOST:5432/ashianak?ssl=require
@@ -101,8 +117,9 @@ Production uses two non-superuser roles:
    The app refuses to start outside the demo environments when the URL uses
    `postgres`/`root`, omits the password, or omits TLS for a remote host.
 
-5. Take a backup before every migration and verify restore procedures.
-   Do **not** run `python -m app.seeds.seed_data` in production.
+7. Do **not** run `python -m app.seeds.seed_data` in production. It intentionally
+   refuses to create the public demo accounts there, and production data should
+   be created through migrations and real admin/user flows.
 
 ### Connection pool sizing
 
