@@ -64,37 +64,37 @@ export function CategoryBar({ selectedCategoryId, onSelectCategory }: CategoryBa
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 overflow-x-auto py-3 scrollbar-none">
-        <Skeleton className="h-10 w-28 shrink-0 rounded-full" />
-        <Skeleton className="h-10 w-28 shrink-0 rounded-full" />
-        <Skeleton className="h-10 w-28 shrink-0 rounded-full" />
-        <Skeleton className="h-10 w-28 shrink-0 rounded-full" />
-        <Skeleton className="h-10 w-28 shrink-0 rounded-full" />
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto py-1">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} className="h-9 w-28 shrink-0 rounded-full bg-paper-deep" />
+        ))}
       </div>
     )
   }
+
+  const chipClass =
+    "h-9 shrink-0 snap-start gap-2 px-4 text-xs font-semibold shadow-none transition-colors"
 
   return (
     <div
       role="region"
       aria-label="دسته‌بندی‌های اقامتگاه"
-      className="relative w-full border-b border-border/40 bg-background/80 backdrop-blur"
+      className="relative w-full"
     >
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto py-3 px-1 scrollbar-none snap-x touch-pan-x">
-        {/* "همه اقامتگاه‌ها" chip */}
+      <div className="no-scrollbar flex snap-x touch-pan-x items-center gap-2 overflow-x-auto py-1">
         <Button
           type="button"
           variant={selectedCategoryId === undefined ? "default" : "outline"}
           size="sm"
+          shape="pill"
           onClick={() => onSelectCategory(undefined)}
           aria-pressed={selectedCategoryId === undefined}
-          className="shrink-0 snap-start rounded-full gap-2 px-4 h-9 font-medium shadow-xs transition-colors"
+          className={chipClass}
         >
           <LayoutGrid className="size-4" />
           <span>همه اقامتگاه‌ها</span>
         </Button>
 
-        {/* Dynamic Categories */}
         {categories.map((cat) => {
           const IconComponent = getCategoryIcon(cat.slug)
           const isSelected = selectedCategoryId === cat.id
@@ -105,9 +105,10 @@ export function CategoryBar({ selectedCategoryId, onSelectCategory }: CategoryBa
               type="button"
               variant={isSelected ? "default" : "outline"}
               size="sm"
+              shape="pill"
               onClick={() => onSelectCategory(isSelected ? undefined : cat.id)}
               aria-pressed={isSelected}
-              className="shrink-0 snap-start rounded-full gap-2 px-4 h-9 font-medium shadow-xs transition-colors"
+              className={chipClass}
             >
               <IconComponent className="size-4" />
               <span>{cat.title}</span>

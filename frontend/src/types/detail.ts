@@ -29,7 +29,9 @@ export interface AccommodationDetailData {
   check_in_time: string
   check_out_time: string
   rules: string | null
-  cancellation_policy: "flexible" | "moderate" | "strict"
+  cancellation_policy: "flexible" | "moderate" | "strict" | "custom"
+  cancellation_free_hours: number
+  cancellation_penalty_percent: number
   is_active: boolean
   created_at: string
   host: PublicHost | null
@@ -37,6 +39,8 @@ export interface AccommodationDetailData {
   city: City | null
   images: AccommodationImage[]
   amenities: Amenity[]
+  /** Free-text amenities the host added for this listing only. */
+  custom_amenities?: string[]
   average_rating: number | null
   reviews_count: number
 }

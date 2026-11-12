@@ -24,6 +24,39 @@ import type { Amenity } from "@/types/accommodation"
 
 export interface AmenitiesListProps {
   amenities: Amenity[]
+  customAmenities?: string[]
+}
+
+interface DisplayAmenity {
+  key: string
+  name: string
+  icon: string | null
+}
+
+/** Predefined amenities first, then host free-text names that are not duplicates. */
+function buildAmenityItems(
+  amenities: Amenity[],
+  customAmenities: string[]
+): DisplayAmenity[] {
+  const seen = new Set(
+    amenities.map((amenity) => amenity.name.trim().toLowerCase())
+  )
+
+  const items: DisplayAmenity[] = amenities.map((amenity) => ({
+    key: `a-${amenity.id}`,
+    name: amenity.name,
+    icon: amenity.icon ?? null,
+  }))
+
+  for (const rawName of customAmenities) {
+    const name = rawName.trim()
+    const normalized = name.toLowerCase()
+    if (!name || seen.has(normalized)) continue
+    seen.add(normalized)
+    items.push({ key: `custom-${name}`, name, icon: null })
+  }
+
+  return items
 }
 
 function getAmenityIcon(name: string, iconSlug?: string | null) {
@@ -67,40 +100,51 @@ function getAmenityIcon(name: string, iconSlug?: string | null) {
   return Check
 }
 
-export function AmenitiesList({ amenities }: AmenitiesListProps) {
+export function AmenitiesList({
+  amenities,
+  customAmenities = [],
+}: AmenitiesListProps) {
   const [isOpenAllModal, setIsOpenAllModal] = React.useState(false)
 
-  if (!amenities || amenities.length === 0) {
+  const allAmenities = buildAmenityItems(amenities ?? [], customAmenities)
+
+  if (allAmenities.length === 0) {
     return null
   }
 
-  const displayedAmenities = amenities.slice(0, 8)
-  const hasMore = amenities.length > 8
+  const displayedAmenities = allAmenities.slice(0, 8)
+  const hasMore = allAmenities.length > 8
 
   const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
-          <Sparkles className="h-5 w-5 text-primary" />
+      <div className="space-y-2">
+        <p className="flex items-center gap-3 text-xs font-bold tracking-[0.18em] text-brick">
+          <span aria-hidden="true" className="h-px w-8 bg-brick/45" />
+          امکانات
+        </p>
+        <h3 className="flex items-center gap-2 text-xl font-black tracking-tight text-ink">
+          <Sparkles className="size-5 text-brick" />
           <span>امکانات اقامتگاه</span>
         </h3>
       </div>
 
       {/* Grid of 8 amenities */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {displayedAmenities.map((amenity) => {
           const Icon = getAmenityIcon(amenity.name, amenity.icon)
           return (
             <div
-              key={amenity.id}
-              className="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-border text-foreground transition-colors"
+              key={amenity.key}
+              className="flex min-w-0 items-center gap-2.5 rounded-xl border border-line/70 bg-paper-card p-3 text-ink transition-colors hover:border-line-strong"
             >
-              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <Icon className="h-4 w-4" />
+              <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg bg-brick-soft/60 text-brick-deep">
+                <Icon className="size-4" />
               </div>
-              <span className="text-xs font-medium truncate">{amenity.name}</span>
+              <span className="min-w-0 break-words text-pretty text-xs font-medium leading-5">
+                {amenity.name}
+              </span>
             </div>
           )
         })}
@@ -114,34 +158,36 @@ export function AmenitiesList({ amenities }: AmenitiesListProps) {
             variant="outline"
             size="sm"
             onClick={() => setIsOpenAllModal(true)}
-            className="text-xs mt-2"
+            className="mt-2 border-line bg-paper-card text-xs font-semibold text-ink shadow-none hover:bg-paper"
           >
-            مشاهده تمام {formatPersian(amenities.length)} امکانات
+            مشاهده تمام {formatPersian(allAmenities.length)} امکانات
           </Button>
 
           <Dialog open={isOpenAllModal} onOpenChange={setIsOpenAllModal}>
-            <DialogContent className="max-w-md w-full max-h-[80vh] flex flex-col p-6">
-              <DialogHeader className="pb-3 border-b border-border">
-                <DialogTitle className="text-base font-bold">
-                  تمام امکانات اقامتگاه ({formatPersian(amenities.length)})
+            <DialogContent className="flex max-h-[80vh] w-full max-w-md flex-col border-line bg-paper p-6">
+              <DialogHeader className="border-b border-line pb-3">
+                <DialogTitle className="text-base font-black text-ink">
+                  تمام امکانات اقامتگاه ({formatPersian(allAmenities.length)})
                 </DialogTitle>
                 <DialogDescription className="sr-only">
                   لیست تمامی امکانات اقامتگاه
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto py-4 scrollbar-thin">
-                {amenities.map((amenity) => {
+              <div className="no-scrollbar grid grid-cols-1 gap-3 overflow-y-auto py-4 sm:grid-cols-2">
+                {allAmenities.map((amenity) => {
                   const Icon = getAmenityIcon(amenity.name, amenity.icon)
                   return (
                     <div
-                      key={amenity.id}
-                      className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/40 border border-border/70"
+                      key={amenity.key}
+                      className="flex min-w-0 items-center gap-2.5 rounded-xl border border-line/70 bg-paper-card p-3"
                     >
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                        <Icon className="h-4 w-4" />
+                      <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg bg-brick-soft/60 text-brick-deep">
+                        <Icon className="size-4" />
                       </div>
-                      <span className="text-xs font-medium">{amenity.name}</span>
+                      <span className="min-w-0 break-words text-pretty text-xs font-medium leading-5 text-ink">
+                        {amenity.name}
+                      </span>
                     </div>
                   )
                 })}

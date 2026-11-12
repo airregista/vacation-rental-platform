@@ -4,7 +4,6 @@ import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import type { AccommodationListItem } from "@/types/accommodation"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Heart, Home, Star, MapPin } from "lucide-react"
@@ -41,18 +40,16 @@ export function AccommodationCard({
   }, [item.average_rating])
 
   // URL of the cover image that failed to load, if any. Kept as the URL
-  // (not a boolean) so a changed cover_image automatically retries instead
-  // of sticking on the placeholder.
+  // (not a boolean) so a changed cover_image automatically retries.
   const [failedImageSrc, setFailedImageSrc] = React.useState<string | null>(null)
   const imageFailed = failedImageSrc !== null && failedImageSrc === item.cover_image
 
   return (
-    <div className="group flex flex-col rounded-2xl bg-card transition-all duration-200">
-      {/* 4:3 Aspect Ratio Photo Container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted shadow-xs">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line/80 bg-paper-card transition-[border-color,box-shadow] duration-300 hover:border-line-strong hover:shadow-lift">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-paper-deep">
         <Link
           href={`/accommodations/${item.id}`}
-          className="block w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
+          className="block h-full w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           tabIndex={-1}
           aria-hidden="true"
         >
@@ -62,90 +59,86 @@ export function AccommodationCard({
               alt={item.title}
               fill
               unoptimized
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               onError={() => setFailedImageSrc(item.cover_image)}
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/60 bg-muted/40 gap-1.5">
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-paper-deep text-ink-soft/70">
               <Home className="size-8" />
               <span className="text-xs font-medium">بدون تصویر</span>
             </div>
           )}
         </Link>
 
-        {/* Floating Wishlist Heart Button (Top-Left in RTL) */}
+        {item.category?.title ? (
+          <span className="absolute right-3 top-3 z-10 rounded-full bg-paper/90 px-2.5 py-1 text-[11px] font-semibold text-ink backdrop-blur">
+            {item.category.title}
+          </span>
+        ) : null}
+
         <Button
           type="button"
           variant="ghost"
           size="icon"
           disabled={isWishlistLoading}
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
             onToggleWishlist?.(item.id)
           }}
           aria-label={isWishlisted ? "حذف از نشان‌شده‌ها" : "نشان کردن اقامتگاه"}
-          className="absolute top-2.5 left-2.5 size-8 rounded-full bg-background/80 backdrop-blur-sm shadow-xs hover:bg-background transition-colors text-foreground z-10 disabled:opacity-50"
+          className="absolute left-3 top-3 z-10 size-8 rounded-full bg-paper/90 text-ink shadow-soft backdrop-blur transition-colors hover:bg-paper disabled:opacity-50"
         >
           <Heart
             className={cn(
               "size-4 transition-colors",
-              isWishlisted ? "text-primary fill-primary" : "text-foreground/70"
+              isWishlisted ? "fill-brick text-brick" : "text-ink/70"
             )}
           />
         </Button>
 
-        {/* Floating Rating Badge (Bottom-Right in RTL) */}
-        <div className="absolute bottom-2.5 right-2.5 z-10">
-          <Badge
-            variant="secondary"
-            className="gap-1 bg-background/90 backdrop-blur-sm text-foreground text-xs font-bold shadow-xs px-2 py-0.5"
-          >
-            {item.average_rating && item.average_rating > 0 && (
-              <Star className="size-3 fill-amber-400 text-amber-400" />
-            )}
-            <span>{ratingDisplay}</span>
-          </Badge>
+        <div className="absolute bottom-3 right-3 z-10">
+          <span className="flex items-center gap-1 rounded-full bg-paper/90 px-2.5 py-1 text-[11px] font-bold text-ink shadow-soft backdrop-blur">
+            {item.average_rating && item.average_rating > 0 ? (
+              <Star className="size-3 fill-gold text-gold" />
+            ) : null}
+            {ratingDisplay}
+          </span>
         </div>
       </div>
 
-      {/* Card Info Content */}
-      <div className="pt-3 pb-1 px-1 flex flex-col gap-1 text-right">
+      <div className="flex flex-1 flex-col gap-2 p-4">
         <Link
           href={`/accommodations/${item.id}`}
-          className="block hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm truncate"
+          className="rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <h3 className="font-bold text-sm sm:text-base text-foreground truncate">
+          <h3 className="truncate text-[15px] font-bold leading-6 text-ink transition-colors group-hover:text-brick">
             {item.title}
           </h3>
         </Link>
 
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="size-3 text-muted-foreground/70 shrink-0" />
+        <p className="flex items-center gap-1 text-xs text-ink-soft">
+          <MapPin className="size-3 shrink-0" />
           <span className="truncate">
             {item.city?.name}
             {item.city?.province?.name ? `، ${item.city.province.name}` : ""}
           </span>
-          {item.category?.title && (
-            <>
-              <span className="text-muted-foreground/40">•</span>
-              <span className="truncate">{item.category.title}</span>
-            </>
-          )}
-        </div>
+        </p>
 
-        <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border/30">
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm font-extrabold text-primary">
-              {formattedPrice}
-            </span>
-            <span className="text-[11px] text-muted-foreground">تومان / شب</span>
-          </div>
-          <span className="text-[11px] text-muted-foreground">
-            تا {formattedCapacity} نفر
+        <p className="text-xs text-ink-soft">تا {formattedCapacity} مهمان</p>
+
+        <div className="mt-auto flex items-end justify-between gap-2 border-t border-line/70 pt-3">
+          <p className="text-xs text-ink-soft">
+            <span className="text-[15px] font-black text-brick">{formattedPrice}</span> تومان / شب
+          </p>
+          <span className="text-[11px] text-ink-soft">
+            {item.reviews_count > 0
+              ? `${new Intl.NumberFormat("fa-IR").format(item.reviews_count)} نظر`
+              : "اقامتگاه تازه"}
           </span>
         </div>
       </div>
-    </div>
+    </article>
   )
 }

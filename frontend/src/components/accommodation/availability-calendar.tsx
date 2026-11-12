@@ -278,18 +278,18 @@ export function AvailabilityCalendar({
   const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
 
   if (!isClient) {
-    return <div className="h-64 rounded-2xl bg-muted/40 animate-pulse" />
+    return <div className="h-64 animate-pulse rounded-2xl bg-paper-deep/50" />
   }
 
   const renderMonth = (month: CalendarMonthGroup) => {
     return (
-      <div key={month.key} className="flex-1 min-w-[280px]">
-        <div className="text-center font-semibold text-sm mb-4 text-foreground">
+      <div key={month.key} className="min-w-0 flex-1 sm:min-w-[280px]">
+        <div className="mb-4 text-center text-sm font-bold text-ink">
           {month.title}
         </div>
 
         {/* Day of Week Headers */}
-        <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground font-medium mb-2">
+        <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-soft">
           {WEEK_DAYS.map((w, i) => (
             <div key={i} className="py-1">
               {w}
@@ -310,7 +310,7 @@ export function AvailabilityCalendar({
               return (
                 <div
                   key={cell.isoDate}
-                  className="h-12 flex flex-col items-center justify-center opacity-25 text-muted-foreground pointer-events-none select-none"
+                  className="pointer-events-none flex h-12 select-none flex-col items-center justify-center text-ink-soft opacity-30"
                 >
                   <span className="text-xs leading-none">
                     {formatPersian(cell.persianDay)}
@@ -338,25 +338,25 @@ export function AvailabilityCalendar({
             const effectivePrice =
               cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
 
-            let dayStyle = "text-foreground hover:bg-accent cursor-pointer rounded-lg"
+            let dayStyle = "cursor-pointer rounded-lg text-ink hover:bg-paper-deep"
             if (isBlocked) {
               dayStyle =
-                "opacity-40 line-through text-muted-foreground pointer-events-none bg-transparent cursor-not-allowed"
+                "pointer-events-none cursor-not-allowed bg-transparent text-ink-soft line-through opacity-35"
             } else if (isStart && isEnd) {
-              dayStyle = "bg-primary text-primary-foreground font-bold rounded-lg shadow-sm"
+              dayStyle = "rounded-lg bg-brick font-bold text-on-brick shadow-soft"
             } else if (isStart) {
               dayStyle = checkOut
-                ? "bg-primary text-primary-foreground font-bold rounded-r-lg rounded-l-none shadow-sm"
-                : "bg-primary text-primary-foreground font-bold rounded-lg shadow-sm"
+                ? "rounded-r-lg rounded-l-none bg-brick font-bold text-on-brick shadow-soft"
+                : "rounded-lg bg-brick font-bold text-on-brick shadow-soft"
             } else if (isEnd) {
               dayStyle =
-                "bg-primary text-primary-foreground font-bold rounded-l-lg rounded-r-none shadow-sm"
+                "rounded-l-lg rounded-r-none bg-brick font-bold text-on-brick shadow-soft"
             } else if (isInRange) {
-              dayStyle = "bg-primary/10 text-primary font-medium rounded-none"
+              dayStyle = "rounded-none bg-brick-soft/60 font-medium text-brick-deep"
             } else if (!cell.dayInfo.is_available && canBeCheckout) {
               // Day is booked for new check-in, but eligible as checkout
               dayStyle =
-                "text-foreground hover:bg-accent cursor-pointer rounded-lg border border-dashed border-border"
+                "cursor-pointer rounded-lg border border-dashed border-line-strong text-ink hover:bg-paper-deep"
             }
 
             return (
@@ -365,17 +365,17 @@ export function AvailabilityCalendar({
                 key={cell.isoDate}
                 disabled={isBlocked}
                 onClick={() => handleDayClick(cell.isoDate, cell.dayInfo)}
-                className={`h-12 flex flex-col items-center justify-center transition-colors select-none ${dayStyle}`}
+                className={`flex h-12 select-none flex-col items-center justify-center transition-colors ${dayStyle}`}
               >
-                <span className="text-xs leading-none">
+                <span className="text-xs leading-none tabular-nums">
                   {formatPersian(cell.persianDay)}
                 </span>
                 {!isBlocked && effectivePrice > 0 && (
                   <span
-                    className={`text-[9px] mt-1 leading-none truncate max-w-full px-0.5 ${
+                    className={`mt-1 max-w-full truncate px-0.5 text-[9px] leading-none ${
                       isStart || isEnd
-                        ? "text-primary-foreground/90 font-light"
-                        : "text-muted-foreground"
+                        ? "font-light text-on-brick/80"
+                        : "text-ink-soft"
                     }`}
                   >
                     {formatPersian(Math.round(effectivePrice / 1000))}
@@ -392,13 +392,17 @@ export function AvailabilityCalendar({
   return (
     <div className="w-full space-y-4">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5 text-primary" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-2">
+          <p className="flex items-center gap-3 text-xs font-bold tracking-[0.18em] text-brick">
+            <span aria-hidden="true" className="h-px w-8 bg-brick/45" />
+            تقویم اقامت
+          </p>
+          <h3 className="flex items-center gap-2 text-xl font-black tracking-tight text-ink">
+            <CalendarIcon className="size-5 text-brick" />
             <span>تقویم و ظرفیت اقامتگاه</span>
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-ink-soft">
             قیمت‌ها بر حسب هزار تومان نمایش داده شده‌اند.
           </p>
         </div>
@@ -409,9 +413,9 @@ export function AvailabilityCalendar({
             variant="ghost"
             size="sm"
             onClick={handleClearDates}
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+            className="flex items-center gap-1 text-xs text-ink-soft hover:bg-paper-deep hover:text-brick"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="size-3.5" />
             <span>پاک کردن تاریخ‌ها</span>
           </Button>
         )}
@@ -419,10 +423,10 @@ export function AvailabilityCalendar({
 
       {/* Minimum Stay Alert */}
       {minNights > 1 && (
-        <Alert variant="default" className="py-2.5 bg-muted/60 border-border">
-          <AlertCircle className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-xs font-semibold">شرط حداقل اقامت</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">
+        <Alert variant="default" className="border-line bg-paper-card py-2.5">
+          <AlertCircle className="size-4 text-brick" />
+          <AlertTitle className="text-xs font-bold text-ink">شرط حداقل اقامت</AlertTitle>
+          <AlertDescription className="text-xs text-ink-soft">
             حداقل مدت اقامت در این اقامتگاه {formatPersian(minNights)} شب است.
           </AlertDescription>
         </Alert>
@@ -431,19 +435,19 @@ export function AvailabilityCalendar({
       {/* Selection Validation Error Alert */}
       {errorNotice && (
         <Alert variant="destructive" className="py-2.5">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="size-4" />
           <AlertDescription className="text-xs">{errorNotice}</AlertDescription>
         </Alert>
       )}
 
       {isLoading ? (
-        <div className="h-64 rounded-2xl bg-muted/30 animate-pulse flex items-center justify-center text-muted-foreground text-sm">
+        <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-paper-deep/40 text-sm text-ink-soft">
           در حال بارگذاری تقویم...
         </div>
       ) : fetchError ? (
-        <div className="p-8 text-center border rounded-2xl bg-card space-y-3">
-          <p className="text-sm font-medium text-foreground">خطا در بارگذاری تقویم</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="space-y-3 rounded-2xl border border-line bg-paper-card p-8 text-center">
+          <p className="text-sm font-bold text-ink">خطا در بارگذاری تقویم</p>
+          <p className="text-xs text-ink-soft">
             ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.
           </p>
           <Button
@@ -451,17 +455,17 @@ export function AvailabilityCalendar({
             variant="outline"
             size="sm"
             onClick={() => setRetryCount((prev) => prev + 1)}
-            className="text-xs"
+            className="border-line bg-paper-card text-xs font-semibold text-ink shadow-none hover:bg-paper"
           >
             تلاش مجدد
           </Button>
         </div>
       ) : months.length === 0 ? (
-        <div className="p-8 text-center text-sm text-muted-foreground border rounded-2xl bg-muted/20">
+        <div className="rounded-2xl border border-dashed border-line bg-paper-deep/30 p-8 text-center text-sm text-ink-soft">
           اطلاعات تقویم برای این اقامتگاه یافت نشد.
         </div>
       ) : (
-        <div className="border border-border rounded-2xl p-4 sm:p-6 bg-card">
+        <div className="rounded-3xl border border-line bg-paper-card p-4 shadow-soft sm:p-6">
           {/* Desktop: 2 side-by-side months with pagination */}
           <div className="hidden md:block">
             {months.length > 2 && (
@@ -477,7 +481,7 @@ export function AvailabilityCalendar({
                   <ChevronRight className="h-4 w-4" />
                   <span>ماه قبلی</span>
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-ink-soft">
                   نمایش ماه {formatPersian(desktopMonthIndex + 1)} و {formatPersian(desktopMonthIndex + 2)} از {formatPersian(months.length)}
                 </span>
                 <Button
@@ -511,7 +515,7 @@ export function AvailabilityCalendar({
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-ink-soft">
                 ماه {formatPersian(mobileMonthIndex + 1)} از {formatPersian(months.length)}
               </span>
               <Button

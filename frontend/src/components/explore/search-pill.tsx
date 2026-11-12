@@ -4,8 +4,8 @@ import * as React from "react"
 import { apiClient } from "@/lib/api-client"
 import type { City, AccommodationSearchParams } from "@/types/accommodation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { JalaliDateField } from "@/components/shared/date-field"
 import {
   Sheet,
   SheetContent,
@@ -27,9 +27,17 @@ export interface SearchPillProps {
   currentParams: AccommodationSearchParams
   onSearch: (params: Partial<AccommodationSearchParams>) => void
   onOpenFilters?: () => void
+  /** `dock` is the editorial homepage capsule; `pill` is the results bar. */
+  variant?: "pill" | "dock"
 }
 
-export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPillProps) {
+
+export function SearchPill({
+  currentParams,
+  onSearch,
+  onOpenFilters,
+  variant = "pill",
+}: SearchPillProps) {
   const [cities, setCities] = React.useState<City[]>([])
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
 
@@ -156,10 +164,14 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
       {/* 1. Desktop Segmented Search Pill (>= md) */}
       <form
         onSubmit={handleSearchSubmit}
-        className="hidden md:flex items-center justify-between rounded-full border border-border shadow-md bg-card p-1.5 gap-2 max-w-4xl mx-auto transition-shadow hover:shadow-lg"
+        className={
+          variant === "dock"
+            ? "hidden md:flex items-center justify-between rounded-[1.75rem] border border-line/80 shadow-dock bg-card/90 backdrop-blur-xl p-2 gap-1.5 max-w-5xl mx-auto transition-shadow hover:shadow-lg"
+            : "hidden md:flex items-center justify-between rounded-full border border-border shadow-md bg-card p-1.5 gap-2 max-w-4xl mx-auto transition-shadow hover:shadow-lg"
+        }
       >
         {/* Segment 1: Destination */}
-        <div className="flex-1 flex items-center gap-2.5 px-4 py-1.5 rounded-full hover:bg-muted/50 transition-colors">
+        <div className="flex-1 flex items-center gap-2.5 px-4 py-1.5 rounded-2xl hover:bg-muted/50 transition-colors">
           <MapPin className="size-4 text-primary shrink-0" />
           <div className="flex flex-col text-right w-full min-w-0">
             <span className="text-[11px] font-bold text-foreground">مقصد</span>
@@ -182,32 +194,26 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
         <Separator orientation="vertical" className="h-8" />
 
         {/* Segment 2: Dates */}
-        <div className="flex-[1.4] flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-colors">
+        <div className="flex-[1.5] flex items-center gap-2 px-3 py-1.5">
           <Calendar className="size-4 text-primary shrink-0" />
-          <div className="flex items-center gap-2 text-right">
-            <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-foreground">ورود</span>
-              <Input
-                type="date"
-                min={todayStr}
-                value={checkIn}
-                onChange={(e) => handleCheckInChange(e.target.value)}
-                aria-label="تاریخ ورود"
-                className="h-6 text-xs p-0 border-0 bg-transparent shadow-none focus-visible:ring-0 cursor-pointer w-28 text-muted-foreground"
-              />
-            </div>
-            <span className="text-muted-foreground text-xs mt-3">-</span>
-            <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-foreground">خروج</span>
-              <Input
-                type="date"
-                min={minCheckOutStr}
-                value={checkOut}
-                onChange={(e) => handleCheckOutChange(e.target.value)}
-                aria-label="تاریخ خروج"
-                className="h-6 text-xs p-0 border-0 bg-transparent shadow-none focus-visible:ring-0 cursor-pointer w-28 text-muted-foreground"
-              />
-            </div>
+          <div className="flex items-center gap-1 text-right">
+            <JalaliDateField
+              label="ورود"
+              ariaLabel="تاریخ ورود"
+              value={checkIn}
+              min={todayStr}
+              onChange={handleCheckInChange}
+            />
+            <span aria-hidden="true" className="text-xs text-muted-foreground/50">
+              –
+            </span>
+            <JalaliDateField
+              label="خروج"
+              ariaLabel="تاریخ خروج"
+              value={checkOut}
+              min={minCheckOutStr}
+              onChange={handleCheckOutChange}
+            />
           </div>
         </div>
 
@@ -219,31 +225,31 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
             <Users className="size-4 text-primary shrink-0" />
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-bold text-foreground">مهمانان</span>
-              <span className="text-xs text-muted-foreground font-medium">
-                {persianGuests} مسافر
-              </span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 rounded-full border border-line/70 bg-paper-deep/40 p-0.5">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setGuests((g) => Math.max(1, g - 1))}
               disabled={guests <= 1}
               aria-label="کاهش مسافران"
-              className="size-7 rounded-full p-0"
+              className="size-6 rounded-full p-0 text-ink-soft hover:bg-paper-card hover:text-ink"
             >
               <Minus className="size-3" />
             </Button>
+            <span className="min-w-5 text-center text-xs font-bold tabular-nums text-foreground">
+              {persianGuests}
+            </span>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setGuests((g) => Math.min(20, g + 1))}
               disabled={guests >= 20}
               aria-label="افزایش مسافران"
-              className="size-7 rounded-full p-0"
+              className="size-6 rounded-full p-0 text-ink-soft hover:bg-paper-card hover:text-ink"
             >
               <Plus className="size-3" />
             </Button>
@@ -369,28 +375,22 @@ export function SearchPill({ currentParams, onSearch, onOpenFilters }: SearchPil
                 تاریخ سفر
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <span className="text-[11px] text-muted-foreground">تاریخ ورود</span>
-                  <Input
-                    type="date"
-                    min={todayStr}
-                    value={checkIn}
-                    onChange={(e) => handleCheckInChange(e.target.value)}
-                    aria-label="تاریخ ورود"
-                    className="h-11 rounded-xl text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] text-muted-foreground">تاریخ خروج</span>
-                  <Input
-                    type="date"
-                    min={minCheckOutStr}
-                    value={checkOut}
-                    onChange={(e) => handleCheckOutChange(e.target.value)}
-                    aria-label="تاریخ خروج"
-                    className="h-11 rounded-xl text-xs"
-                  />
-                </div>
+                <JalaliDateField
+                  boxed
+                  label="ورود"
+                  ariaLabel="تاریخ ورود"
+                  value={checkIn}
+                  min={todayStr}
+                  onChange={handleCheckInChange}
+                />
+                <JalaliDateField
+                  boxed
+                  label="خروج"
+                  ariaLabel="تاریخ خروج"
+                  value={checkOut}
+                  min={minCheckOutStr}
+                  onChange={handleCheckOutChange}
+                />
               </div>
             </div>
 
