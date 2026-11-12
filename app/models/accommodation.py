@@ -156,8 +156,8 @@ class PricingException(Base):
             name="chk_pricing_exception_min_nights",
         ),
         CheckConstraint(
-            "source IN ('manual', 'ical')",
-            name="chk_pricing_exception_source",
+            "is_blocked = (manual_blocked OR ical_blocked)",
+            name="chk_pricing_exception_block_flags",
         ),
         Index(
             "ix_pricing_exceptions_blocked",
@@ -174,10 +174,13 @@ class PricingException(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    min_nights: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    source: Mapped[str] = mapped_column(
-        String(10), server_default="manual", default="manual", nullable=False
+    manual_blocked: Mapped[bool] = mapped_column(
+        Boolean, server_default="false", default=False, nullable=False
     )
+    ical_blocked: Mapped[bool] = mapped_column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
+    min_nights: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
     accommodation: Mapped["Accommodation"] = relationship(
         "Accommodation", back_populates="pricing_exceptions"

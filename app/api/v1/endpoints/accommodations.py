@@ -15,7 +15,7 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import delete, distinct, exists, func, not_, select
+from sqlalchemy import delete, distinct, exists, func, not_, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -669,10 +669,25 @@ MAX_CALENDAR_FEED_BYTES = 2 * 1024 * 1024
 
 _ALLOWED_FEED_PORTS = {None, 80, 443}
 _BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
+# The well-known NAT64 prefix embeds an IPv4 address that the NAT64 gateway
+# translates. ipaddress reports the IPv6 form as global even when the embedded
+# IPv4 is loopback/private, so reject the whole prefix.
+_NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
 
 
 def _assert_global_ip(value: str) -> None:
-    address = ipaddress.ip_address(value)
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must resolve to a public IP address",
+        ) from None
+    if isinstance(address, ipaddress.IPv6Address) and address in _NAT64_PREFIX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must not use NAT64-mapped addresses",
+        )
     if not address.is_global:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -681,7 +696,13 @@ def _assert_global_ip(value: str) -> None:
 
 
 def validate_external_feed_url(url_str: str, *, resolve: bool = True) -> None:
-    parsed = urllib.parse.urlparse(url_str)
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid calendar feed URL",
+        ) from None
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -835,9 +856,13 @@ async def sync_external_calendar(
                 )
     except HTTPException:
         raise
-    except Exception:
-        logger.exception(
-            "Failed to fetch external calendar feed for accommodation %s", id
+    except Exception as exc:
+        # Do not log the exception text or the stack trace: httpx errors embed
+        # the request URL, which can carry a private token or API key.
+        logger.warning(
+            "Failed to fetch external calendar feed for accommodation %s (%s)",
+            id,
+            type(exc).__name__,
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -858,7 +883,13 @@ async def sync_external_calendar(
 
     if dates_to_block:
         values = [
-            {"accommodation_id": acc.id, "date": d, "is_blocked": True, "source": "ical"}
+            {
+                "accommodation_id": acc.id,
+                "date": d,
+                "is_blocked": True,
+                "manual_blocked": False,
+                "ical_blocked": True,
+            }
             for d in sorted(dates_to_block)
         ]
         insert_stmt = (
@@ -866,22 +897,42 @@ async def sync_external_calendar(
             .values(values)
             .on_conflict_do_update(
                 constraint="uq_pricing_exception_accommodation_date",
-                set_={"is_blocked": True},
+                set_={"is_blocked": True, "ical_blocked": True},
             )
         )
         await db.execute(insert_stmt)
 
-    delete_stmt = delete(PricingException).where(
-        PricingException.accommodation_id == acc.id,
-        PricingException.source == "ical",
-        PricingException.date >= today,
-        PricingException.date < max_future,
+    # Clear the iCal flag on dates the upstream feed no longer blocks. Manual
+    # blocks survive because is_blocked falls back to manual_blocked. Rows that
+    # carried only the iCal block (no manual block, price, or min_nights) are
+    # deleted below so they do not linger as false blocks.
+    stale_stmt = (
+        update(PricingException)
+        .where(
+            PricingException.accommodation_id == acc.id,
+            PricingException.ical_blocked.is_(True),
+            PricingException.date >= today,
+            PricingException.date < max_future,
+        )
+        .values(ical_blocked=False, is_blocked=PricingException.manual_blocked)
     )
     if dates_to_block:
-        delete_stmt = delete_stmt.where(
+        stale_stmt = stale_stmt.where(
             PricingException.date.notin_(sorted(dates_to_block))
         )
-    await db.execute(delete_stmt)
+    await db.execute(stale_stmt)
+
+    await db.execute(
+        delete(PricingException).where(
+            PricingException.accommodation_id == acc.id,
+            PricingException.manual_blocked.is_(False),
+            PricingException.ical_blocked.is_(False),
+            PricingException.date >= today,
+            PricingException.date < max_future,
+            PricingException.price.is_(None),
+            PricingException.min_nights.is_(None),
+        )
+    )
 
     now_utc = datetime.now(timezone.utc)
     acc.last_calendar_sync_at = now_utc
@@ -1215,9 +1266,9 @@ async def upsert_pricing_exception(
     existing = (await db.execute(stmt)).scalars().first()
     if existing:
         existing.price = ex_in.price
-        existing.is_blocked = ex_in.is_blocked
+        existing.manual_blocked = ex_in.is_blocked
+        existing.is_blocked = existing.manual_blocked or existing.ical_blocked
         existing.min_nights = ex_in.min_nights
-        existing.source = "manual"
         exception_obj = existing
     else:
         exception_obj = PricingException(
@@ -1225,8 +1276,9 @@ async def upsert_pricing_exception(
             date=ex_in.date,
             price=ex_in.price,
             is_blocked=ex_in.is_blocked,
+            manual_blocked=ex_in.is_blocked,
+            ical_blocked=False,
             min_nights=ex_in.min_nights,
-            source="manual",
         )
         db.add(exception_obj)
 
@@ -1272,8 +1324,9 @@ async def batch_pricing_exceptions(
             "date": batch_in.start_date + timedelta(days=i),
             "price": batch_in.price,
             "is_blocked": batch_in.is_blocked,
+            "manual_blocked": batch_in.is_blocked,
+            "ical_blocked": False,
             "min_nights": batch_in.min_nights,
-            "source": "manual",
         }
         for i in range(requested_count)
     ]
@@ -1285,9 +1338,11 @@ async def batch_pricing_exceptions(
             constraint="uq_pricing_exception_accommodation_date",
             set_={
                 "price": batch_in.price,
-                "is_blocked": batch_in.is_blocked,
+                "manual_blocked": batch_in.is_blocked,
+                # An iCal block is independent of the host's manual toggle: a
+                # manual unblock must not make an upstream-blocked date bookable.
+                "is_blocked": or_(batch_in.is_blocked, PricingException.ical_blocked),
                 "min_nights": batch_in.min_nights,
-                "source": "manual",
             },
         )
     )

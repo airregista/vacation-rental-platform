@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
@@ -97,6 +98,37 @@ def test_validate_external_feed_url_rejects_unsafe_urls(url: str) -> None:
     with pytest.raises(HTTPException) as exc_info:
         validate_external_feed_url(url)
     assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://[::1/feed.ics",
+        "http://[not-an-ip]/feed.ics",
+    ],
+)
+def test_validate_external_feed_url_rejects_malformed_ipv6(url: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        validate_external_feed_url(url)
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert exc_info.value.detail == "Invalid calendar feed URL"
+
+
+def test_validate_external_feed_url_rejects_nat64_literal() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        validate_external_feed_url("http://[64:ff9b::7f00:1]/feed.ics")
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "NAT64" in exc_info.value.detail
+
+
+def test_validate_external_feed_url_rejects_nat64_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_getaddrinfo(monkeypatch, ["64:ff9b::a00:1"])
+    with pytest.raises(HTTPException) as exc_info:
+        validate_external_feed_url("https://example.com/feed.ics")
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "NAT64" in exc_info.value.detail
 
 
 def test_validate_external_feed_url_accepts_public_resolution(
@@ -202,12 +234,17 @@ async def test_sync_error_is_sanitized(
     external_calendar_accommodation: Accommodation,
     hardening_host_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.WARNING)
     monkeypatch.setattr(
         accommodations_module.httpx,
         "AsyncClient",
         _fake_async_client(
-            [], stream_error=RuntimeError("internal-hostname-and-secret")
+            [],
+            stream_error=RuntimeError(
+                "https://example.com/feed.ics?token=internal-hostname-and-secret"
+            ),
         ),
     )
 
@@ -219,6 +256,8 @@ async def test_sync_error_is_sanitized(
     assert resp.status_code == status.HTTP_502_BAD_GATEWAY
     assert "internal-hostname-and-secret" not in resp.text
     assert resp.json()["detail"] == "Failed to fetch external calendar feed"
+    assert "internal-hostname-and-secret" not in caplog.text
+    assert "RuntimeError" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -263,13 +302,15 @@ async def test_sync_reconciles_ical_owned_rows(
                     accommodation_id=external_calendar_accommodation.id,
                     date=stale_ical_date,
                     is_blocked=True,
-                    source="ical",
+                    manual_blocked=False,
+                    ical_blocked=True,
                 ),
                 PricingException(
                     accommodation_id=external_calendar_accommodation.id,
                     date=manual_date,
                     is_blocked=True,
-                    source="manual",
+                    manual_blocked=True,
+                    ical_blocked=False,
                 ),
             ]
         )
@@ -304,10 +345,12 @@ async def test_sync_reconciles_ical_owned_rows(
 
     assert stale_ical_date not in rows
     assert manual_date in rows
-    assert rows[manual_date].source == "manual"
+    assert rows[manual_date].manual_blocked is True
+    assert rows[manual_date].ical_blocked is False
     assert rows[manual_date].is_blocked is True
     assert new_ical_date in rows
-    assert rows[new_ical_date].source == "ical"
+    assert rows[new_ical_date].manual_blocked is False
+    assert rows[new_ical_date].ical_blocked is True
     assert rows[new_ical_date].is_blocked is True
 
     monkeypatch.setattr(
@@ -336,5 +379,141 @@ async def test_sync_reconciles_ical_owned_rows(
 
     assert new_ical_date not in rows
     assert manual_date in rows
-    assert rows[manual_date].source == "manual"
+    assert rows[manual_date].manual_blocked is True
     assert rows[manual_date].is_blocked is True
+
+
+@pytest.mark.asyncio
+async def test_empty_feed_clears_ical_block_on_priced_row(
+    client: AsyncClient,
+    external_calendar_accommodation: Accommodation,
+    hardening_host_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A price-only row must not stay blocked after iCal removes the date.
+
+    This is the stale-block regression: the old single ``source`` tag left the
+    row labeled manual, so the reconciliation never cleared it.
+    """
+    priced_date = date.today() + timedelta(days=12)
+
+    async with AsyncSessionLocal() as session:
+        session.add(
+            PricingException(
+                accommodation_id=external_calendar_accommodation.id,
+                date=priced_date,
+                price=Decimal("123000"),
+                is_blocked=True,
+                manual_blocked=False,
+                ical_blocked=True,
+            )
+        )
+        await session.commit()
+
+    monkeypatch.setattr(
+        accommodations_module.httpx,
+        "AsyncClient",
+        _fake_async_client([_ics_for_dates([]).encode("utf-8")]),
+    )
+    resp = await client.post(
+        f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync",
+        headers=hardening_host_headers,
+    )
+    assert resp.status_code == status.HTTP_200_OK, resp.text
+
+    async with AsyncSessionLocal() as session:
+        row = (
+            await session.execute(
+                select(PricingException).where(
+                    PricingException.accommodation_id
+                    == external_calendar_accommodation.id,
+                    PricingException.date == priced_date,
+                )
+            )
+        ).scalars().one()
+
+    assert row.price == Decimal("123000")
+    assert row.manual_blocked is False
+    assert row.ical_blocked is False
+    assert row.is_blocked is False
+
+
+@pytest.mark.asyncio
+async def test_manual_unblock_does_not_override_active_ical_block(
+    client: AsyncClient,
+    external_calendar_accommodation: Accommodation,
+    hardening_host_headers: dict[str, str],
+) -> None:
+    blocked_date = date.today() + timedelta(days=9)
+
+    async with AsyncSessionLocal() as session:
+        session.add(
+            PricingException(
+                accommodation_id=external_calendar_accommodation.id,
+                date=blocked_date,
+                is_blocked=True,
+                manual_blocked=False,
+                ical_blocked=True,
+            )
+        )
+        await session.commit()
+
+    resp = await client.post(
+        f"/api/v1/accommodations/{external_calendar_accommodation.id}/pricing-exceptions",
+        json={"date": blocked_date.isoformat(), "is_blocked": False},
+        headers=hardening_host_headers,
+    )
+
+    assert resp.status_code == status.HTTP_200_OK, resp.text
+    body = resp.json()
+    assert body["manual_blocked"] is False
+    assert body["ical_blocked"] is True
+    assert body["is_blocked"] is True
+
+
+@pytest.mark.asyncio
+async def test_manual_block_survives_ical_removal(
+    client: AsyncClient,
+    external_calendar_accommodation: Accommodation,
+    hardening_host_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    blocked_date = date.today() + timedelta(days=11)
+
+    async with AsyncSessionLocal() as session:
+        session.add(
+            PricingException(
+                accommodation_id=external_calendar_accommodation.id,
+                date=blocked_date,
+                is_blocked=True,
+                manual_blocked=True,
+                ical_blocked=True,
+            )
+        )
+        await session.commit()
+
+    monkeypatch.setattr(
+        accommodations_module.httpx,
+        "AsyncClient",
+        _fake_async_client([_ics_for_dates([]).encode("utf-8")]),
+    )
+    resp = await client.post(
+        f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync",
+        headers=hardening_host_headers,
+    )
+    assert resp.status_code == status.HTTP_200_OK, resp.text
+
+    async with AsyncSessionLocal() as session:
+        row = (
+            await session.execute(
+                select(PricingException).where(
+                    PricingException.accommodation_id
+                    == external_calendar_accommodation.id,
+                    PricingException.date == blocked_date,
+                )
+            )
+        ).scalars().one()
+
+    assert row.manual_blocked is True
+    assert row.ical_blocked is False
+    assert row.is_blocked is True

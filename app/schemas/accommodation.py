@@ -40,6 +40,8 @@ class PricingExceptionResponse(BaseModel):
     date: date
     price: Decimal | None = None
     is_blocked: bool
+    manual_blocked: bool
+    ical_blocked: bool
     min_nights: int | None = None
 
 
