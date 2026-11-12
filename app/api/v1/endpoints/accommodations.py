@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import ipaddress
+import logging
 import math
 import re
 import secrets
@@ -628,45 +629,100 @@ async def rotate_calendar_feed_token(
     )
 
 
-def validate_external_feed_url(url_str: str) -> None:
+logger = logging.getLogger(__name__)
+MAX_CALENDAR_FEED_BYTES = 2 * 1024 * 1024
+
+_ALLOWED_FEED_PORTS = {None, 80, 443}
+_BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
+
+
+def _assert_global_ip(value: str) -> None:
+    address = ipaddress.ip_address(value)
+    if not address.is_global:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must resolve to a public IP address",
+        )
+
+
+def validate_external_feed_url(url_str: str, *, resolve: bool = True) -> None:
     parsed = urllib.parse.urlparse(url_str)
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only HTTP/HTTPS calendar feed URLs are supported",
         )
-    hostname = parsed.hostname or ""
+
+    if parsed.username or parsed.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs must not contain credentials",
+        )
+
+    hostname = (parsed.hostname or "").rstrip(".").lower()
     if not hostname:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid calendar feed URL: missing host",
         )
-    if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+
+    try:
+        port = parsed.port
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid calendar feed URL: bad port",
+        )
+    if port not in _ALLOWED_FEED_PORTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Calendar feed URLs may only use ports 80 or 443",
+        )
+
+    if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(
+        _BLOCKED_HOST_SUFFIXES
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Loopback calendar URLs are forbidden",
         )
+
     try:
-        ip = ipaddress.ip_address(hostname)
-        if ip.is_private or ip.is_loopback:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Private network calendar URLs are forbidden",
-            )
+        literal = ipaddress.ip_address(hostname)
     except ValueError:
-        try:
-            resolved_ip = socket.gethostbyname(hostname)
-            ip = ipaddress.ip_address(resolved_ip)
-            if ip.is_private or ip.is_loopback:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Private network calendar URLs are forbidden",
-                )
-        except socket.gaierror:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot resolve calendar feed host",
-            )
+        literal = None
+
+    if literal is not None:
+        _assert_global_ip(hostname)
+        return
+
+    if not resolve:
+        return
+
+    try:
+        infos = socket.getaddrinfo(
+            hostname,
+            port or (443 if parsed.scheme == "https" else 80),
+            type=socket.SOCK_STREAM,
+        )
+    except socket.gaierror:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resolve calendar feed host",
+        )
+
+    addresses = {
+        info[4][0].split("%", 1)[0]
+        for info in infos
+        if info[4] and info[4][0]
+    }
+    if not addresses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resolve calendar feed host",
+        )
+    for address in addresses:
+        _assert_global_ip(address)
 
 
 def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
@@ -719,23 +775,24 @@ async def sync_external_calendar(
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
             for _ in range(max_redirects):
                 validate_external_feed_url(target_url)
-                resp = await client.get(target_url)
-                if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
-                    target_url = urllib.parse.urljoin(target_url, resp.headers.get("location", ""))
-                    continue
-                resp.raise_for_status()
-                content_bytes = (
-                    resp.content
-                    if isinstance(resp.content, (bytes, bytearray))
-                    else resp.text.encode()
-                )
-                if len(content_bytes) > 2 * 1024 * 1024:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Calendar feed content exceeds maximum permitted size (2MB)",
-                    )
-                ics_text = resp.text
-                break
+                async with client.stream("GET", target_url) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
+                        target_url = urllib.parse.urljoin(
+                            target_url, resp.headers.get("location", "")
+                        )
+                        continue
+
+                    resp.raise_for_status()
+                    content = bytearray()
+                    async for chunk in resp.aiter_bytes():
+                        content.extend(chunk)
+                        if len(content) > MAX_CALENDAR_FEED_BYTES:
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Calendar feed content exceeds maximum permitted size (2MB)",
+                            )
+                    ics_text = content.decode(resp.encoding or "utf-8", errors="replace")
+                    break
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -743,10 +800,13 @@ async def sync_external_calendar(
                 )
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
+        logger.exception(
+            "Failed to fetch external calendar feed for accommodation %s", id
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch external calendar feed: {str(exc)}",
+            detail="Failed to fetch external calendar feed",
         )
 
     event_ranges = parse_ical_blocked_ranges(ics_text)
@@ -851,6 +911,9 @@ async def create_accommodation(
         )
     else:
         host_id = current_user.id
+
+    if acc_in.external_calendar_url:
+        validate_external_feed_url(acc_in.external_calendar_url, resolve=False)
 
     accommodation = Accommodation(
         host_id=host_id,
@@ -973,6 +1036,10 @@ async def update_accommodation(
 
     update_data = acc_in.model_dump(exclude_unset=True)
     update_data.pop("amenity_ids", None)
+    if update_data.get("external_calendar_url"):
+        validate_external_feed_url(
+            update_data["external_calendar_url"], resolve=False
+        )
     for field, value in update_data.items():
         setattr(acc, field, value)
 
