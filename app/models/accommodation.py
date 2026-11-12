@@ -103,6 +103,9 @@ class Accommodation(Base):
     last_calendar_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    calendar_feed_token_version: Mapped[int] = mapped_column(
+        Integer, server_default="0", default=0, nullable=False
+    )
 
     host: Mapped["User"] = relationship("User", back_populates="hosted_accommodations")
     category: Mapped["Category"] = relationship("Category", back_populates="accommodations")
@@ -152,6 +155,10 @@ class PricingException(Base):
             "min_nights IS NULL OR min_nights >= 1",
             name="chk_pricing_exception_min_nights",
         ),
+        CheckConstraint(
+            "source IN ('manual', 'ical')",
+            name="chk_pricing_exception_source",
+        ),
         Index(
             "ix_pricing_exceptions_blocked",
             "accommodation_id",
@@ -168,6 +175,9 @@ class PricingException(Base):
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0), nullable=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     min_nights: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    source: Mapped[str] = mapped_column(
+        String(10), server_default="manual", default="manual", nullable=False
+    )
 
     accommodation: Mapped["Accommodation"] = relationship(
         "Accommodation", back_populates="pricing_exceptions"

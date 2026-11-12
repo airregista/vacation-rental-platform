@@ -56,10 +56,17 @@ from app.schemas.reservation import CalendarDayInfo
 router = APIRouter(prefix="/accommodations", tags=["accommodations"])
 
 
-def generate_calendar_feed_token(accommodation_id: int, expires_at: datetime | None = None) -> str:
+def generate_calendar_feed_token(
+    accommodation_id: int,
+    expires_at: datetime | None = None,
+    token_version: int = 0,
+) -> str:
     """Generate time-bounded calendar feed token in the format '{ts}:{signature}'.
 
-    Signature covers f'calendar:{accommodation_id}:{ts}' using SECRET_KEY.
+    The signature covers the versioned payload
+    f'calendar:{accommodation_id}:{token_version}:{ts}' (or the legacy
+    f'calendar:{accommodation_id}:{ts}' when the version is 0) using
+    SECRET_KEY.
     """
     if expires_at is None:
         expires_at = datetime.now(timezone.utc) + timedelta(
@@ -69,16 +76,25 @@ def generate_calendar_feed_token(accommodation_id: int, expires_at: datetime | N
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
     ts = int(expires_at.timestamp())
+    payload = (
+        f"calendar:{accommodation_id}:{ts}"
+        if token_version == 0
+        else f"calendar:{accommodation_id}:{token_version}:{ts}"
+    )
     signature = hmac.new(
         settings.SECRET_KEY.encode(),
-        f"calendar:{accommodation_id}:{ts}".encode(),
+        payload.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
     return f"{ts}:{signature}"
 
 
-def validate_calendar_feed_token(token: str | None, accommodation_id: int) -> bool:
-    """Verify HMAC signature and check that the token has not expired."""
+def validate_calendar_feed_token(
+    token: str | None,
+    accommodation_id: int,
+    token_version: int = 0,
+) -> bool:
+    """Verify HMAC signature over the versioned payload and that the token has not expired."""
     if not token or ":" not in token:
         return False
     parts = token.split(":")
@@ -94,9 +110,14 @@ def validate_calendar_feed_token(token: str | None, accommodation_id: int) -> bo
     if datetime.now(timezone.utc) > expires_at:
         return False
 
+    payload = (
+        f"calendar:{accommodation_id}:{ts}"
+        if token_version == 0
+        else f"calendar:{accommodation_id}:{token_version}:{ts}"
+    )
     expected_signature = hmac.new(
         settings.SECRET_KEY.encode(),
-        f"calendar:{accommodation_id}:{ts}".encode(),
+        payload.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
     return secrets.compare_digest(expected_signature, signature)
@@ -430,7 +451,9 @@ async def get_accommodation(
     detail.average_rating = round(float(avg_r), 1) if avg_r is not None else None
     detail.reviews_count = int(count_r)
     if is_owner_or_admin:
-        detail.calendar_ics_token = generate_calendar_feed_token(acc.id)
+        detail.calendar_ics_token = generate_calendar_feed_token(
+            acc.id, token_version=acc.calendar_feed_token_version
+        )
     else:
         detail.external_calendar_url = None
         detail.last_calendar_sync_at = None
@@ -531,7 +554,9 @@ async def export_accommodation_calendar_ics(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    is_token_valid = validate_calendar_feed_token(token, acc.id)
+    is_token_valid = validate_calendar_feed_token(
+        token, acc.id, acc.calendar_feed_token_version
+    )
     is_authorized_user = bool(
         current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
     )
@@ -607,7 +632,11 @@ async def rotate_calendar_feed_token(
     current_user: CurrentUserDep,
 ) -> CalendarFeedTokenResponse:
     """Generate a fresh calendar feed token with new TTL for accommodation owner or admin."""
-    acc_stmt = select(Accommodation).where(Accommodation.id == id)
+    acc_stmt = (
+        select(Accommodation)
+        .where(Accommodation.id == id)
+        .with_for_update(of=Accommodation)
+    )
     acc = (await db.execute(acc_stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
@@ -618,8 +647,14 @@ async def rotate_calendar_feed_token(
             detail="You do not have permission to manage this accommodation calendar",
         )
 
+    acc.calendar_feed_token_version = (acc.calendar_feed_token_version or 0) + 1
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.CALENDAR_FEED_TTL_MINUTES)
-    token = generate_calendar_feed_token(acc.id, expires_at=expires_at)
+    token = generate_calendar_feed_token(
+        acc.id,
+        expires_at=expires_at,
+        token_version=acc.calendar_feed_token_version,
+    )
+    await db.commit()
     feed_url = f"{settings.API_V1_STR}/accommodations/{acc.id}/calendar.ics?token={token}"
 
     return CalendarFeedTokenResponse(
