@@ -36,6 +36,15 @@ const eslintConfig = defineConfig([
     files: ["src/app/layout.tsx"],
     rules: { "no-restricted-syntax": "off" },
   },
+  {
+    // Documented exception: vendored verbatim from @shadcn/react@0.3.1 (MIT;
+    // see src/components/ui/message-scroller/LICENSE.md). The react-hooks/refs
+    // errors flag upstream's deliberate patterns (useLatest, lazy store init);
+    // runtime behavior matches the previously installed npm package. Do not
+    // "fix" these — edits would break diff parity with upstream.
+    files: ["src/components/ui/message-scroller/**"],
+    rules: { "react-hooks/refs": "off" },
+  },
 ]);
 
 export default eslintConfig;
