@@ -28,6 +28,7 @@ from app.api.dependencies import (
     SessionDep,
 )
 from app.core.config import settings
+from app.core.time import today_tehran
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
@@ -410,7 +411,7 @@ async def get_accommodation_calendar(
     days: Annotated[int, Query(ge=1, le=90, description="Number of days to check")] = 30,
 ) -> list[CalendarDayInfo]:
     if start_date is None:
-        start_date = date.today()
+        start_date = today_tehran()
     end_date = start_date + timedelta(days=days)
 
     stmt = select(Accommodation).where(Accommodation.id == id)
@@ -847,7 +848,7 @@ async def sync_external_calendar(
         )
 
     event_ranges = parse_ical_blocked_ranges(ics_text)
-    today = date.today()
+    today = today_tehran()
     max_future = today + timedelta(days=180)
 
     dates_to_block: set[date] = set()

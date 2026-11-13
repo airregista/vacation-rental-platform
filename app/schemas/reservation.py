@@ -1,10 +1,10 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Self
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.time import today_tehran
 from app.schemas.constraints import SMALLINT_MAX
 
 
@@ -17,7 +17,7 @@ class BaseReservationRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_reservation_dates(self) -> Self:
-        iran_today = datetime.now(ZoneInfo("Asia/Tehran")).date()
+        iran_today = today_tehran()
         if self.check_in < iran_today:
             raise ValueError("Check-in date cannot be in the past")
         if self.check_out <= self.check_in:

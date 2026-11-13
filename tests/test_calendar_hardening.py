@@ -13,6 +13,7 @@ from app.api.v1.endpoints import accommodations as accommodations_module
 from app.api.v1.endpoints.accommodations import validate_external_feed_url
 from app.core.database import AsyncSessionLocal
 from app.core.security import create_access_token, get_password_hash
+from app.core.time import today_tehran
 from app.models.accommodation import Accommodation, PricingException
 from app.models.category import Category
 from app.models.geo import City
@@ -286,7 +287,7 @@ async def test_sync_reconciles_ical_owned_rows(
     hardening_host_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    today = date.today()
+    today = today_tehran()
     stale_ical_date = today + timedelta(days=10)
     manual_date = today + timedelta(days=15)
     new_ical_date = today + timedelta(days=20)

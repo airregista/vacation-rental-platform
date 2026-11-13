@@ -1,15 +1,13 @@
 # ponytail: simple tiered cancellation math; upgrade to pluggable policy engine if dynamic rules are needed
 from datetime import datetime, time, timezone
 from decimal import ROUND_HALF_UP, Decimal
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.time import TEHRAN_TZ
 from app.models.accommodation import Accommodation, PricingException
 from app.models.reservation import Reservation
-
-TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
 async def get_first_night_price(

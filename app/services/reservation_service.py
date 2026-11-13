@@ -1,17 +1,15 @@
 from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.time import today_tehran
 from app.models.accommodation import Accommodation, PricingException
 from app.models.payment import Payment
 from app.models.reservation import Reservation
 from app.services.coupon_service import lock_coupon_by_code
-
-TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
 def validate_reservation_horizon(check_in: date, check_out: date) -> None:
@@ -20,7 +18,7 @@ def validate_reservation_horizon(check_in: date, check_out: date) -> None:
     Horizon is calculated as today + (RESERVATION_MAX_CHECKIN_MONTHS * 30 days) in Asia/Tehran.
     Both check_in and check_out must not exceed this boundary.
     """
-    today = datetime.now(TEHRAN_TZ).date()
+    today = today_tehran()
     horizon_days = settings.RESERVATION_MAX_CHECKIN_MONTHS * 30
     horizon = today + timedelta(days=horizon_days)
 

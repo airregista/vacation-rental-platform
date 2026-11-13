@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.config import settings
+from app.core.time import today_tehran
 from app.models.accommodation import Accommodation
 from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation
@@ -393,7 +394,7 @@ async def settle_host_payout(
     if (
         payout.reservation
         and payout.reservation.status == "confirmed"
-        and payout.reservation.check_in > date.today()
+        and payout.reservation.check_in > today_tehran()
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
