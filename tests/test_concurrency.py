@@ -14,8 +14,10 @@ from app.models.payment import Payment
 
 
 @pytest.mark.asyncio
+@pytest.mark.real_db
 async def test_double_booking_prevention_on_concurrent_payments(
     client: AsyncClient,
+    real_db: None,
     admin_token: str,
     guest_token: str,
 ):
@@ -85,29 +87,30 @@ async def test_double_booking_prevention_on_concurrent_payments(
     payment_b_id = checkout_b.json()["payment_id"]
     tracking_b = checkout_b.json()["tracking_code"]
 
-    verify_a = await client.post(
-        f"{settings.API_V1_STR}/payments/verify",
-        json={
-            "payment_id": payment_a_id,
-            "tracking_code": tracking_a,
-            "simulate_success": True,
-        },
-        headers={"Authorization": f"Bearer {guest_token}"},
+    verify_a, verify_b = await asyncio.gather(
+        client.post(
+            f"{settings.API_V1_STR}/payments/verify",
+            json={
+                "payment_id": payment_a_id,
+                "tracking_code": tracking_a,
+                "simulate_success": True,
+            },
+            headers={"Authorization": f"Bearer {guest_token}"},
+        ),
+        client.post(
+            f"{settings.API_V1_STR}/payments/verify",
+            json={
+                "payment_id": payment_b_id,
+                "tracking_code": tracking_b,
+                "simulate_success": True,
+            },
+            headers={"Authorization": f"Bearer {guest_token}"},
+        ),
     )
-    assert verify_a.status_code == 200
-    assert verify_a.json()["status"] == "success"
 
-    verify_b = await client.post(
-        f"{settings.API_V1_STR}/payments/verify",
-        json={
-            "payment_id": payment_b_id,
-            "tracking_code": tracking_b,
-            "simulate_success": True,
-        },
-        headers={"Authorization": f"Bearer {guest_token}"},
-    )
-    assert verify_b.status_code == 409
-    assert "no longer available" in verify_b.json()["detail"].lower()
+    assert sorted([verify_a.status_code, verify_b.status_code]) == [200, 409]
+    conflict = verify_a if verify_a.status_code == 409 else verify_b
+    assert "no longer available" in conflict.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -173,141 +176,101 @@ async def test_idempotent_successful_payment_verification(
 
 
 @pytest.mark.asyncio
+@pytest.mark.real_db
 async def test_concurrent_zero_payable_booking_mutual_exclusion(
     client: AsyncClient,
+    real_db: None,
     admin_token: str,
     guest_token: str,
 ):
-    from sqlalchemy import delete
+    second_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    guest2_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": second_phone,
+            "password": "strongPassword123",
+            "first_name": "مهمان دوم",
+            "last_name": "همزمان",
+        },
+    )
+    assert guest2_reg.status_code == 201
+    guest2_token = guest2_reg.json()["access_token"]
 
-    from app.core.database import AsyncSessionLocal, engine, get_db
-    from app.models.accommodation import Accommodation
-    from app.models.coupon import Coupon
-    from app.models.reservation import Reservation
-    from app.models.user import User
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client2:
+        now = datetime.now(timezone.utc)
+        free_code = f"FREE_{uuid.uuid4().hex[:6].upper()}"
 
-    current_sessionmaker_bind = AsyncSessionLocal.kw.get("bind")
-    original_override = app.dependency_overrides.pop(get_db, None)
-    AsyncSessionLocal.configure(bind=engine)
-
-    created_acc_id = None
-    created_coupon_code = None
-    created_user_id = None
-
-    try:
-        second_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
-        guest2_reg = await client.post(
-            f"{settings.API_V1_STR}/auth/register",
+        coupon_res = await client.post(
+            f"{settings.API_V1_STR}/coupons/",
             json={
-                "phone": second_phone,
-                "password": "strongPassword123",
-                "first_name": "مهمان دوم",
-                "last_name": "همزمان",
+                "code": free_code,
+                "discount_type": "percentage",
+                "discount_value": 100,
+                "min_booking_amount": 0,
+                "valid_from": (now - timedelta(days=1)).isoformat(),
+                "valid_until": (now + timedelta(days=5)).isoformat(),
+                "usage_limit": 10,
             },
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert guest2_reg.status_code == 201
-        guest2_token = guest2_reg.json()["access_token"]
-        created_user_id = guest2_reg.json()["user"]["id"]
+        assert coupon_res.status_code == 201
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://testserver") as client2:
-            now = datetime.now(timezone.utc)
-            free_code = f"FREE_{uuid.uuid4().hex[:6].upper()}"
-            created_coupon_code = free_code
+        create_acc_res = await client.post(
+            f"{settings.API_V1_STR}/accommodations/",
+            json={
+                "title": "ویلا رایگان همزمانی",
+                "address": "تهران، همزمانی صفر، پلاک ۱",
+                "city_id": 1,
+                "category_id": 1,
+                "capacity": 2,
+                "max_capacity": 4,
+                "base_price": 400000,
+                "extra_person_fee": 0,
+                "cleaning_fee": 0,
+                "cancellation_policy": "flexible",
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert create_acc_res.status_code == 201
+        acc_id = create_acc_res.json()["id"]
 
-            coupon_res = await client.post(
-                f"{settings.API_V1_STR}/coupons/",
-                json={
-                    "code": free_code,
-                    "discount_type": "percentage",
-                    "discount_value": 100,
-                    "min_booking_amount": 0,
-                    "valid_from": (now - timedelta(days=1)).isoformat(),
-                    "valid_until": (now + timedelta(days=5)).isoformat(),
-                    "usage_limit": 10,
-                },
-                headers={"Authorization": f"Bearer {admin_token}"},
-            )
-            assert coupon_res.status_code == 201
+        check_in = (date.today() + timedelta(days=130)).isoformat()
+        check_out = (date.today() + timedelta(days=133)).isoformat()
 
-            create_acc_res = await client.post(
-                f"{settings.API_V1_STR}/accommodations/",
-                json={
-                    "title": "ویلا رایگان همزمانی",
-                    "address": "تهران، همزمانی صفر، پلاک ۱",
-                    "city_id": 1,
-                    "category_id": 1,
-                    "capacity": 2,
-                    "max_capacity": 4,
-                    "base_price": 400000,
-                    "extra_person_fee": 0,
-                    "cleaning_fee": 0,
-                    "cancellation_policy": "flexible",
-                },
-                headers={"Authorization": f"Bearer {admin_token}"},
-            )
-            assert create_acc_res.status_code == 201
-            created_acc_id = create_acc_res.json()["id"]
+        req_payload = {
+            "accommodation_id": acc_id,
+            "check_in": check_in,
+            "check_out": check_out,
+            "guests_count": 2,
+            "coupon_code": free_code,
+        }
 
-            check_in = (date.today() + timedelta(days=130)).isoformat()
-            check_out = (date.today() + timedelta(days=133)).isoformat()
+        task1 = client.post(
+            f"{settings.API_V1_STR}/reservations/",
+            json=req_payload,
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        task2 = client2.post(
+            f"{settings.API_V1_STR}/reservations/",
+            json=req_payload,
+            headers={"Authorization": f"Bearer {guest2_token}"},
+        )
 
-            req_payload = {
-                "accommodation_id": created_acc_id,
-                "check_in": check_in,
-                "check_out": check_out,
-                "guests_count": 2,
-                "coupon_code": free_code,
-            }
+        results = await asyncio.gather(task1, task2, return_exceptions=True)
 
-            task1 = client.post(
-                f"{settings.API_V1_STR}/reservations/",
-                json=req_payload,
-                headers={"Authorization": f"Bearer {guest_token}"},
-            )
-            task2 = client2.post(
-                f"{settings.API_V1_STR}/reservations/",
-                json=req_payload,
-                headers={"Authorization": f"Bearer {guest2_token}"},
-            )
+        statuses = [r.status_code for r in results if isinstance(r, Response)]
+        assert 201 in statuses
+        assert 409 in statuses
 
-            results = await asyncio.gather(task1, task2, return_exceptions=True)
+        success_res = next(r for r in results if getattr(r, "status_code", None) == 201)
+        conflict_res = next(r for r in results if getattr(r, "status_code", None) == 409)
+        assert isinstance(success_res, Response)
+        assert isinstance(conflict_res, Response)
 
-            statuses = [r.status_code for r in results if isinstance(r, Response)]
-            assert 201 in statuses
-            assert 409 in statuses
-
-            success_res = next(r for r in results if getattr(r, "status_code", None) == 201)
-            conflict_res = next(r for r in results if getattr(r, "status_code", None) == 409)
-            assert isinstance(success_res, Response)
-            assert isinstance(conflict_res, Response)
-
-            assert success_res.json()["status"] == "confirmed"
-            assert Decimal(str(success_res.json()["total_price"])) == Decimal(0)
-            assert "overlap" in conflict_res.json()["detail"].lower()
-    finally:
-        async with AsyncSessionLocal() as cleanup_session:
-            if created_acc_id:
-                await cleanup_session.execute(
-                    delete(Reservation).where(Reservation.accommodation_id == created_acc_id)
-                )
-                await cleanup_session.execute(
-                    delete(Accommodation).where(Accommodation.id == created_acc_id)
-                )
-            if created_coupon_code:
-                await cleanup_session.execute(
-                    delete(Coupon).where(Coupon.code == created_coupon_code)
-                )
-            if created_user_id:
-                await cleanup_session.execute(
-                    delete(User).where(User.id == created_user_id)
-                )
-            await cleanup_session.commit()
-
-        if current_sessionmaker_bind is not None:
-            AsyncSessionLocal.configure(bind=current_sessionmaker_bind)
-        if original_override is not None:
-            app.dependency_overrides[get_db] = original_override
+        assert success_res.json()["status"] == "confirmed"
+        assert Decimal(str(success_res.json()["total_price"])) == Decimal(0)
+        assert "overlap" in conflict_res.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -453,7 +416,6 @@ async def test_payment_conflict_cancels_reservation_and_releases_coupon(
     )
     matched_after = next(c for c in coupons_list_after.json() if c["code"] == coupon_code)
     assert matched_after["used_count"] == 0
-
 
 
 @pytest.mark.asyncio
