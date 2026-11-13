@@ -138,7 +138,7 @@ class Accommodation(Base):
         "AccommodationImage",
         back_populates="accommodation",
         cascade="all, delete-orphan",
-        order_by="AccommodationImage.sort_order",
+        order_by="(AccommodationImage.sort_order, AccommodationImage.id)",
     )
     amenities: Mapped[list["Amenity"]] = relationship(
         "Amenity", secondary="accommodation_amenities"
@@ -156,6 +156,14 @@ class Accommodation(Base):
 
 class AccommodationImage(Base):
     __tablename__ = "accommodation_images"
+    __table_args__ = (
+        Index(
+            "uq_accommodation_images_one_cover",
+            "accommodation_id",
+            unique=True,
+            postgresql_where=text("is_cover = true"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     accommodation_id: Mapped[int] = mapped_column(
