@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { findLatestSuccessfulPayment } from "@/lib/pagination"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -68,16 +69,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
         const [stayResult, paymentsResult] = await Promise.allSettled([
           apiClient.get<AccommodationDetailData>(`/accommodations/${data.accommodation_id}`),
-          apiClient.get<PaymentResponse[]>("/payments/my"),
+          findLatestSuccessfulPayment(reservationId),
         ])
         if (!isCurrent) return
         if (stayResult.status === "fulfilled") setAccommodation(stayResult.value)
-        if (paymentsResult.status === "fulfilled" && Array.isArray(paymentsResult.value)) {
-          setPayment(
-            paymentsResult.value.find(
-              (item) => item.reservation_id === reservationId && item.status === "success"
-            ) ?? null
-          )
+        if (paymentsResult.status === "fulfilled" && paymentsResult.value) {
+          setPayment(paymentsResult.value)
         }
       } catch (err: unknown) {
         if (!isCurrent) return
