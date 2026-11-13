@@ -11,16 +11,35 @@ function toUtcIso(dateStr: string): string {
     : `${dateStr}T00:00:00Z`
 }
 
+// Date-only inputs ("YYYY-MM-DD") stay UTC-anchored so the calendar day never
+// shifts; real timestamps (containing "T") must render in Asia/Tehran, or
+// records created 00:00–03:30 Tehran display as the previous day.
+const persianDateOnly = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+})
+const persianInstant = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Tehran",
+})
+const persianLongDateOnly = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  dateStyle: "long",
+  timeZone: "UTC",
+})
+const persianLongInstant = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  dateStyle: "long",
+  timeZone: "Asia/Tehran",
+})
+
 export function formatPersianDate(dateStr: string): string {
   if (!dateStr) return ""
   try {
     const d = new Date(toUtcIso(dateStr))
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(d)
+    return (dateStr.includes("T") ? persianInstant : persianDateOnly).format(d)
   } catch {
     return dateStr
   }
@@ -31,10 +50,7 @@ export function formatPersianLongDate(dateStr?: string): string {
   if (!dateStr) return "-"
   try {
     const d = new Date(toUtcIso(dateStr))
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      dateStyle: "long",
-      timeZone: "UTC",
-    }).format(d)
+    return (dateStr.includes("T") ? persianLongInstant : persianLongDateOnly).format(d)
   } catch {
     return dateStr
   }
