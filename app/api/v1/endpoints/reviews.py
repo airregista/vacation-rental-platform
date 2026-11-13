@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Annotated
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
@@ -8,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import CurrentUserDep, SessionDep
+from app.core.time import TEHRAN_TZ, now_tehran
 from app.models.accommodation import Accommodation
 from app.models.reservation import Reservation
 from app.models.review import Review
@@ -110,13 +110,12 @@ async def review_eligibility(
     if not reservations:
         return ReviewEligibilityResponse(can_review=False, reason="no_stay")
 
-    tehran_tz = ZoneInfo("Asia/Tehran")
-    now_tehran = datetime.now(tehran_tz)
+    now_local = now_tehran()
     checkout_times = {
-        r.id: datetime.combine(r.check_out, acc.check_out_time).replace(tzinfo=tehran_tz)
+        r.id: datetime.combine(r.check_out, acc.check_out_time).replace(tzinfo=TEHRAN_TZ)
         for r in reservations
     }
-    finished = [r for r in reservations if now_tehran >= checkout_times[r.id]]
+    finished = [r for r in reservations if now_local >= checkout_times[r.id]]
 
     if not finished:
         return ReviewEligibilityResponse(
@@ -203,10 +202,11 @@ async def create_review(
             detail="Reviews can only be submitted for confirmed or completed bookings",
         )
 
-    tehran_tz = ZoneInfo("Asia/Tehran")
-    checkout_dt = datetime.combine(reservation.check_out, acc.check_out_time).replace(tzinfo=tehran_tz)
-    now_tehran = datetime.now(tehran_tz)
-    if now_tehran < checkout_dt:
+    checkout_dt = datetime.combine(
+        reservation.check_out, acc.check_out_time
+    ).replace(tzinfo=TEHRAN_TZ)
+    now_local = now_tehran()
+    if now_local < checkout_dt:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviews can only be submitted after check-out time on or after your departure date",

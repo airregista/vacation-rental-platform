@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 import json
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -11,6 +11,7 @@ from app.core.config import DEMO_ENVIRONMENTS as DEMO_SEED_ENVIRONMENTS
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.security import get_password_hash
+from app.core.time import today_tehran
 from app.models.accommodation import Accommodation, AccommodationImage, PricingException
 from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
@@ -257,7 +258,7 @@ async def seed():
                         )
 
                 # Pricing exception for weekend (example)
-                weekend_date = date.today() + timedelta(days=5)
+                weekend_date = today_tehran() + timedelta(days=5)
                 ex1 = PricingException(
                     accommodation_id=acc1.id,
                     date=weekend_date,

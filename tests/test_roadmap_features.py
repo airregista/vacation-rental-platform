@@ -8,6 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.core.time import today_tehran
 
 
 @pytest.mark.asyncio
@@ -422,10 +423,10 @@ async def test_external_calendar_sync_flow(
     assert acc_res.json()["external_calendar_url"] == "https://calendar.example.com/feed.ics"
 
     # 2. Mock httpx.AsyncClient.get returning valid ICS text with 2 VEVENT blocks
-    start1 = (date.today() + timedelta(days=10)).strftime("%Y%m%d")
-    end1 = (date.today() + timedelta(days=13)).strftime("%Y%m%d")  # 3 days: 10, 11, 12
-    start2 = (date.today() + timedelta(days=20)).strftime("%Y%m%d")
-    end2 = (date.today() + timedelta(days=22)).strftime("%Y%m%d")  # 2 days: 20, 21
+    start1 = (today_tehran() + timedelta(days=10)).strftime("%Y%m%d")
+    end1 = (today_tehran() + timedelta(days=13)).strftime("%Y%m%d")  # 3 days: 10, 11, 12
+    start2 = (today_tehran() + timedelta(days=20)).strftime("%Y%m%d")
+    end2 = (today_tehran() + timedelta(days=22)).strftime("%Y%m%d")  # 2 days: 20, 21
     ics_text = f"""BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Airbnb Inc//Hosting Calendar 0.8.8//EN
@@ -471,7 +472,7 @@ END:VCALENDAR"""
     days = cal_res.json()
     blocked_dates = {d["date"] for d in days if not d["is_available"]}
     expected_dates = {
-        (date.today() + timedelta(days=d)).isoformat()
+        (today_tehran() + timedelta(days=d)).isoformat()
         for d in [10, 11, 12, 20, 21]
     }
     assert blocked_dates.issuperset(expected_dates)
