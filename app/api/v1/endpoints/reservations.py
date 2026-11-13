@@ -33,6 +33,7 @@ from app.services.coupon_service import evaluate_coupon
 from app.services.pricing_service import calculate_reservation_price
 from app.services.reservation_service import (
     check_booking_overlap,
+    ensure_dates_bookable,
     expire_stale_pending_reservations,
     validate_reservation_horizon,
 )
@@ -118,15 +119,27 @@ async def create_reservation(
     init_status = "pending"
     if calc.total_price == Decimal(0):
         # ponytail: row lock serializes concurrent zero-payable bookings
-        acc_lock_stmt = (
-            select(Accommodation)
-            .where(Accommodation.id == acc.id)
-            .with_for_update(of=Accommodation)
+        acc_id = acc.id
+        acc = (
+            (
+                await db.execute(
+                    select(Accommodation)
+                    .where(Accommodation.id == acc_id)
+                    .with_for_update(of=Accommodation)
+                    .execution_options(populate_existing=True)
+                )
+            )
+            .scalars()
+            .first()
         )
-        await db.execute(acc_lock_stmt)
+        if acc is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Accommodation is no longer available",
+            )
         if await check_booking_overlap(
             db=db,
-            accommodation_id=acc.id,
+            accommodation_id=acc_id,
             check_in=res_in.check_in,
             check_out=res_in.check_out,
         ):
@@ -134,6 +147,7 @@ async def create_reservation(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="These dates overlap with an already confirmed booking. Please select different dates.",
             )
+        await ensure_dates_bookable(db, acc, res_in.check_in, res_in.check_out)
         init_status = "confirmed"
 
     reservation = Reservation(
@@ -155,9 +169,7 @@ async def create_reservation(
         if coupon_obj:
             # Re-validate under the lock: the coupon may have expired, been
             # deactivated, or hit its usage limit since the price calculation.
-            evaluation = evaluate_coupon(
-                coupon_obj, calc.nights_total + calc.extra_guest_total
-            )
+            evaluation = evaluate_coupon(coupon_obj, calc.nights_total + calc.extra_guest_total)
             if not evaluation.is_valid:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message
@@ -192,7 +204,9 @@ def _serialize_reservation(r: Reservation) -> ReservationResponse:
 # accommodation images / city / province after the query returns.
 _RESERVATION_ACCOMMODATION_LOAD = (
     selectinload(Reservation.accommodation).selectinload(Accommodation.images),
-    selectinload(Reservation.accommodation).selectinload(Accommodation.city).selectinload(City.province),
+    selectinload(Reservation.accommodation)
+    .selectinload(Accommodation.city)
+    .selectinload(City.province),
 )
 
 
@@ -245,11 +259,7 @@ async def get_reservation(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> ReservationResponse:
-    stmt = (
-        select(Reservation)
-        .options(*_RESERVATION_ACCOMMODATION_LOAD)
-        .where(Reservation.id == id)
-    )
+    stmt = select(Reservation).options(*_RESERVATION_ACCOMMODATION_LOAD).where(Reservation.id == id)
     res = await db.execute(stmt)
     reservation = res.scalars().first()
     if not reservation:
@@ -321,8 +331,7 @@ async def list_reservation_messages(
     for m in messages:
         resp = ReservationMessageResponse.model_validate(m)
         resp.sender_name = (
-            f"{m.sender.first_name or ''} {m.sender.last_name or ''}".strip()
-            or m.sender.phone
+            f"{m.sender.first_name or ''} {m.sender.last_name or ''}".strip() or m.sender.phone
         )
         result.append(resp)
     return result
@@ -420,9 +429,7 @@ async def preview_cancellation(
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation,
         reservation.accommodation,
-        first_night_price=await get_first_night_price(
-            db, reservation, reservation.accommodation
-        ),
+        first_night_price=await get_first_night_price(db, reservation, reservation.accommodation),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -473,9 +480,7 @@ async def cancel_reservation(
         )
 
     payout_stmt = (
-        select(HostPayout)
-        .where(HostPayout.reservation_id == reservation.id)
-        .with_for_update()
+        select(HostPayout).where(HostPayout.reservation_id == reservation.id).with_for_update()
     )
     payout = (await db.execute(payout_stmt)).scalars().first()
     if payout and payout.status == "completed":
@@ -487,9 +492,7 @@ async def cancel_reservation(
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation,
         reservation.accommodation,
-        first_night_price=await get_first_night_price(
-            db, reservation, reservation.accommodation
-        ),
+        first_night_price=await get_first_night_price(db, reservation, reservation.accommodation),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -549,9 +552,7 @@ async def cancel_reservation(
     return CancellationResponse(
         reservation_id=reservation.id,
         status="cancelled",
-        cancellation_policy=getattr(
-            reservation.accommodation, "cancellation_policy", "flexible"
-        ),
+        cancellation_policy=getattr(reservation.accommodation, "cancellation_policy", "flexible"),
         hours_to_checkin=hours_to_checkin,
         total_price=reservation.total_price,
         refund_amount=refundable,

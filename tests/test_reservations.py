@@ -4,9 +4,11 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.models.payment import Payment
 from app.models.reservation import Reservation
 
 
@@ -106,6 +108,210 @@ async def test_full_booking_and_payment_flow(client: AsyncClient, guest_token: s
     )
     assert conflict_res.status_code == 409
     assert "overlap" in conflict_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_verify_rejects_dates_blocked_after_checkout(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    day_offset = 200 + (uuid.uuid4().int % 100)
+    check_in = date.today() + timedelta(days=day_offset)
+    check_out = date.today() + timedelta(days=day_offset + 3)  # 3 nights
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 201
+    reservation_id = booking_res.json()["id"]
+
+    pay_init_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": reservation_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pay_init_res.status_code == 201
+    pay_data = pay_init_res.json()
+
+    # Host blocks the middle night after checkout began
+    block_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions",
+        json={
+            "date": (check_in + timedelta(days=1)).isoformat(),
+            "is_blocked": True,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert block_res.status_code == 200
+
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": pay_data["payment_id"],
+            "tracking_code": pay_data["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify_res.status_code == 409
+    assert "no longer available" in verify_res.json()["detail"].lower()
+
+    res_check = await client.get(
+        f"{settings.API_V1_STR}/reservations/{reservation_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_check.status_code == 200
+    assert res_check.json()["status"] == "cancelled"
+
+    # The pending payment must be failed by the same cleanup as the overlap 409
+    async with AsyncSessionLocal() as session:
+        payment = (
+            (await session.execute(select(Payment).where(Payment.reservation_id == reservation_id)))
+            .scalars()
+            .first()
+        )
+        assert payment is not None
+        assert payment.status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_verify_rejects_inactive_accommodation(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    day_offset = 200 + (uuid.uuid4().int % 100)
+    check_in = date.today() + timedelta(days=day_offset)
+    check_out = date.today() + timedelta(days=day_offset + 3)
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 201
+    reservation_id = booking_res.json()["id"]
+
+    pay_init_res = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": reservation_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert pay_init_res.status_code == 201
+    pay_data = pay_init_res.json()
+
+    # Deactivate via the admin API (soft delete) so is_active=False is committed
+    delete_res = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert delete_res.status_code == 204
+
+    verify_res = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": pay_data["payment_id"],
+            "tracking_code": pay_data["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify_res.status_code == 409
+    assert "no longer available" in verify_res.json()["detail"].lower()
+
+    res_check = await client.get(
+        f"{settings.API_V1_STR}/reservations/{reservation_id}",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert res_check.status_code == 200
+    assert res_check.json()["status"] == "cancelled"
+
+    async with AsyncSessionLocal() as session:
+        payment = (
+            (await session.execute(select(Payment).where(Payment.reservation_id == reservation_id)))
+            .scalars()
+            .first()
+        )
+        assert payment is not None
+        assert payment.status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_zero_total_booking_rechecks_blocked_dates(
+    client: AsyncClient, admin_token: str, guest_token: str, monkeypatch: pytest.MonkeyPatch
+):
+    from types import SimpleNamespace
+
+    from app.api.v1.endpoints import reservations as reservations_module
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    # Block one night in the range before booking
+    blocked_date = date.today() + timedelta(days=210)
+    block_res = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/pricing-exceptions",
+        json={"date": blocked_date.isoformat(), "is_blocked": True},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert block_res.status_code == 200
+
+    check_in = date.today() + timedelta(days=209)
+    check_out = date.today() + timedelta(days=212)
+
+    async def fake_price(**kwargs):
+        return SimpleNamespace(
+            total_price=Decimal(0),
+            total_nights=2,
+            coupon_code=None,
+        )
+
+    monkeypatch.setattr(reservations_module, "calculate_reservation_price", fake_price)
+
+    booking_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking_res.status_code == 409
+    assert "no longer available" in booking_res.json()["detail"].lower()
+
+    # No confirmed reservation row may exist for that guest/date
+    async with AsyncSessionLocal() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(Reservation).where(
+                        Reservation.accommodation_id == acc_id,
+                        Reservation.check_in == check_in,
+                        Reservation.check_out == check_out,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert rows == []
 
 
 @pytest.mark.asyncio
@@ -779,9 +985,7 @@ async def test_host_payout_settlement_rejected_for_cancelled_reservation(
 
 
 @pytest.mark.asyncio
-async def test_reservation_messaging_flow(
-    client: AsyncClient, admin_token: str, guest_token: str
-):
+async def test_reservation_messaging_flow(client: AsyncClient, admin_token: str, guest_token: str):
     # 1. Register a dedicated host user
     uid = uuid.uuid4().hex[:6]
     host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
