@@ -1,11 +1,14 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, select, update
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.models.coupon import Coupon
 
 
 @pytest.mark.asyncio
@@ -421,3 +424,226 @@ def test_coupon_evaluation_applies_percentage_cap_and_expiry():
     expired = evaluate_coupon(coupon, Decimal(2000000), now)
     assert expired.is_valid is False
     assert expired.message == "Coupon has expired"
+
+
+@pytest.mark.asyncio
+async def test_lock_coupon_refreshes_stale_identity_map():
+    from app.core.database import AsyncSessionLocal
+    from app.models.coupon import Coupon
+    from app.services.coupon_service import get_coupon_by_code, lock_coupon_by_code
+
+    code = f"STALE_{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as setup:
+        coupon = Coupon(
+            code=code,
+            discount_type="fixed",
+            discount_value=Decimal(10000),
+            min_booking_amount=Decimal(0),
+            valid_from=now - timedelta(days=1),
+            valid_until=now + timedelta(days=1),
+            usage_limit=5,
+            used_count=0,
+            is_active=True,
+        )
+        setup.add(coupon)
+        await setup.commit()
+        coupon_id = coupon.id
+
+    try:
+        async with AsyncSessionLocal() as reader:
+            cached = await get_coupon_by_code(reader, code)
+            assert cached is not None
+            assert cached.is_active is True
+
+            async with AsyncSessionLocal() as writer:
+                row = await writer.get(Coupon, coupon_id)
+                assert row is not None
+                row.is_active = False
+                row.used_count = 1
+                await writer.commit()
+
+            refreshed = await lock_coupon_by_code(reader, code)
+            assert refreshed is not None
+            assert refreshed.is_active is False
+            assert refreshed.used_count == 1
+    finally:
+        async with AsyncSessionLocal() as cleanup:
+            await cleanup.execute(delete(Coupon).where(Coupon.code == code))
+            await cleanup.commit()
+
+
+@pytest.mark.asyncio
+async def test_sweep_decrements_each_reservation_coupon_use(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    from app.core.database import AsyncSessionLocal
+    from app.models.coupon import Coupon
+    from app.models.reservation import Reservation
+    from app.services.reservation_service import expire_stale_pending_reservations
+
+    code = f"MULTI_{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+    create_coupon = await client.post(
+        f"{settings.API_V1_STR}/coupons/",
+        json={
+            "code": code,
+            "discount_type": "fixed",
+            "discount_value": 1000,
+            "min_booking_amount": 0,
+            "valid_from": (now - timedelta(days=1)).isoformat(),
+            "valid_until": (now + timedelta(days=30)).isoformat(),
+            "usage_limit": 5,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_coupon.status_code == 201
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    reservation_ids = []
+    for offset in (210, 220):
+        check_in = date.today() + timedelta(days=offset)
+        booking = await client.post(
+            f"{settings.API_V1_STR}/reservations/",
+            json={
+                "accommodation_id": acc_id,
+                "check_in": check_in.isoformat(),
+                "check_out": (check_in + timedelta(days=1)).isoformat(),
+                "guests_count": 1,
+                "coupon_code": code,
+            },
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert booking.status_code == 201
+        reservation_ids.append(booking.json()["id"])
+
+    async with AsyncSessionLocal() as session:
+        coupon = (await session.execute(select(Coupon).where(Coupon.code == code))).scalar_one()
+        assert coupon.used_count == 2
+        await session.execute(
+            update(Reservation)
+            .where(Reservation.id.in_(reservation_ids))
+            .values(created_at=datetime.now(timezone.utc) - timedelta(minutes=31))
+        )
+        await session.commit()
+        assert (await expire_stale_pending_reservations(session, ttl_minutes=30)) == 2
+        await session.refresh(coupon)
+        assert coupon.used_count == 0
+
+
+async def _create_coupon(client, admin_token: str, **overrides) -> dict:
+    code = f"LIFE_{uuid.uuid4().hex[:6].upper()}"
+    now = datetime.now(timezone.utc)
+    payload = {
+        "code": code,
+        "discount_type": "percentage",
+        "discount_value": 20,
+        "max_discount_amount": 300000,
+        "min_booking_amount": 500000,
+        "valid_from": (now - timedelta(days=1)).isoformat(),
+        "valid_until": (now + timedelta(days=30)).isoformat(),
+        "usage_limit": 10,
+        **overrides,
+    }
+    res = await client.post(
+        f"{settings.API_V1_STR}/coupons/",
+        json=payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert res.status_code == 201
+    return res.json()
+
+
+@pytest.mark.asyncio
+async def test_admin_can_deactivate_and_reactivate_coupon(client: AsyncClient, admin_token: str):
+    coupon = await _create_coupon(client, admin_token)
+
+    deactivate = await client.put(
+        f"{settings.API_V1_STR}/coupons/{coupon['id']}",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert deactivate.status_code == 200
+    assert deactivate.json()["is_active"] is False
+
+    invalid = await client.post(
+        f"{settings.API_V1_STR}/coupons/validate",
+        json={"code": coupon["code"], "booking_amount": 1000000},
+    )
+    assert invalid.status_code == 200
+    assert invalid.json()["is_valid"] is False
+
+    reactivate = await client.put(
+        f"{settings.API_V1_STR}/coupons/{coupon['id']}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert reactivate.status_code == 200
+    assert reactivate.json()["is_active"] is True
+
+
+@pytest.mark.asyncio
+async def test_coupon_update_rejects_invalid_lifecycle(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    coupon = await _create_coupon(client, admin_token)
+    url = f"{settings.API_V1_STR}/coupons/{coupon['id']}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(update(Coupon).where(Coupon.id == coupon["id"]).values(used_count=2))
+        await session.commit()
+
+    below_consumed = await client.put(url, json={"usage_limit": 1}, headers=headers)
+    assert below_consumed.status_code == 400
+    assert "consumed" in below_consumed.json()["detail"].lower()
+
+    too_high = await client.put(url, json={"discount_value": 150}, headers=headers)
+    assert too_high.status_code == 400
+
+    # Equality is rejected: valid_until must be strictly after valid_from.
+    equal_window = await client.put(
+        url,
+        json={"valid_until": coupon["valid_from"]},
+        headers=headers,
+    )
+    assert equal_window.status_code == 400
+
+    backwards = await client.put(
+        url,
+        json={
+            "valid_until": (
+                datetime.fromisoformat(coupon["valid_from"]) - timedelta(seconds=1)
+            ).isoformat()
+        },
+        headers=headers,
+    )
+    assert backwards.status_code == 400
+
+    null_value = await client.put(url, json={"discount_value": None}, headers=headers)
+    assert null_value.status_code == 400
+
+    immutable_code = await client.put(url, json={"code": "NEWCODE"}, headers=headers)
+    assert immutable_code.status_code == 422
+    immutable_type = await client.put(url, json={"discount_type": "fixed"}, headers=headers)
+    assert immutable_type.status_code == 422
+
+    missing = await client.put(
+        f"{settings.API_V1_STR}/coupons/999999999",
+        json={"is_active": False},
+        headers=headers,
+    )
+    assert missing.status_code == 404
+
+    forbidden = await client.put(
+        url,
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert forbidden.status_code == 403
+
+    unauthenticated = await client.put(url, json={"is_active": False})
+    assert unauthenticated.status_code == 401
