@@ -117,6 +117,9 @@ class Accommodation(Base):
         Numeric(5, 2), server_default="50", nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    admin_deactivated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -135,7 +138,7 @@ class Accommodation(Base):
         "AccommodationImage",
         back_populates="accommodation",
         cascade="all, delete-orphan",
-        order_by="AccommodationImage.sort_order",
+        order_by="(AccommodationImage.sort_order, AccommodationImage.id)",
     )
     amenities: Mapped[list["Amenity"]] = relationship(
         "Amenity", secondary="accommodation_amenities"
@@ -153,6 +156,14 @@ class Accommodation(Base):
 
 class AccommodationImage(Base):
     __tablename__ = "accommodation_images"
+    __table_args__ = (
+        Index(
+            "uq_accommodation_images_one_cover",
+            "accommodation_id",
+            unique=True,
+            postgresql_where=text("is_cover = true"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     accommodation_id: Mapped[int] = mapped_column(

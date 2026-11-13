@@ -584,6 +584,7 @@ async def cancel_reservation(
             amount=refundable,
             tracking_code=f"REF-{uuid.uuid4().hex[:10].upper()}",
             status="success",
+            payment_type="refund",
             paid_at=datetime.now(timezone.utc),
         )
         db.add(refund_record)

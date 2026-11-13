@@ -597,3 +597,62 @@ async def test_cancellation_marks_pending_payments_failed(
     assert p_after.status_code == 200
     assert p_after.json()["status"] == "failed"
 
+
+@pytest.mark.asyncio
+async def test_cancellation_records_explicit_refund_type(
+    client: AsyncClient, guest_token: str, admin_token: str
+):
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+    check_in = date.today() + timedelta(days=100)
+    check_out = check_in + timedelta(days=2)
+
+    booking = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": check_out.isoformat(),
+            "guests_count": 1,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking.status_code == 201
+    res_id = booking.json()["id"]
+
+    checkout = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout.status_code in (200, 201)
+
+    verify = await client.post(
+        f"{settings.API_V1_STR}/payments/verify",
+        json={
+            "payment_id": checkout.json()["payment_id"],
+            "tracking_code": checkout.json()["tracking_code"],
+            "simulate_success": True,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert verify.status_code == 200
+
+    cancel = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/cancel",
+        json={"reason": "type check"},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert cancel.status_code == 200
+    assert Decimal(cancel.json()["refund_amount"]) > 0
+
+    payments = await client.get(
+        f"{settings.API_V1_STR}/payments/my",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert payments.status_code == 200
+    rows = [p for p in payments.json() if p["reservation_id"] == res_id]
+    assert {p["payment_type"] for p in rows} == {"charge", "refund"}
+    refund = next(p for p in rows if p["payment_type"] == "refund")
+    assert refund["tracking_code"].startswith("REF-")
+

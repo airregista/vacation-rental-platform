@@ -31,6 +31,10 @@ class Payment(Base):
             "status IN ('pending', 'success', 'failed')",
             name="chk_payment_status",
         ),
+        CheckConstraint(
+            "payment_type IN ('charge', 'refund')",
+            name="chk_payment_type",
+        ),
         Index(
             "uq_payments_pending_reservation",
             "reservation_id",
@@ -47,6 +51,9 @@ class Payment(Base):
     tracking_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), server_default="pending", index=True, nullable=False
+    )
+    payment_type: Mapped[str] = mapped_column(
+        String(10), server_default="charge", nullable=False
     )
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
