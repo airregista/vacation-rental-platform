@@ -1,13 +1,17 @@
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select, update
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.models.coupon import Coupon
+from app.models.payment import Payment
 from app.models.reservation import Reservation
+from app.services.reservation_service import expire_stale_pending_reservations
 
 
 @pytest.mark.asyncio
@@ -248,6 +252,76 @@ async def test_cleanup_expired_reservations(
     )
     assert pay_check.status_code == 200
     assert pay_check.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_expiry_releases_coupon_quota(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    code = f"SWEEP_{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+    coupon_res = await client.post(
+        f"{settings.API_V1_STR}/coupons/",
+        json={
+            "code": code,
+            "discount_type": "percentage",
+            "discount_value": 10,  # partial: keep total_price > 0
+            "min_booking_amount": 0,
+            "valid_from": (now - timedelta(days=1)).isoformat(),
+            "valid_until": (now + timedelta(days=30)).isoformat(),
+            "usage_limit": 1,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert coupon_res.status_code == 201
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    check_in = date.today() + timedelta(days=200)
+    booking = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": check_in.isoformat(),
+            "check_out": (check_in + timedelta(days=2)).isoformat(),
+            "guests_count": 1,
+            "coupon_code": code,
+        },
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert booking.status_code == 201
+    res_id = booking.json()["id"]
+
+    checkout = await client.post(
+        f"{settings.API_V1_STR}/payments/checkout",
+        json={"reservation_id": res_id},
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert checkout.status_code == 201
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            update(Reservation)
+            .where(Reservation.id == res_id)
+            .values(created_at=datetime.now(timezone.utc) - timedelta(minutes=31))
+        )
+        await session.commit()
+        expired = await expire_stale_pending_reservations(session, ttl_minutes=30)
+        assert expired == 1
+
+        reservation = (
+            await session.execute(select(Reservation).where(Reservation.id == res_id))
+        ).scalar_one()
+        payment = (
+            await session.execute(select(Payment).where(Payment.reservation_id == res_id))
+        ).scalar_one()
+        coupon = (
+            await session.execute(select(Coupon).where(Coupon.code == code))
+        ).scalar_one()
+        assert reservation.status == "cancelled"
+        assert payment.status == "failed"
+        assert coupon.used_count == 0
 
 
 @pytest.mark.asyncio
