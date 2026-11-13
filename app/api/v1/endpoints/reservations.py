@@ -4,7 +4,8 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import CurrentAdminDep, CurrentUserDep, SessionDep
@@ -23,6 +24,7 @@ from app.schemas.reservation import (
     ReservationCreate,
     ReservationMessageCreate,
     ReservationMessageResponse,
+    ReservationMessagesReadResponse,
     ReservationResponse,
 )
 from app.services.cancellation_service import (
@@ -155,9 +157,7 @@ async def create_reservation(
         if coupon_obj:
             # Re-validate under the lock: the coupon may have expired, been
             # deactivated, or hit its usage limit since the price calculation.
-            evaluation = evaluate_coupon(
-                coupon_obj, calc.nights_total + calc.extra_guest_total
-            )
+            evaluation = evaluate_coupon(coupon_obj, calc.nights_total + calc.extra_guest_total)
             if not evaluation.is_valid:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message
@@ -172,8 +172,9 @@ async def create_reservation(
     return resp
 
 
-def _serialize_reservation(r: Reservation) -> ReservationResponse:
+def _serialize_reservation(r: Reservation, unread_messages_count: int = 0) -> ReservationResponse:
     item = ReservationResponse.model_validate(r)
+    item.unread_messages_count = unread_messages_count
     acc = r.accommodation
     item.accommodation_title = acc.title if acc else None
     if acc:
@@ -192,8 +193,30 @@ def _serialize_reservation(r: Reservation) -> ReservationResponse:
 # accommodation images / city / province after the query returns.
 _RESERVATION_ACCOMMODATION_LOAD = (
     selectinload(Reservation.accommodation).selectinload(Accommodation.images),
-    selectinload(Reservation.accommodation).selectinload(Accommodation.city).selectinload(City.province),
+    selectinload(Reservation.accommodation)
+    .selectinload(Accommodation.city)
+    .selectinload(City.province),
 )
+
+
+async def _unread_message_counts(
+    db: AsyncSession, reservation_ids: list[int], viewer_id: int
+) -> dict[int, int]:
+    if not reservation_ids:
+        return {}
+    stmt = (
+        select(
+            ReservationMessage.reservation_id,
+            func.count(ReservationMessage.id),
+        )
+        .where(
+            ReservationMessage.reservation_id.in_(reservation_ids),
+            ReservationMessage.sender_id != viewer_id,
+            ReservationMessage.read_at.is_(None),
+        )
+        .group_by(ReservationMessage.reservation_id)
+    )
+    return {reservation_id: count for reservation_id, count in (await db.execute(stmt)).all()}
 
 
 @router.get("/my", response_model=list[ReservationResponse])
@@ -214,7 +237,8 @@ async def list_my_reservations(
     result = await db.execute(stmt)
     reservations = result.scalars().all()
 
-    return [_serialize_reservation(r) for r in reservations]
+    counts = await _unread_message_counts(db, [r.id for r in reservations], current_user.id)
+    return [_serialize_reservation(r, counts.get(r.id, 0)) for r in reservations]
 
 
 @router.get("/host", response_model=list[ReservationResponse])
@@ -236,7 +260,8 @@ async def list_host_reservations(
     result = await db.execute(stmt)
     reservations = result.scalars().all()
 
-    return [_serialize_reservation(r) for r in reservations]
+    counts = await _unread_message_counts(db, [r.id for r in reservations], current_user.id)
+    return [_serialize_reservation(r, counts.get(r.id, 0)) for r in reservations]
 
 
 @router.get("/{id}", response_model=ReservationResponse)
@@ -245,11 +270,7 @@ async def get_reservation(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> ReservationResponse:
-    stmt = (
-        select(Reservation)
-        .options(*_RESERVATION_ACCOMMODATION_LOAD)
-        .where(Reservation.id == id)
-    )
+    stmt = select(Reservation).options(*_RESERVATION_ACCOMMODATION_LOAD).where(Reservation.id == id)
     res = await db.execute(stmt)
     reservation = res.scalars().first()
     if not reservation:
@@ -267,7 +288,11 @@ async def get_reservation(
             detail="Access forbidden: you do not have permission to view this reservation",
         )
 
-    return _serialize_reservation(reservation)
+    if is_admin:
+        return _serialize_reservation(reservation)
+
+    counts = await _unread_message_counts(db, [reservation.id], current_user.id)
+    return _serialize_reservation(reservation, counts.get(reservation.id, 0))
 
 
 @router.get("/{id}/messages", response_model=list[ReservationMessageResponse])
@@ -295,19 +320,6 @@ async def list_reservation_messages(
     if not (is_guest or is_host or is_admin):
         raise HTTPException(status_code=403, detail="Access forbidden")
 
-    if not is_admin:
-        unread_stmt = (
-            update(ReservationMessage)
-            .where(
-                ReservationMessage.reservation_id == id,
-                ReservationMessage.sender_id != current_user.id,
-                ReservationMessage.read_at.is_(None),
-            )
-            .values(read_at=datetime.now(timezone.utc))
-        )
-        await db.execute(unread_stmt)
-        await db.commit()
-
     msg_stmt = (
         select(ReservationMessage)
         .options(joinedload(ReservationMessage.sender))
@@ -321,11 +333,51 @@ async def list_reservation_messages(
     for m in messages:
         resp = ReservationMessageResponse.model_validate(m)
         resp.sender_name = (
-            f"{m.sender.first_name or ''} {m.sender.last_name or ''}".strip()
-            or m.sender.phone
+            f"{m.sender.first_name or ''} {m.sender.last_name or ''}".strip() or m.sender.phone
         )
         result.append(resp)
     return result
+
+
+@router.post(
+    "/{id}/messages/read",
+    response_model=ReservationMessagesReadResponse,
+)
+async def mark_reservation_messages_read(
+    id: int,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> ReservationMessagesReadResponse:
+    res_stmt = (
+        select(Reservation)
+        .options(selectinload(Reservation.accommodation))
+        .where(Reservation.id == id)
+    )
+    reservation = (await db.execute(res_stmt)).scalars().first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    is_guest = reservation.user_id == current_user.id
+    is_host = bool(
+        reservation.accommodation and reservation.accommodation.host_id == current_user.id
+    )
+    if not (is_guest or is_host):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the guest or host can mark messages as read",
+        )
+
+    result = await db.execute(
+        update(ReservationMessage)
+        .where(
+            ReservationMessage.reservation_id == id,
+            ReservationMessage.sender_id != current_user.id,
+            ReservationMessage.read_at.is_(None),
+        )
+        .values(read_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
+    return ReservationMessagesReadResponse(marked_read=max(result.rowcount or 0, 0))
 
 
 @router.post(
@@ -420,9 +472,7 @@ async def preview_cancellation(
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation,
         reservation.accommodation,
-        first_night_price=await get_first_night_price(
-            db, reservation, reservation.accommodation
-        ),
+        first_night_price=await get_first_night_price(db, reservation, reservation.accommodation),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -473,9 +523,7 @@ async def cancel_reservation(
         )
 
     payout_stmt = (
-        select(HostPayout)
-        .where(HostPayout.reservation_id == reservation.id)
-        .with_for_update()
+        select(HostPayout).where(HostPayout.reservation_id == reservation.id).with_for_update()
     )
     payout = (await db.execute(payout_stmt)).scalars().first()
     if payout and payout.status == "completed":
@@ -487,9 +535,7 @@ async def cancel_reservation(
     refundable, penalty, hours_to_checkin = calculate_cancellation_refund(
         reservation,
         reservation.accommodation,
-        first_night_price=await get_first_night_price(
-            db, reservation, reservation.accommodation
-        ),
+        first_night_price=await get_first_night_price(db, reservation, reservation.accommodation),
     )
     if hours_to_checkin <= 0:
         raise HTTPException(
@@ -549,9 +595,7 @@ async def cancel_reservation(
     return CancellationResponse(
         reservation_id=reservation.id,
         status="cancelled",
-        cancellation_policy=getattr(
-            reservation.accommodation, "cancellation_policy", "flexible"
-        ),
+        cancellation_policy=getattr(reservation.accommodation, "cancellation_policy", "flexible"),
         hours_to_checkin=hours_to_checkin,
         total_price=reservation.total_price,
         refund_amount=refundable,

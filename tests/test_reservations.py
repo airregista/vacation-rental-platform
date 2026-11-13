@@ -779,9 +779,7 @@ async def test_host_payout_settlement_rejected_for_cancelled_reservation(
 
 
 @pytest.mark.asyncio
-async def test_reservation_messaging_flow(
-    client: AsyncClient, admin_token: str, guest_token: str
-):
+async def test_reservation_messaging_flow(client: AsyncClient, admin_token: str, guest_token: str):
     # 1. Register a dedicated host user
     uid = uuid.uuid4().hex[:6]
     host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
@@ -899,7 +897,40 @@ async def test_reservation_messaging_flow(
     host_msgs = host_list_res.json()
     assert len(host_msgs) == 1
     assert host_msgs[0]["id"] == guest_msg["id"]
-    assert host_msgs[0]["read_at"] is not None
+    assert host_msgs[0]["read_at"] is None
+
+    host_list = await client.get(
+        f"{settings.API_V1_STR}/reservations/host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    host_row = next(r for r in host_list.json() if r["id"] == res_id)
+    assert host_row["unread_messages_count"] == 1
+
+    host_detail = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_detail.json()["unread_messages_count"] == 1
+
+    host_read_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages/read",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_read_res.status_code == 200
+    assert host_read_res.json()["marked_read"] == 1
+
+    host_rel_list = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_rel_list.json()[0]["read_at"] is not None
+
+    host_list_after = await client.get(
+        f"{settings.API_V1_STR}/reservations/host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    host_row_after = next(r for r in host_list_after.json() if r["id"] == res_id)
+    assert host_row_after["unread_messages_count"] == 0
 
     host_reply_payload = {"message": "سلام، از ساعت ۱۴ در خدمتتون هستیم."}
     host_reply_res = await client.post(
@@ -929,7 +960,28 @@ async def test_reservation_messaging_flow(
     assert all_msgs[0]["sender_name"] == guest_msg["sender_name"]
     assert all_msgs[1]["sender_name"] == "علی میزبان"
     assert all_msgs[0]["created_at"] <= all_msgs[1]["created_at"]
-    assert all_msgs[1]["read_at"] is not None
+    assert all_msgs[0]["read_at"] is not None  # marked read by the host
+    assert all_msgs[1]["read_at"] is None
+
+    guest_list = await client.get(
+        f"{settings.API_V1_STR}/reservations/my",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    guest_row = next(r for r in guest_list.json() if r["id"] == res_id)
+    assert guest_row["unread_messages_count"] == 1
+
+    guest_read_res = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages/read",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert guest_read_res.status_code == 200
+    assert guest_read_res.json()["marked_read"] == 1
+
+    guest_rel_list = await client.get(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages",
+        headers={"Authorization": f"Bearer {guest_token}"},
+    )
+    assert guest_rel_list.json()[1]["read_at"] is not None
 
     # Admin can also read messages
     admin_list_res = await client.get(
@@ -938,6 +990,14 @@ async def test_reservation_messaging_flow(
     )
     assert admin_list_res.status_code == 200
     assert len(admin_list_res.json()) == 2
+    assert all(m["read_at"] is not None for m in admin_list_res.json())
+
+    admin_reservations = await client.get(
+        f"{settings.API_V1_STR}/reservations/?limit=100",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    admin_row = next(r for r in admin_reservations.json() if r["id"] == res_id)
+    assert admin_row["unread_messages_count"] == 0
 
     # 7. Unrelated third-party user attempts access and receives HTTP 403 Forbidden
     other_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
@@ -952,6 +1012,12 @@ async def test_reservation_messaging_flow(
     )
     assert other_reg.status_code == 201
     other_token = other_reg.json()["access_token"]
+
+    other_read_attempt = await client.post(
+        f"{settings.API_V1_STR}/reservations/{res_id}/messages/read",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert other_read_attempt.status_code == 403
 
     other_read = await client.get(
         f"{settings.API_V1_STR}/reservations/{res_id}/messages",

@@ -68,12 +68,17 @@ class ReservationResponse(BaseModel):
     cancellation_reason: str | None = None
     refund_amount: Decimal | None = None
     penalty_amount: Decimal | None = None
+    unread_messages_count: int = 0
     created_at: datetime
     updated_at: datetime
     accommodation_title: str | None = None
     accommodation_image: str | None = None
     city: str | None = None
     province: str | None = None
+
+
+class ReservationMessagesReadResponse(BaseModel):
+    marked_read: int
 
 
 class CalendarDayInfo(BaseModel):
@@ -132,4 +137,3 @@ class ReservationMessageResponse(BaseModel):
     message: str
     read_at: datetime | None = None
     created_at: datetime
-
