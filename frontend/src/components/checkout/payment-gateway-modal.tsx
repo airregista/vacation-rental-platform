@@ -247,7 +247,7 @@ export function PaymentGatewayModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-3xl border-line bg-paper p-4 sm:p-6">
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto rounded-3xl border-line bg-paper p-4 sm:p-6">
         <div className="space-y-5">
           {/* Header */}
           <DialogHeader className="space-y-1 text-right">
@@ -340,7 +340,7 @@ export function PaymentGatewayModal({
                             id={`gw-${item.value}`}
                             className="border-line-strong data-[state=checked]:border-brick"
                           />
-                          <span className="truncate text-ink">{item.label}</span>
+                          <span className="leading-5 text-ink">{item.label}</span>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           {"badge" in item && item.badge && (
