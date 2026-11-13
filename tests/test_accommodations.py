@@ -8,6 +8,46 @@ from httpx import AsyncClient
 from app.core.config import settings
 
 
+async def _create_host_with_listing(client, admin_token, title):
+    phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": phone,
+            "password": "hostPassword123",
+            "first_name": "Moderation",
+            "last_name": "Host",
+        },
+    )
+    assert reg.status_code == 201
+    host_id = reg.json()["user"]["id"]
+    host_token = reg.json()["access_token"]
+    promote = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote.status_code == 200
+
+    cities = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories = await client.get(f"{settings.API_V1_STR}/categories/")
+    created = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": categories.json()[0]["id"],
+            "city_id": cities.json()[0]["id"],
+            "host_id": host_id,
+            "title": title,
+            "address": "تهران، تست مدیریت، پلاک ۱",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 3,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert created.status_code == 201
+    return host_token, created.json()["id"]
+
+
 @pytest.mark.asyncio
 async def test_list_accommodations(client: AsyncClient):
     res = await client.get(f"{settings.API_V1_STR}/accommodations/")
@@ -359,9 +399,7 @@ async def test_pricing_exception_deletion_and_amenity_updates(
 
 
 @pytest.mark.asyncio
-async def test_filter_accommodations_by_rooms_and_beds(
-    client: AsyncClient, admin_token: str
-):
+async def test_filter_accommodations_by_rooms_and_beds(client: AsyncClient, admin_token: str):
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
@@ -497,7 +535,6 @@ async def test_filter_accommodations_by_stay_dates_enforces_min_nights(
     assert id2 in search_3n_ids
 
 
-
 @pytest.mark.asyncio
 async def test_filter_by_amenities_and_sorting(client: AsyncClient):
     # 1. Fetch available amenities
@@ -544,9 +581,7 @@ async def test_amenity_filter_duplicate_query_params(client: AsyncClient):
     assert len(amenities) >= 1
     am_id = amenities[0]["id"]
 
-    single_res = await client.get(
-        f"{settings.API_V1_STR}/accommodations/?amenity_ids={am_id}"
-    )
+    single_res = await client.get(f"{settings.API_V1_STR}/accommodations/?amenity_ids={am_id}")
     assert single_res.status_code == 200
     single_items = single_res.json()
     assert len(single_items) >= 1
@@ -1270,7 +1305,92 @@ async def test_set_accommodation_cover_image(
     assert not_found_res.json()["detail"] == "Accommodation image not found"
 
 
+@pytest.mark.asyncio
+async def test_host_cannot_reactivate_admin_deactivated_listing(
+    client: AsyncClient, admin_token: str
+):
+    host_token, acc_id = await _create_host_with_listing(
+        client, admin_token, f"Admin Suspension {uuid.uuid4().hex[:6]}"
+    )
 
+    suspend = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert suspend.status_code == 200
+    assert suspend.json()["is_active"] is False
+
+    reactivate = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert reactivate.status_code == 403
+    assert "administrator" in reactivate.json()["detail"].lower()
+
+    restore = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert restore.status_code == 200
+    assert restore.json()["is_active"] is True
+
+    # Once the admin marker is cleared, the host can pause and resume normally.
+    host_pause = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_pause.status_code == 200
+    host_resume = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert host_resume.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_soft_delete_cannot_be_undone_by_host(client: AsyncClient, admin_token: str):
+    host_token, acc_id = await _create_host_with_listing(
+        client, admin_token, f"Admin Delete {uuid.uuid4().hex[:6]}"
+    )
+
+    deleted = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert deleted.status_code == 204
+
+    reactivate = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert reactivate.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_host_soft_delete_can_be_reactivated_by_host(client: AsyncClient, admin_token: str):
+    host_token, acc_id = await _create_host_with_listing(
+        client, admin_token, f"Host Delete {uuid.uuid4().hex[:6]}"
+    )
+
+    deleted = await client.delete(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert deleted.status_code == 204
+
+    restore = await client.put(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}",
+        json={"is_active": True},
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert restore.status_code == 200
+    assert restore.json()["is_active"] is True
 
 
 @pytest.mark.asyncio
@@ -1403,9 +1523,7 @@ async def test_custom_amenities_update_replace_and_clear(client: AsyncClient, ad
 
 
 @pytest.mark.asyncio
-async def test_custom_amenities_validation_and_normalization(
-    client: AsyncClient, admin_token: str
-):
+async def test_custom_amenities_validation_and_normalization(client: AsyncClient, admin_token: str):
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
