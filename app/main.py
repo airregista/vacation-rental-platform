@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,8 +14,26 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.seeds.seed_data import seed
+from app.services.reservation_service import expire_stale_pending_reservations
 
 logger = logging.getLogger(__name__)
+
+
+async def _reservation_sweep_loop() -> None:
+    while True:
+        await asyncio.sleep(settings.RESERVATION_SWEEP_INTERVAL_SECONDS)
+        try:
+            async with AsyncSessionLocal() as session:
+                expired = await expire_stale_pending_reservations(
+                    session,
+                    ttl_minutes=settings.RESERVATION_TTL_MINUTES,
+                )
+            if expired:
+                logger.info("Expired %s stale pending reservations", expired)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Reservation expiry sweep failed")
 
 
 @asynccontextmanager
@@ -22,9 +41,18 @@ async def lifespan(app: FastAPI):
     # Ensure seed data exists if enabled
     if settings.ENABLE_STARTUP_SEED:
         await seed()
-    yield
-    # Cleanup on shutdown
-    await engine.dispose()
+    sweep_task: asyncio.Task[None] | None = None
+    if settings.ENABLE_RESERVATION_SWEEP:
+        sweep_task = asyncio.create_task(_reservation_sweep_loop())
+    try:
+        yield
+    finally:
+        if sweep_task is not None:
+            sweep_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await sweep_task
+        # Cleanup on shutdown
+        await engine.dispose()
 
 
 app = FastAPI(

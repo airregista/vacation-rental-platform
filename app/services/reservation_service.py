@@ -123,16 +123,15 @@ async def _cancel_reservation_record(
 async def check_and_expire_reservation(
     db: AsyncSession,
     reservation: Reservation,
-    ttl_minutes: int = 30,
+    ttl_minutes: int | None = None,
     commit: bool = True,
 ) -> bool:
+    ttl = settings.RESERVATION_TTL_MINUTES if ttl_minutes is None else ttl_minutes
     res_created = reservation.created_at
     if res_created.tzinfo is None:
         res_created = res_created.replace(tzinfo=timezone.utc)
 
-    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(
-        minutes=ttl_minutes
-    ):
+    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(minutes=ttl):
         return False
 
     await _cancel_reservation_record(db, reservation)
@@ -142,8 +141,9 @@ async def check_and_expire_reservation(
     return True
 
 
-async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int = 30) -> int:
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes)
+async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int | None = None) -> int:
+    ttl = settings.RESERVATION_TTL_MINUTES if ttl_minutes is None else ttl_minutes
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl)
     stmt = (
         select(Reservation)
         .where(Reservation.status == "pending", Reservation.created_at < cutoff)
