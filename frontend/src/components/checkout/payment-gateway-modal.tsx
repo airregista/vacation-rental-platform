@@ -28,8 +28,8 @@ import {
   type PaymentGatewayModalProps,
   type PaymentInitiateResponse,
   type PaymentResponse,
-  formatFaPrice,
 } from "@/types/checkout"
+import { formatFaPrice } from "@/lib/checkout-format"
 
 const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"

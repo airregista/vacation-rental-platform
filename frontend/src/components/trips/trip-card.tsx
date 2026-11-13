@@ -20,7 +20,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TripStatusBadge } from "@/components/trips/trip-status-badge"
 import { useTripPermissions } from "@/components/trips/trip-permissions"
-import { formatFaPrice } from "@/types/checkout"
+import { formatFaPrice } from "@/lib/checkout-format"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import type { TripReservationItem } from "@/types/trips"
 

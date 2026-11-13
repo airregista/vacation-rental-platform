@@ -38,9 +38,8 @@ import {
   type CheckoutAccommodationInfo,
   type PaymentResponse,
   type InvoiceData,
-  formatFaPrice,
-  getPersianYear,
 } from "@/types/checkout"
+import { formatFaPrice, getPersianYear } from "@/lib/checkout-format"
 
 interface CheckoutPageProps {
   params: Promise<{ id: string }>

@@ -14,10 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import {
   type InvoiceModalProps,
-  computeCheckoutBreakdown,
-  formatFaPrice,
-  getPersianYear,
 } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice, getPersianYear } from "@/lib/checkout-format"
 
 function formatFaNumber(num: number | string | null | undefined): string {
   return formatFaPrice(num)

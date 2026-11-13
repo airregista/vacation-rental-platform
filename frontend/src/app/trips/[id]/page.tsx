@@ -38,7 +38,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { computeCheckoutBreakdown, formatFaPrice } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice } from "@/lib/checkout-format"
 import type { TripReservationItem } from "@/types/trips"
 import type { AccommodationDetailData } from "@/types/detail"
 
