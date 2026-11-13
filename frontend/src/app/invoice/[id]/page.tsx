@@ -22,6 +22,7 @@ import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { findLatestSuccessfulPayment } from "@/lib/pagination"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { EmptyState } from "@/components/shared/empty-state"
 import { TripStatusBadge } from "@/components/trips/trip-status-badge"
@@ -213,7 +214,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         : 0
   const guestName =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "مهمان آشیانک"
-  const invoiceNumber = `ASH-${toPersianDigits(String(reservation.id).padStart(6, "0"))}`
+  const invoiceNumber = getReservationCode(reservation.id)
   const trackingCode =
     payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code)
       ? payment.tracking_code

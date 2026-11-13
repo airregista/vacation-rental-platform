@@ -21,6 +21,7 @@ import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
 import { findLatestSuccessfulPayment } from "@/lib/pagination"
+import { getReservationCode } from "@/lib/reservation-code"
 import { cn } from "@/lib/utils"
 import {
   PaymentResultFooterLinks,
@@ -43,10 +44,6 @@ const STATUS_LABELS: Record<ReservationDetail["status"], string> = {
   confirmed: "پرداخت‌شده",
   completed: "تکمیل‌شده",
   cancelled: "لغوشده",
-}
-
-function getReservationCode(id: number): string {
-  return `MHM-${toPersianDigits(String(id).padStart(5, "0"))}`
 }
 
 interface CheckoutSuccessPageProps {

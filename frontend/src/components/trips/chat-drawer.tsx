@@ -33,7 +33,8 @@ import {
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
-import { formatMessageTime, toPersianDigits } from "@/lib/format-fa"
+import { formatMessageTime } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import type { ChatMessageItem, TripReservationItem } from "@/types/trips"
 
 export interface ChatDrawerProps {
@@ -210,7 +211,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
                 className="border-line bg-paper-deep/50 font-mono text-[10px] text-ink-soft"
                 dir="ltr"
               >
-                JBM-{toPersianDigits(trip.id)}
+                {getReservationCode(trip.id)}
               </Badge>
             )}
           </div>

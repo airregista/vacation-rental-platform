@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatPersianDate, formatPersianLongDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import {
   type InvoiceModalProps,
 } from "@/types/checkout"
@@ -38,9 +39,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
   const invoiceNumber = toPersianDigits(
     data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
   )
-  const reservationCode = toPersianDigits(
-    `MHM-${reservation.id.toString().padStart(5, "0")}`
-  )
+  const reservationCode = getReservationCode(reservation.id)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

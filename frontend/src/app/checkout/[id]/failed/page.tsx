@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import {
   PaymentResultFooterLinks,
   PaymentResultSkeleton,
@@ -89,10 +90,6 @@ function getPersianFailureReason(raw: string | null): string {
   }
 
   return GENERIC_FAILURE_REASON
-}
-
-function getReservationCode(id: number): string {
-  return `MHM-${toPersianDigits(String(id).padStart(5, "0"))}`
 }
 
 interface CheckoutFailedPageProps {
