@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -75,13 +76,26 @@ export function TripCard({
             aria-label={`جزئیات رزرو ${title}`}
           >
             {trip.accommodation_image && !imageError ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={trip.accommodation_image}
-                alt={title}
-                onError={() => setImageError(true)}
-                className="size-full object-cover transition-transform duration-500 hover:scale-[1.03]"
-              />
+              trip.accommodation_image.startsWith("/") ? (
+                <Image
+                  src={trip.accommodation_image}
+                  alt={title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 192px"
+                  onError={() => setImageError(true)}
+                  className="object-cover transition-transform duration-500 hover:scale-[1.03]"
+                />
+              ) : (
+                // Reservation snapshots can carry absolute external image URLs;
+                // next/image would reject those without a per-domain allowlist.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={trip.accommodation_image}
+                  alt={title}
+                  onError={() => setImageError(true)}
+                  className="size-full object-cover transition-transform duration-500 hover:scale-[1.03]"
+                />
+              )
             ) : (
               <div className="flex size-full flex-col items-center justify-center gap-1.5 bg-paper-deep p-4 text-center text-brick/70">
                 <span className="grid size-11 place-items-center rounded-b-xl rounded-t-full bg-brick/10">

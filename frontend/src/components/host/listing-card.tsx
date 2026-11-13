@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   CalendarDays,
@@ -68,16 +69,26 @@ export function HostListingCard({
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line/80 bg-paper-card shadow-soft transition-[border-color,box-shadow] duration-300 hover:border-line-strong hover:shadow-lift">
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-paper-deep">
         {showImage ? (
-          // Hosts can paste arbitrary external image URLs; next/image needs a
-          // per-domain allowlist, so this card uses a plain img like the
-          // previous host dashboard did.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={listing.cover_image ?? ""}
-            alt={listing.title}
-            onError={() => setImageFailed(true)}
-            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-          />
+          listing.cover_image?.startsWith("/") ? (
+            <Image
+              src={listing.cover_image}
+              alt={listing.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+              onError={() => setImageFailed(true)}
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          ) : (
+            // Hosts can paste arbitrary external image URLs; next/image needs a
+            // per-domain allowlist for those, so absolute URLs keep a plain img.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={listing.cover_image ?? ""}
+              alt={listing.title}
+              onError={() => setImageFailed(true)}
+              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          )
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink-soft/70">
             <Compass className="size-8" aria-hidden="true" />

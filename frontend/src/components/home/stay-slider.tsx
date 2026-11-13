@@ -68,7 +68,12 @@ function toStay(item: AccommodationListItem, index: number): Stay {
   }
 }
 
-/** Seed/demo cover URLs can rot; keep the editorial composition intact. */
+/**
+ * Cover images come from the API (relative /uploads URLs after upload) or a
+ * static /prototype fallback; both are same-origin, so next/image optimizes
+ * them by default. Seed/demo cover URLs can rot; keep the editorial
+ * composition intact.
+ */
 function StayImage({
   stay,
   className,
@@ -88,7 +93,6 @@ function StayImage({
       src={src}
       alt={stay.title}
       fill
-      unoptimized
       priority={priority}
       sizes={sizes}
       onError={() => {

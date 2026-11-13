@@ -22,6 +22,15 @@ import {
 } from "@/components/ui/dialog"
 import type { AccommodationImage } from "@/types/detail"
 
+/**
+ * Seed/demo data can contain absolute external image URLs (e.g. Unsplash);
+ * next/image would reject those without a remotePatterns entry, so only
+ * relative /uploads paths go through the built-in optimizer.
+ */
+function isOptimizable(src: string) {
+  return src.startsWith("/")
+}
+
 export interface PhotoGalleryProps {
   images: AccommodationImage[]
   title: string
@@ -180,8 +189,9 @@ export function PhotoGallery({
             src={sortedImages[safeActivePhotoIndex].image_url}
             alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
             fill
-            unoptimized
+            unoptimized={!isOptimizable(sortedImages[safeActivePhotoIndex].image_url)}
             priority
+            sizes="(max-width: 1024px) 100vw, 100vw"
             className="object-cover"
           />
         </div>
@@ -235,8 +245,9 @@ export function PhotoGallery({
               src={sortedImages[0].image_url}
               alt={title}
               fill
-              unoptimized
+              unoptimized={!isOptimizable(sortedImages[0].image_url)}
               priority
+              sizes="(max-width: 1024px) 100vw, 100vw"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           </div>
@@ -260,8 +271,9 @@ export function PhotoGallery({
                 src={sortedImages[0].image_url}
                 alt={`${title} - تصویر ۱`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[0].image_url)}
                 priority
+                sizes="(max-width: 1024px) 100vw, 66vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
@@ -281,7 +293,8 @@ export function PhotoGallery({
                     src={img.image_url}
                     alt={`${title} - تصویر ${idx + 2}`}
                     fill
-                    unoptimized
+                    unoptimized={!isOptimizable(img.image_url)}
+                    sizes="(max-width: 1024px) 50vw, 17vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                 </div>
@@ -302,8 +315,9 @@ export function PhotoGallery({
                 src={sortedImages[0].image_url}
                 alt={`${title} - تصویر ۱`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[0].image_url)}
                 priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
@@ -319,7 +333,8 @@ export function PhotoGallery({
                   src={img.image_url}
                   alt={`${title} - تصویر ${idx + 2}`}
                   fill
-                  unoptimized
+                  unoptimized={!isOptimizable(img.image_url)}
+                  sizes="(max-width: 1024px) 50vw, 17vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               </div>
@@ -365,7 +380,8 @@ export function PhotoGallery({
                 src={sortedImages[safeActivePhotoIndex].image_url}
                 alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[safeActivePhotoIndex].image_url)}
+                sizes="(max-width: 1024px) 100vw, 66vw"
                 className="object-contain"
               />
             </div>
@@ -415,7 +431,8 @@ export function PhotoGallery({
                     src={img.image_url}
                     alt={`${title} - پیش‌نمایش ${idx + 1}`}
                     fill
-                    unoptimized
+                    unoptimized={!isOptimizable(img.image_url)}
+                    sizes="80px"
                     className="object-cover"
                   />
                 </button>

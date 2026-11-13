@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   Heart,
@@ -130,13 +131,26 @@ export function WishlistGrid({
                 className="block size-full"
               >
                 {!hasImgError ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={acc.cover_image!}
-                    alt={acc.title}
-                    onError={() => handleImageError(item.accommodation_id)}
-                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  acc.cover_image!.startsWith("/") ? (
+                    <Image
+                      src={acc.cover_image!}
+                      alt={acc.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                      onError={() => handleImageError(item.accommodation_id)}
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    // Hosts can paste arbitrary external image URLs; next/image
+                    // would reject those without a per-domain allowlist.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={acc.cover_image!}
+                      alt={acc.title}
+                      onError={() => handleImageError(item.accommodation_id)}
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )
                 ) : (
                   <div className="flex size-full flex-col items-center justify-center bg-paper-deep text-ink-soft">
                     <Compass className="mb-1 size-8 opacity-40" />
