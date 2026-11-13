@@ -17,7 +17,7 @@ from app.models.amenity import AccommodationAmenity, Amenity
 from app.models.category import Category
 from app.models.geo import City, Province
 from app.models.user import User
-from app.schemas.accommodation import AccommodationCreate
+from app.schemas.accommodation import AccommodationCreate, AccommodationImageCreate
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 JABAMA_LISTINGS_PATH = SCRIPTS_DIR / "jabama-listings.json"
@@ -467,11 +467,11 @@ async def seed_jabama_listings() -> dict:
                 is_active=True,
                 amenity_ids=amenity_ids,
                 images=[
-                    {
-                        "image_url": img["image_url"],
-                        "is_cover": img["is_cover"],
-                        "sort_order": img["sort_order"],
-                    }
+                    AccommodationImageCreate(
+                        image_url=img["image_url"],
+                        is_cover=img["is_cover"],
+                        sort_order=img["sort_order"],
+                    )
                     for img in p["images"]
                 ],
             )

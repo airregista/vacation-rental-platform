@@ -157,7 +157,7 @@ async def verify_payment(
         )
 
     # Lock order everywhere: Reservation -> Accommodation/HostPayout -> Payment -> Coupon.
-    reservation = (
+    locked_reservation = (
         (
             await db.execute(
                 select(Reservation)
@@ -188,14 +188,14 @@ async def verify_payment(
     if payment and payment.status == "success":
         return PaymentResponse.model_validate(payment)
 
-    if not reservation or reservation.status != "pending":
+    if not locked_reservation or locked_reservation.status != "pending":
+        current = locked_reservation.status if locked_reservation else "missing"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Reservation is no longer pending "
-                f"(current status: {reservation.status if reservation else 'missing'})"
-            ),
+            detail=f"Reservation is no longer pending (current status: {current})",
         )
+
+    reservation = locked_reservation
 
     if await check_and_expire_reservation(db, reservation, commit=True):
         raise HTTPException(
