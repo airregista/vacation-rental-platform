@@ -128,9 +128,14 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 > incidental TTL rewrite of `reservation_service.py` was rejected during
 > integration in favor of 059's settings-based TTL; the `chat-drawer` frontend
 > build requires a same-drive `node_modules` in worktrees (cross-drive junction
-> breaks `next build`). Nothing merged to `main`, nothing pushed — merge order
-> suggestion: 057 → 058 → 061 → 059 → 060+063 → 062 → 068 → 064 → 065 → 066 →
-> 067 → 069 → 070 → 071 → 072 → 073, then 074 last.
+> breaks `next build`). **Merged to `main` on 2026-11-13** (18 merge commits,
+> conflicts resolved with the same integration rules used on the 073 branch —
+> 059's TTL semantics, `lock_coupon_by_code` at all four coupon lock sites, 063's
+> `le=INTEGER_MAX`, 064's `today_tehran`); post-merge gates on `main`: **246
+> passed**, single Alembic head `9a2a9af6d7ed`, `ruff check` clean, OpenAPI 52
+> paths / 64 operations. Plan 061 received a follow-up fixup (`4269c89`)
+> restoring Persian test address strings that had been corrupted to question
+> marks. Nothing was pushed. 074 runs last.
 
 > **2026-11-12 database/security audit (planned at `c43af4c`)**: a read-only audit of the public schema, data invariants, Alembic chain, test isolation, and runtime/auth surface produced plans **051–056**. The test suite was still running `create_all` + `seed()` against the development database `jabama_db` (now `ashianak_db`); a migration-built database did not match the ORM models; the development data contained two overlapping confirmed bookings and 37 pending rows whose `total_nights` disagreed with their date range; the public accommodation detail exposed full host PII; the outbound iCal guard was IPv4-only and leaked exception text; production accepted the `postgres` superuser with an empty password; and `/health` never touched the database. Plan **052** must land before **053** and **054** because it establishes migration truth and the disposable `jabama_test` database (now `ashianak_test`); **056** follows **053** and **055** because 053 rewrites the login query and 055 edits the same config/test files. The static OTP `1234` / `dev_code` and the `simulate_success` payment shortcut are accepted demo behavior and were **explicitly excluded** by the maintainer — see “Findings Considered and Rejected”.
 
