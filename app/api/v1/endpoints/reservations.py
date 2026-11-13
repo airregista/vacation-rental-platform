@@ -47,8 +47,15 @@ async def cleanup_expired_reservations(
     admin: CurrentAdminDep,
     db: SessionDep,
     ttl_minutes: Annotated[
-        int, Query(ge=0, description="Minutes after which pending reservations expire")
-    ] = 30,
+        int | None,
+        Query(
+            ge=0,
+            description=(
+                "Minutes after which pending reservations expire; omit to use "
+                "RESERVATION_TTL_MINUTES"
+            ),
+        ),
+    ] = None,
 ) -> dict[str, int]:
     count = await expire_stale_pending_reservations(db, ttl_minutes=ttl_minutes)
     return {"expired_count": count}

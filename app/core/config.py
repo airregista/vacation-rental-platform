@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
     CALENDAR_MAX_BLOCK_DAYS: int = 90  # Max days between start_date and end_date in batch blocking
     RESERVATION_MAX_CHECKIN_MONTHS: int = 18  # Max forward booking horizon (18 * 30 = 540 days)
+    RESERVATION_TTL_MINUTES: int = Field(default=30, ge=1)
+    RESERVATION_SWEEP_INTERVAL_SECONDS: int = Field(default=60, ge=5)
+    ENABLE_RESERVATION_SWEEP: bool = True
     PLATFORM_COMMISSION_RATE: Decimal = Decimal("0.10")
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
