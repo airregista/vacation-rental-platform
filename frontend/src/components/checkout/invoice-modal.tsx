@@ -329,7 +329,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 مالیات بر ارزش افزوده و کلیه عوارض قانونی خدمات پلتفرم در مبالغ فوق محاسبه شده است.
               </p>
               <p className="text-[11px]">
-                این فاکتور دارای شناسه رهگیری یکتای مودیان مالیاتی و فاقد نیاز به مهر دستی می‌باشد.
+                نیازی به مهر دستی نمی‌باشد.
               </p>
             </div>
 
@@ -341,32 +341,10 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
             </div>
           </div>
 
-          {/* Official Seals and Digital Signatures Footer */}
-          <div className="pt-4 border-t-2 border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="border border-border/70 rounded-xl p-3 text-center space-y-2 bg-card">
-              <span className="font-bold block text-foreground">
-                مهر و امضای دیجیتال سامانه مودیان و آشیانک
-              </span>
-              <div className="size-14 mx-auto rounded-full border-2 border-dashed border-trust/60 flex items-center justify-center text-trust font-bold text-[10px] leading-tight p-1">
-                تایید مالیاتی سامانه
-              </div>
-              <span className="text-[10px] text-muted-foreground block font-mono">
-                SIGN-SHA256 (نمونه): 4f8a...9c12
-              </span>
-            </div>
-
-            <div className="border border-border/70 rounded-xl p-3 text-center space-y-2 bg-card">
-              <span className="font-bold block text-foreground">
-                رسید تحویل خدمات به مهمان
-              </span>
-              <div className="h-14 flex items-center justify-center text-muted-foreground/80 text-[11px]">
-                تاییدیه الکترونیکی با ثبت ورود به اقامتگاه
-              </div>
-              <span className="text-[10px] text-muted-foreground block font-mono">
-                AUTH: OK-{payment.tracking_code || "VERIFIED"}
-              </span>
-            </div>
-          </div>
+          {/* Provenance */}
+          <p className="text-[10px] text-muted-foreground">
+            این صورتحساب توسط سامانه آشیانک صادر شده است.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

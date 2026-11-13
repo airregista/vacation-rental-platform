@@ -1,12 +1,9 @@
 import type { ComponentType } from "react"
 import { Landmark, Mountain, Sun, Tent, Trees, Waves, type LucideIcon } from "lucide-react"
-import { CoastScene } from "./scenes/coast"
-import { DesertScene } from "./scenes/desert"
-import { ForestScene } from "./scenes/forest"
-import { KashanScene } from "./scenes/kashan"
-import { MountainScene } from "./scenes/mountain"
-import { ZagrosScene } from "./scenes/zagros"
 import type { SceneId, SceneTier } from "./scene-types"
+
+/** A resolved hero scene component, rendered inside the diorama canvas. */
+export type HeroSceneComponent = ComponentType<{ quality: SceneTier }>
 
 export interface HeroSceneDefinition {
   id: SceneId
@@ -14,7 +11,12 @@ export interface HeroSceneDefinition {
   badge: string
   climate: string
   Icon: LucideIcon
-  Scene: ComponentType<{ quality: SceneTier }>
+  /**
+   * Lazy loader for the scene component. Scene modules pull in three.js, so
+   * they are only reachable through these dynamic imports — that keeps them
+   * out of the homepage's initial bundle.
+   */
+  loadScene: () => Promise<{ Scene: HeroSceneComponent }>
 }
 
 export const SCENES: HeroSceneDefinition[] = [
@@ -24,7 +26,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "حیاط ایرانی · کاشان",
     climate: "گرم و خشک",
     Icon: Landmark,
-    Scene: KashanScene,
+    loadScene: () => import("./scenes/kashan").then((m) => ({ Scene: m.KashanScene })),
   },
   {
     id: "forest",
@@ -32,7 +34,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "جنگل هیرکانی · ماسوله",
     climate: "معتدل و مرطوب",
     Icon: Trees,
-    Scene: ForestScene,
+    loadScene: () => import("./scenes/forest").then((m) => ({ Scene: m.ForestScene })),
   },
   {
     id: "desert",
@@ -40,7 +42,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "خانهٔ خشتی · یزد",
     climate: "بیابانی",
     Icon: Sun,
-    Scene: DesertScene,
+    loadScene: () => import("./scenes/desert").then((m) => ({ Scene: m.DesertScene })),
   },
   {
     id: "mountain",
@@ -48,7 +50,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "کوهستان سبلان · اردبیل",
     climate: "سرد کوهستانی",
     Icon: Mountain,
-    Scene: MountainScene,
+    loadScene: () => import("./scenes/mountain").then((m) => ({ Scene: m.MountainScene })),
   },
   {
     id: "zagros",
@@ -56,7 +58,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "سیاه‌چادر · زاگرس",
     climate: "نیمه‌خشک کوهپایه‌ای",
     Icon: Tent,
-    Scene: ZagrosScene,
+    loadScene: () => import("./scenes/zagros").then((m) => ({ Scene: m.ZagrosScene })),
   },
   {
     id: "coast",
@@ -64,7 +66,7 @@ export const SCENES: HeroSceneDefinition[] = [
     badge: "ساحل بندر لنگه",
     climate: "گرم و مرطوب",
     Icon: Waves,
-    Scene: CoastScene,
+    loadScene: () => import("./scenes/coast").then((m) => ({ Scene: m.CoastScene })),
   },
 ]
 
@@ -76,6 +78,10 @@ const SCENE_MAP: Record<SceneId, HeroSceneDefinition> = SCENES.reduce(
   {} as Record<SceneId, HeroSceneDefinition>
 )
 
+/**
+ * Metadata lookup (label/badge/climate/icon + lazy loader). This never
+ * returns a scene component synchronously — use `loadScene()` for that.
+ */
 export function getScene(id: SceneId): HeroSceneDefinition {
   return SCENE_MAP[id]
 }

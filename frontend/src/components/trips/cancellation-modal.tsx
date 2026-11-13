@@ -29,6 +29,7 @@ import { apiClient, ApiError } from "@/lib/api-client"
 import {
   describeCancellationPolicy,
   getCancellationPolicyLabel,
+  mapCancellationReason,
 } from "@/lib/cancellation-policy"
 import { formatFaPrice } from "@/lib/checkout-format"
 import { toPersianDigits } from "@/lib/format-fa"
@@ -59,33 +60,6 @@ const PREVIEW_FALLBACK =
   "امکان دریافت شرایط لغو این رزرو وجود ندارد. لطفاً دوباره تلاش کنید."
 
 const SUBMIT_FALLBACK = "لغو رزرو انجام نشد. لطفاً دوباره تلاش کنید."
-
-// Translate known backend cancellation failures to Persian. Unknown details
-// fall back to a Persian message so raw English never reaches the guest.
-function mapCancellationError(detail: string, fallback: string): string {
-  if (detail.includes("cannot be cancelled from status")) {
-    if (detail.includes("cancelled")) {
-      return "این رزرو قبلاً لغو شده است."
-    }
-    if (detail.includes("completed")) {
-      return "این رزرو به پایان رسیده و امکان لغو آن وجود ندارد."
-    }
-    return "این رزرو در وضعیتی نیست که بتوان آن را لغو کرد."
-  }
-  if (detail.includes("Host payout has already been settled")) {
-    return "تسویه حساب میزبان انجام شده و امکان لغو وجود ندارد."
-  }
-  if (detail.includes("check-in time has already arrived")) {
-    return "موعد تحویل اقامتگاه سپری شده و امکان لغو وجود ندارد."
-  }
-  if (detail.includes("Reservation not found")) {
-    return "رزرو موردنظر یافت نشد."
-  }
-  if (detail.includes("Access forbidden")) {
-    return "شما به این رزرو دسترسی ندارید."
-  }
-  return /[\u0600-\u06FF]/.test(detail) ? detail : fallback
-}
 
 function formatHoursToCheckin(value: number | null | undefined): string {
   const hours = Number(value)
@@ -194,7 +168,7 @@ function CancellationModalContent({
         if (!isCurrent || requestId !== previewRequestIdRef.current) return
         if (err instanceof ApiError) {
           setPreviewError(
-            mapCancellationError(err.detail || err.message, PREVIEW_FALLBACK)
+            mapCancellationReason(err.detail || err.message, PREVIEW_FALLBACK)
           )
         } else {
           setPreviewError(NETWORK_ERROR)
@@ -285,7 +259,7 @@ function CancellationModalContent({
 
       if (err instanceof ApiError) {
         setSubmitError(
-          mapCancellationError(err.detail || err.message, SUBMIT_FALLBACK)
+          mapCancellationReason(err.detail || err.message, SUBMIT_FALLBACK)
         )
       } else {
         setSubmitError(NETWORK_ERROR)

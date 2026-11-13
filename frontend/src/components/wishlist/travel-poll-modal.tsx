@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useIsMobile, useIsMounted } from "@/lib/use-responsive"
 import {
   Users,
   CheckCircle2,
@@ -10,10 +11,21 @@ import {
   Sparkles,
   Plus,
   Zap,
-  ChevronDown,
   Trash2,
 } from "lucide-react"
 import type { DatePollOption } from "@/types/wishlist"
+import {
+  COMPANIONS_STORAGE_KEY,
+  MAX_COMPANIONS,
+  STORAGE_KEY,
+  isFutureCheckIn,
+  loadPollState,
+  normalizeCompanionName,
+  serializeOptions,
+  uniqueId,
+  writeStorage,
+  type PollCompanion,
+} from "@/lib/travel-poll-storage"
 import {
   Dialog,
   DialogContent,
@@ -31,22 +43,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { JalaliDateField } from "@/components/shared/date-field"
-import { localTodayIso } from "@/lib/persian-calendar"
-
-const STORAGE_KEY = "ashianak_travel_date_poll"
-const LEGACY_STORAGE_KEY = "jabama_travel_date_poll"
-// Roster + proxy votes live only on this device (no backend poll exists).
-const COMPANIONS_STORAGE_KEY = "ashianak_travel_poll_companions"
-const MAX_COMPANIONS = 8
+import { CompanionRoster } from "./companion-roster"
 
 const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   {
@@ -87,153 +85,6 @@ const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   },
 ]
 
-interface PollCompanion {
-  id: string
-  name: string
-  // The option this companion is voting for, or null for no proxy vote.
-  optionId: string | null
-}
-
-function subscribeResize(callback: () => void) {
-  window.addEventListener("resize", callback)
-  return () => window.removeEventListener("resize", callback)
-}
-
-function getMobileSnapshot() {
-  return window.innerWidth < 640
-}
-
-function getServerMobileSnapshot() {
-  return false
-}
-
-const emptySubscribe = () => () => {}
-const getClientSnapshot = () => true
-const getServerClientSnapshot = () => false
-
-// An option is offerable only while its check-in is still in the future.
-function isFutureCheckIn(checkIn: string): boolean {
-  return checkIn > localTodayIso()
-}
-
-function isValidStoredPollOption(entry: unknown): entry is DatePollOption {
-  if (typeof entry !== "object" || entry === null) return false
-  const opt = entry as Record<string, unknown>
-  return (
-    typeof opt.id === "string" &&
-    opt.id.length > 0 &&
-    typeof opt.title === "string" &&
-    opt.title.length > 0 &&
-    typeof opt.votes === "number" &&
-    Number.isFinite(opt.votes) &&
-    opt.votes >= 0 &&
-    typeof opt.voted === "boolean" &&
-    (opt.voters === undefined ||
-      (Array.isArray(opt.voters) &&
-        opt.voters.every((voter) => typeof voter === "string"))) &&
-    typeof opt.check_in === "string" &&
-    opt.check_in.length > 0 &&
-    !isNaN(Date.parse(opt.check_in)) &&
-    typeof opt.check_out === "string" &&
-    opt.check_out.length > 0 &&
-    !isNaN(Date.parse(opt.check_out)) &&
-    opt.check_out > opt.check_in
-  )
-}
-
-function normalizeCompanionName(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ")
-}
-
-// Deterministic id generation keeps render/handler code pure (no Date.now)
-// while still avoiding collisions with ids loaded from storage.
-function uniqueId(prefix: string, existingIds: string[]): string {
-  let index = existingIds.length + 1
-  let id = `${prefix}_${index}`
-  while (existingIds.includes(id)) {
-    index += 1
-    id = `${prefix}_${index}`
-  }
-  return id
-}
-
-// Old storage may contain arbitrary/invalid companion entries. Keep only
-// usable names, enforce the limit, dedupe, and drop votes for removed options.
-function sanitizeCompanions(
-  entries: unknown,
-  optionIds: Set<string>
-): PollCompanion[] {
-  if (!Array.isArray(entries)) return []
-
-  const companions: PollCompanion[] = []
-  const seenNames = new Set<string>()
-
-  entries.forEach((entry) => {
-    if (companions.length >= MAX_COMPANIONS) return
-    if (typeof entry !== "object" || entry === null) return
-    const raw = entry as Record<string, unknown>
-    const name =
-      typeof raw.name === "string" ? normalizeCompanionName(raw.name) : ""
-    if (!name) return
-
-    const nameKey = name.toLocaleLowerCase()
-    if (seenNames.has(nameKey)) return
-    seenNames.add(nameKey)
-
-    const optionId =
-      typeof raw.optionId === "string" && optionIds.has(raw.optionId)
-        ? raw.optionId
-        : null
-
-    const baseId =
-      typeof raw.id === "string" && raw.id.length > 0
-        ? raw.id
-        : uniqueId(
-            "comp",
-            companions.map((companion) => companion.id)
-          )
-    const id = companions.some((companion) => companion.id === baseId)
-      ? uniqueId(
-          "comp",
-          companions.map((companion) => companion.id)
-        )
-      : baseId
-
-    companions.push({ id, name, optionId })
-  })
-
-  return companions
-}
-
-// Persist derived vote totals so the stored shape stays backwards compatible.
-function serializeOptions(
-  options: DatePollOption[],
-  companions: PollCompanion[]
-): DatePollOption[] {
-  return options.map((option) => {
-    const companionVoters = companions.filter(
-      (companion) => companion.optionId === option.id
-    )
-    return {
-      ...option,
-      votes: (option.voted ? 1 : 0) + companionVoters.length,
-      voters: [
-        ...(option.voted ? ["شما"] : []),
-        ...companionVoters.map((companion) => companion.name),
-      ],
-    }
-  })
-}
-
-function writeStorage(key: string, value: unknown) {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Storage may be unavailable or full; the in-memory poll still works.
-  }
-}
-
 export interface TravelPollModalProps {
   isOpen: boolean
   onClose: () => void
@@ -246,24 +97,14 @@ export function TravelPollModal({
   folderName = "سفرهای تابستانه شمال",
 }: TravelPollModalProps) {
   const router = useRouter()
-  const isMounted = useSyncExternalStore(
-    emptySubscribe,
-    getClientSnapshot,
-    getServerClientSnapshot
-  )
-  const isMobile = useSyncExternalStore(
-    subscribeResize,
-    getMobileSnapshot,
-    getServerMobileSnapshot
-  )
+  const isMounted = useIsMounted()
+  const isMobile = useIsMobile()
 
   // Seeds whose check-in has passed are never offered.
   const [options, setOptions] = useState<DatePollOption[]>(() =>
     INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in))
   )
   const [companions, setCompanions] = useState<PollCompanion[]>([])
-  const [newCompanionName, setNewCompanionName] = useState("")
-  const [companionError, setCompanionError] = useState<string | null>(null)
   const [isProposing, setIsProposing] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newCheckIn, setNewCheckIn] = useState("")
@@ -271,62 +112,8 @@ export function TravelPollModal({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      let loadedOptions: DatePollOption[] = INITIAL_POLL_OPTIONS.filter(
-        (opt) => isFutureCheckIn(opt.check_in)
-      )
-      let migratedFromLegacy = false
-
-      try {
-        const currentStored = localStorage.getItem(STORAGE_KEY)
-        const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY)
-        const stored = currentStored ?? legacyStored
-        migratedFromLegacy = currentStored === null && legacyStored !== null
-
-        if (stored) {
-          const parsed = JSON.parse(stored) as unknown
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const upcoming = parsed
-              .filter(isValidStoredPollOption)
-              .filter((opt) => isFutureCheckIn(opt.check_in))
-
-            if (upcoming.length > 0) {
-              // Old stored `voters` names are intentionally ignored: the
-              // hardcoded fake voters are replaced by the local roster.
-              // Keep only the first user vote for single-vote semantics.
-              const firstVotedIndex = upcoming.findIndex((opt) => opt.voted)
-              loadedOptions = upcoming.map((opt, index) => ({
-                ...opt,
-                voted: index === firstVotedIndex,
-                votes: 0,
-                voters: [],
-              }))
-            }
-          }
-        }
-      } catch {
-        // Fall back to the initial options.
-      }
-
-      if (migratedFromLegacy) {
-        try {
-          localStorage.removeItem(LEGACY_STORAGE_KEY)
-        } catch {
-          // Ignore storage failures.
-        }
-      }
-
-      let loadedCompanions: PollCompanion[] = []
-      try {
-        const storedCompanions = localStorage.getItem(COMPANIONS_STORAGE_KEY)
-        if (storedCompanions) {
-          loadedCompanions = sanitizeCompanions(
-            JSON.parse(storedCompanions),
-            new Set(loadedOptions.map((option) => option.id))
-          )
-        }
-      } catch {
-        // A corrupt roster is ignored rather than breaking the poll.
-      }
+      const { options: loadedOptions, companions: loadedCompanions } =
+        loadPollState(INITIAL_POLL_OPTIONS)
 
       setOptions(loadedOptions)
       setCompanions(loadedCompanions)
@@ -420,18 +207,16 @@ export function TravelPollModal({
     saveOptions(updated)
   }
 
-  const handleAddCompanion = (e: React.FormEvent) => {
-    e.preventDefault()
-    const name = normalizeCompanionName(newCompanionName)
+  // The roster parses/trims the input locally; validation (limit, dedupe)
+  // and persistence stay at this parent boundary. Returning the error
+  // message lets the roster display it and keep the input as typed.
+  const handleAddCompanion = (rawName: string): string | null => {
+    const name = normalizeCompanionName(rawName)
     if (!name) {
-      setCompanionError("نام همراه را وارد کنید.")
-      return
+      return "نام همراه را وارد کنید."
     }
     if (companions.length >= MAX_COMPANIONS) {
-      setCompanionError(
-        `حداکثر ${formatPersianNumber(MAX_COMPANIONS)} همراه قابل افزودن است.`
-      )
-      return
+      return `حداکثر ${formatPersianNumber(MAX_COMPANIONS)} همراه قابل افزودن است.`
     }
     if (
       companions.some(
@@ -439,8 +224,7 @@ export function TravelPollModal({
           companion.name.toLocaleLowerCase() === name.toLocaleLowerCase()
       )
     ) {
-      setCompanionError("این نام قبلاً در فهرست همراهان وجود دارد.")
-      return
+      return "این نام قبلاً در فهرست همراهان وجود دارد."
     }
 
     saveCompanions([
@@ -454,8 +238,7 @@ export function TravelPollModal({
         optionId: null,
       },
     ])
-    setNewCompanionName("")
-    setCompanionError(null)
+    return null
   }
 
   const handleRemoveCompanion = (companionId: string) => {
@@ -538,7 +321,7 @@ export function TravelPollModal({
     // Never finalize a past date range.
     if (!chosen || !isFutureCheckIn(chosen.check_in)) return
     onClose()
-    router.push(`/?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
+    router.push(`/search?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
   }
 
   const modalBody = (
@@ -711,152 +494,16 @@ export function TravelPollModal({
       </div>
 
       {/* Local companion roster + proxy votes */}
-      <div className="space-y-3 rounded-2xl border border-line/80 bg-paper-card p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <h4 className="flex items-center gap-1.5 text-sm font-black text-ink">
-              <Users className="size-4 text-brick" />
-              همراهان روی این دستگاه
-            </h4>
-            <p className="text-[11px] leading-5 text-ink-soft">
-              با افزودن نام همراهان، می‌توانید رأی آن‌ها را هم به‌صورت نیابتی
-              روی همین دستگاه ثبت کنید.
-            </p>
-          </div>
-          <Badge
-            variant="outline"
-            className="border-line bg-paper-deep/50 text-[11px] text-ink-soft"
-          >
-            {formatPersianNumber(companions.length)} از{" "}
-            {formatPersianNumber(MAX_COMPANIONS)} همراه
-          </Badge>
-        </div>
-
-        <form
-          onSubmit={handleAddCompanion}
-          className="flex flex-col gap-2 sm:flex-row"
-        >
-          <Input
-            value={newCompanionName}
-            onChange={(e) => {
-              setNewCompanionName(e.target.value)
-              if (companionError) setCompanionError(null)
-            }}
-            placeholder="نام همراه (مثلاً سارا)"
-            maxLength={30}
-            disabled={companions.length >= MAX_COMPANIONS}
-            className="border-line bg-paper text-right"
-            aria-label="نام همراه"
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={
-              !newCompanionName.trim() ||
-              companions.length >= MAX_COMPANIONS
-            }
-            className="shrink-0 gap-1.5"
-          >
-            <Plus className="size-4" />
-            <span>افزودن همراه</span>
-          </Button>
-        </form>
-
-        {companionError && (
-          <p className="text-xs text-destructive">{companionError}</p>
-        )}
-
-        {companions.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line bg-paper-deep/30 px-3 py-2 text-xs leading-6 text-ink-soft">
-            هنوز همراهی اضافه نکرده‌اید. رأی شما به‌تنهایی ثبت می‌شود.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {companions.map((companion) => {
-              const assignedOption =
-                options.find((option) => option.id === companion.optionId) ??
-                null
-
-              return (
-                <li
-                  key={companion.id}
-                  className="flex flex-wrap items-center gap-2 rounded-xl border border-line/70 bg-paper-deep/30 p-2"
-                >
-                  <span className="min-w-0 flex-1 truncate text-xs font-bold text-ink">
-                    {companion.name}
-                  </span>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`رأی نیابتی ${companion.name}`}
-                        className="max-w-[220px] gap-1.5 border-line bg-paper-card text-[11px] font-semibold text-ink shadow-none"
-                      >
-                        <span className="truncate">
-                          {assignedOption ? assignedOption.title : "بدون رأی"}
-                        </span>
-                        <ChevronDown className="size-3.5 shrink-0 text-ink-soft" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="max-w-[280px] border-line bg-paper-card"
-                    >
-                      <DropdownMenuLabel className="text-[11px] text-ink-soft">
-                        رأی نیابتی {companion.name}
-                      </DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleAssignCompanionVote(companion.id, null)
-                        }
-                        className="gap-2 text-xs"
-                      >
-                        {companion.optionId === null ? (
-                          <CheckCircle2 className="size-3.5 shrink-0 text-trust" />
-                        ) : (
-                          <span className="size-3.5 shrink-0" />
-                        )}
-                        <span>بدون رأی</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator className="bg-line" />
-                      {options.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          onClick={() =>
-                            handleAssignCompanionVote(companion.id, option.id)
-                          }
-                          className="gap-2 text-xs"
-                        >
-                          {companion.optionId === option.id ? (
-                            <CheckCircle2 className="size-3.5 shrink-0 text-trust" />
-                          ) : (
-                            <span className="size-3.5 shrink-0" />
-                          )}
-                          <span className="truncate">{option.title}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveCompanion(companion.id)}
-                    aria-label={`حذف ${companion.name}`}
-                    className="shrink-0 text-ink-soft hover:text-brick"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
+      <CompanionRoster
+        companions={companions}
+        options={options.map((option) => ({
+          id: option.id,
+          title: option.title,
+        }))}
+        onAdd={handleAddCompanion}
+        onRemove={handleRemoveCompanion}
+        onAssign={handleAssignCompanionVote}
+      />
 
       {/* Propose new candidate date */}
       {isProposing ? (

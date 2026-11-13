@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatFaNumber } from "@/lib/format-fa"
+import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -26,6 +27,7 @@ import { AvailabilityCalendar } from "@/components/accommodation/availability-ca
 import { ReviewsSection } from "@/components/accommodation/reviews-section"
 import { BookingWidget } from "@/components/accommodation/booking-widget"
 import type { AccommodationDetailData } from "@/types/detail"
+import type { WishlistItemResponse, WishlistToggleResponse } from "@/types/wishlist"
 
 interface AccommodationPageProps {
   params: Promise<{ id: string }>
@@ -34,6 +36,7 @@ interface AccommodationPageProps {
 export default function AccommodationDetailPage({ params }: AccommodationPageProps) {
   const resolvedParams = React.use(params)
   const accommodationId = Number(resolvedParams.id)
+  const { token, openOtpModal } = useAuth()
 
   const isInvalidId =
     !accommodationId ||
@@ -106,6 +109,43 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
     }
   }, [accommodationId, isInvalidId])
 
+  // Seed the heart from the user's real wishlist once we know who they are.
+  // Guests (no token) see the un-hearted state; toggling routes to the OTP
+  // modal instead. Bounded pagination, same contract as the wishlists page.
+  React.useEffect(() => {
+    if (!token || isInvalidId || !accommodationId) return
+
+    let isCurrent = true
+    const seedWishlistState = async () => {
+      try {
+        const limit = 100
+        let skip = 0
+        for (;;) {
+          const page = await apiClient.get<WishlistItemResponse[]>(
+            `/wishlists/?skip=${skip}&limit=${limit}`
+          )
+          const batch = Array.isArray(page) ? page : []
+          if (
+            isCurrent &&
+            batch.some((item) => item.accommodation_id === accommodationId)
+          ) {
+            setIsWishlisted(true)
+          }
+          if (batch.length < limit) break
+          skip += limit
+        }
+      } catch {
+        // Silent: an un-hearted default is safe; the toggle reconciles truth.
+      }
+    }
+
+    seedWishlistState()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [token, accommodationId, isInvalidId])
+
   const handleDateRangeChange = (inDate: string | null, outDate: string | null) => {
     setCheckIn(inDate)
     setCheckOut(outDate)
@@ -124,6 +164,35 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   }
 
   const formatPersian = formatFaNumber
+  // Persist the wishlist heart via the same toggle endpoint the search page
+  // uses. One accommodation per page, so a single pending ref guards it.
+  const pendingWishlistRef = React.useRef<number | null>(null)
+  const handleToggleWishlist = async () => {
+    if (!token) {
+      openOtpModal()
+      return
+    }
+    if (pendingWishlistRef.current === accommodationId) return
+
+    const previous = isWishlisted
+    pendingWishlistRef.current = accommodationId
+    setIsWishlisted(!previous)
+
+    try {
+      const res = await apiClient.post<WishlistToggleResponse>(
+        `/wishlists/${accommodationId}/toggle`
+      )
+      if (res && typeof res.is_favorite === "boolean") {
+        setIsWishlisted(res.is_favorite)
+      }
+    } catch (err) {
+      console.error("Failed to toggle wishlist:", err)
+      setIsWishlisted(previous)
+      setErrorMessage("خطا در ثبت نشان. لطفا دوباره تلاش کنید.")
+    } finally {
+      pendingWishlistRef.current = null
+    }
+  }
 
   // 1. Defensive ID Guard & 404 / Error State
   if (isInvalidId || errorStatus === 404) {
@@ -308,7 +377,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsWishlisted(!isWishlisted)}
+              onClick={handleToggleWishlist}
               className="h-9 gap-1.5 border-line bg-paper-card text-xs text-ink shadow-none hover:bg-paper"
             >
               <Heart
@@ -326,7 +395,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
           images={data.images}
           title={data.title}
           isFavorite={isWishlisted}
-          onToggleFavorite={() => setIsWishlisted(!isWishlisted)}
+          onToggleFavorite={handleToggleWishlist}
         />
 
         {/* Two-Column Responsive Layout */}
