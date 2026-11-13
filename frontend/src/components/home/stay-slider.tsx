@@ -65,10 +65,10 @@ function toStay(item: AccommodationListItem, index: number): Stay {
 }
 
 /**
- * Cover images come from the API (relative /uploads URLs after upload) or a
- * static /prototype fallback; both are same-origin, so next/image optimizes
- * them by default. Seed/demo cover URLs can rot; keep the editorial
- * composition intact.
+ * Cover images come from the API (relative /uploads URLs after upload), a
+ * static /prototype fallback, or an arbitrary external URL (hosts/tests can
+ * paste any image host). next/image throws on external hostnames that are not
+ * configured in next.config images, so external URLs pass through unoptimized.
  */
 function StayImage({
   stay,
@@ -91,6 +91,7 @@ function StayImage({
       fill
       priority={priority}
       sizes={sizes}
+      unoptimized={!src.startsWith("/")}
       onError={() => {
         if (!failed && src !== stay.fallback) {
           setFailed(true)

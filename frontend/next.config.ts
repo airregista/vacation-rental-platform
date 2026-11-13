@@ -13,6 +13,14 @@ const apiOrigin = (() => {
   }
 })()
 
+// In development React needs eval() for debugging features (error overlay,
+// callstack reconstruction), so the CSP gains 'unsafe-eval' there only.
+// Production React never uses eval — the header below stays strict.
+const isDev = process.env.NODE_ENV === "development"
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'"
+
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -29,7 +37,7 @@ const securityHeaders = [
       // a nonce workflow via middleware/proxy is the follow-up (see
       // frontend/AGENTS.md). The inline ThemeScript is a compile-time
       // constant, so it cannot drift into unvetted code.
-      "script-src 'self' 'unsafe-inline'",
+      scriptSrc,
       // Next's inline style bootstrapping and the invoice modal's inline
       // <style> need 'unsafe-inline' for styles.
       "style-src 'self' 'unsafe-inline'",
