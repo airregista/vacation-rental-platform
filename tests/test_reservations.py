@@ -1200,7 +1200,7 @@ async def test_host_cannot_book_own_accommodation(client: AsyncClient, admin_tok
             "city_id": cities.json()[0]["id"],
             "host_id": host_id,
             "title": f"Self Booking Guard {uid}",
-            "address": "?????? ??? ???? ????? ???? ?",
+            "address": "تهران، تست رزرو خودی، پلاک ۱",
             "base_price": 1000000,
             "capacity": 2,
             "max_capacity": 3,

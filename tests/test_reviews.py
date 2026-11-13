@@ -773,7 +773,7 @@ async def test_host_cannot_review_own_accommodation(client: AsyncClient, admin_t
             "city_id": cities.json()[0]["id"],
             "host_id": host_id,
             "title": f"Self Review Guard {uid}",
-            "address": "?????? ??? ??? ????? ???? ?",
+            "address": "تهران، تست نقد خودی، پلاک ۲",
             "base_price": 1000000,
             "capacity": 2,
             "max_capacity": 3,
