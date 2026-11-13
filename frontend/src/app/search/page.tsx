@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/context/auth-context"
 import { fetchAllPages } from "@/lib/pagination"
 import { buildAccommodationQuery, parseAccommodationQuery } from "@/lib/search-utils"
+import { toPersianDigits, formatFaNumber } from "@/lib/format-fa"
 import type {
   AccommodationListItem,
   AccommodationSearchParams,
@@ -16,6 +17,10 @@ import { FilterDialog } from "@/components/explore/filter-dialog"
 import { AccommodationGrid } from "@/components/explore/accommodation-grid"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, RotateCcw } from "lucide-react"
+
+// Matches the backend's default page size; sent explicitly so the contract is
+// pinned and the default can never silently truncate the catalog.
+const PAGE_SIZE = 20
 
 function SearchContent() {
   const searchParamsHook = useSearchParams()
@@ -101,7 +106,15 @@ function SearchContent() {
     let isMounted = true
     const seq = ++fetchSeqRef.current
     const isLatest = () => isMounted && seq === fetchSeqRef.current
-    const queryString = buildAccommodationQuery(searchParams)
+
+    // `skip` is the source of truth for the current page (deep-linkable via URL).
+    const page = Math.floor((searchParams.skip ?? 0) / PAGE_SIZE)
+    const pagedParams: AccommodationSearchParams = {
+      ...searchParams,
+      skip: page * PAGE_SIZE,
+      limit: PAGE_SIZE,
+    }
+    const queryString = buildAccommodationQuery(pagedParams)
 
     // Trailing slash avoids FastAPI's 307 redirect.
     apiClient
@@ -150,11 +163,22 @@ function SearchContent() {
     setSearchKey((k) => k + 1)
   }
 
+  const goToPage = (page: number) => {
+    setIsLoading(true)
+    setSearchParams((prev) => ({ ...prev, skip: page * PAGE_SIZE }))
+    document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   const handleRetry = () => {
     setIsLoading(true)
     setFetchError(null)
     setReloadTrigger((r) => r + 1)
   }
+
+  // `skip` is the source of truth for the current page (deep-linkable via URL).
+  const currentPage = Math.floor((searchParams.skip ?? 0) / PAGE_SIZE)
+  // The only has-more signal available: the last fetch filled a full page.
+  const hasMorePages = !isLoading && !fetchError && accommodations.length === PAGE_SIZE
 
   const handleToggleWishlist = async (id: number) => {
     if (!token) {
@@ -225,7 +249,7 @@ function SearchContent() {
         onApplyFilters={handleApplyFilters}
       />
 
-      <section aria-label="محتوای اقامتگاه‌ها" className="flex-1 py-6 sm:py-8">
+      <section aria-label="محتوای اقامتگاه‌ها" id="results" className="flex-1 py-6 sm:py-8 scroll-mt-24">
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -236,7 +260,7 @@ function SearchContent() {
             </div>
             {!isLoading && !fetchError ? (
               <p className="text-xs text-ink-soft">
-                {new Intl.NumberFormat("fa-IR").format(accommodations.length)} اقامتگاه
+                {formatFaNumber(accommodations.length)} اقامتگاه در این صفحه
               </p>
             ) : null}
           </div>
@@ -270,6 +294,32 @@ function SearchContent() {
               onClearFilters={handleClearFilters}
             />
           )}
+
+          {!isLoading && !fetchError && accommodations.length > 0 ? (
+            <nav aria-label="صفحه‌بندی نتایج" className="mt-8 flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentPage === 0}
+                onClick={() => goToPage(currentPage - 1)}
+                className="rounded-full border-line text-xs font-semibold"
+              >
+                قبلی
+              </Button>
+              {currentPage > 0 ? (
+                <span className="text-xs text-ink-soft">صفحهٔ {toPersianDigits(currentPage + 1)}</span>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!hasMorePages}
+                onClick={() => goToPage(currentPage + 1)}
+                className="rounded-full border-line text-xs font-semibold"
+              >
+                بعدی
+              </Button>
+            </nav>
+          ) : null}
         </div>
       </section>
     </div>
