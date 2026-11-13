@@ -22,6 +22,14 @@ export function formatPersianDate(dateStr: string): string {
   }
 }
 
+const faNumberFormatter = new Intl.NumberFormat("fa-IR")
+
+/** Persian digits with grouping, canonical implementation for every price and count display. */
+export function formatFaNumber(value: number | string | null | undefined): string {
+  const parsed = typeof value === "number" ? value : Number(value ?? 0)
+  return faNumberFormatter.format(Number.isFinite(parsed) ? parsed : 0)
+}
+
 export function formatMessageTime(isoString: string): string {
   try {
     const d = new Date(isoString)

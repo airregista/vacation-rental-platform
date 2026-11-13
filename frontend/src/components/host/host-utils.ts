@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api-client"
+import { formatFaNumber } from "@/lib/format-fa"
 import type { HostImageRecord } from "./types"
 
 /** Signature image first, then the host-defined order. */
@@ -10,10 +11,7 @@ export function sortHostImages(images: HostImageRecord[]): HostImageRecord[] {
 }
 
 /** Persian digits with grouping, used for every price and count in the host area. */
-export function formatFaNumber(value: number | string | null | undefined): string {
-  const parsed = typeof value === "number" ? value : Number(value ?? 0)
-  return new Intl.NumberFormat("fa-IR").format(Number.isFinite(parsed) ? parsed : 0)
-}
+export { formatFaNumber }
 
 export function formatToman(value: number | string | null | undefined): string {
   return formatFaNumber(value)

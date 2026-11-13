@@ -4,19 +4,18 @@ import type {
   AdminUser,
   PayoutStatus,
 } from "@/components/admin/types"
+import { formatFaNumber } from "@/lib/format-fa"
 
 export function toAmount(value: number | string | null | undefined): number {
   const numeric = Number(value ?? 0)
   return Number.isFinite(numeric) ? numeric : 0
 }
 
-export function formatToman(value: number | string | null | undefined): string {
-  return new Intl.NumberFormat("fa-IR").format(toAmount(value))
-}
+export { formatFaNumber }
 
-export function formatCount(value: number): string {
-  return new Intl.NumberFormat("fa-IR").format(value)
-}
+export const formatToman = formatFaNumber
+
+export const formatCount = formatFaNumber
 
 export function userDisplayName(user: AdminUser | undefined): string {
   if (!user) return "کاربر آشیانک"
