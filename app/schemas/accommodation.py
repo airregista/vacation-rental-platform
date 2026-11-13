@@ -50,6 +50,10 @@ class AccommodationImageResponse(BaseModel):
     sort_order: int
 
 
+class AccommodationImageOrder(BaseModel):
+    image_ids: list[int] = Field(min_length=1)
+
+
 class PricingExceptionCreate(BaseModel):
     date: date
     price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=0)

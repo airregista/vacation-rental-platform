@@ -40,6 +40,7 @@ from app.schemas.accommodation import (
     AccommodationCreate,
     AccommodationDetail,
     AccommodationImageCreate,
+    AccommodationImageOrder,
     AccommodationImageResponse,
     AccommodationListItem,
     AccommodationUpdate,
@@ -1079,13 +1080,12 @@ async def create_accommodation(
     await db.flush()
 
     # Add images
-    has_explicit_cover = any(img.is_cover for img in acc_in.images)
+    first_cover_idx = next((idx for idx, img in enumerate(acc_in.images) if img.is_cover), 0)
     for idx, img in enumerate(acc_in.images):
-        is_cover = img.is_cover if has_explicit_cover else (idx == 0)
         image = AccommodationImage(
             accommodation_id=accommodation.id,
             image_url=img.image_url,
-            is_cover=is_cover,
+            is_cover=idx == first_cover_idx,
             sort_order=img.sort_order or idx,
         )
         db.add(image)
@@ -1244,25 +1244,43 @@ async def add_accommodation_image(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> AccommodationImageResponse:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+            )
+        )
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
     _require_host_or_admin(acc, current_user)
 
-    if img_in.is_cover:
-        # Reset other covers
-        reset_stmt = select(AccommodationImage).where(
-            AccommodationImage.accommodation_id == id, AccommodationImage.is_cover.is_(True)
+    has_images = (
+        await db.execute(
+            select(AccommodationImage.id).where(AccommodationImage.accommodation_id == id).limit(1)
         )
-        existing_covers = (await db.execute(reset_stmt)).scalars().all()
-        for c in existing_covers:
-            c.is_cover = False
+    ).scalars().first() is not None
+
+    make_cover = img_in.is_cover or not has_images
+    if make_cover:
+        await db.execute(
+            update(AccommodationImage)
+            .where(
+                AccommodationImage.accommodation_id == id,
+                AccommodationImage.is_cover.is_(True),
+            )
+            .values(is_cover=False)
+        )
 
     image = AccommodationImage(
         accommodation_id=id,
         image_url=img_in.image_url,
-        is_cover=img_in.is_cover,
+        is_cover=make_cover,
         sort_order=img_in.sort_order,
     )
     db.add(image)
@@ -1278,7 +1296,17 @@ async def remove_accommodation_image(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> None:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+            )
+        )
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
@@ -1295,8 +1323,78 @@ async def remove_accommodation_image(
             detail="Accommodation image not found",
         )
 
+    was_cover = image.is_cover
     await db.delete(image)
+    if was_cover:
+        await db.flush()
+        replacement = (
+            (
+                await db.execute(
+                    select(AccommodationImage)
+                    .where(AccommodationImage.accommodation_id == id)
+                    .order_by(AccommodationImage.sort_order, AccommodationImage.id)
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if replacement:
+            replacement.is_cover = True
     await db.commit()
+
+
+@router.put(
+    "/{id}/images/order",
+    response_model=list[AccommodationImageResponse],
+)
+async def reorder_accommodation_images(
+    id: int,
+    order_in: AccommodationImageOrder,
+    current_user: CurrentUserDep,
+    db: SessionDep,
+) -> list[AccommodationImageResponse]:
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+
+    _require_host_or_admin(acc, current_user)
+
+    images = (
+        (
+            await db.execute(
+                select(AccommodationImage).where(AccommodationImage.accommodation_id == id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    existing_ids = {img.id for img in images}
+    requested_ids = order_in.image_ids
+    if len(set(requested_ids)) != len(requested_ids) or set(requested_ids) != existing_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=("image_ids must contain every image of this accommodation exactly once"),
+        )
+
+    by_id = {img.id: img for img in images}
+    for position, image_id in enumerate(requested_ids):
+        by_id[image_id].sort_order = position
+
+    await db.commit()
+    return [
+        AccommodationImageResponse.model_validate(by_id[image_id]) for image_id in requested_ids
+    ]
 
 
 @router.post("/{id}/images/{image_id}/cover", response_model=AccommodationImageResponse)
@@ -1306,31 +1404,63 @@ async def set_accommodation_cover_image(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> AccommodationImageResponse:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+            )
+        )
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
     _require_host_or_admin(acc, current_user)
 
-    stmt = select(AccommodationImage).where(
-        AccommodationImage.id == image_id,
-        AccommodationImage.accommodation_id == id,
+    target = (
+        (
+            await db.execute(
+                select(AccommodationImage).where(
+                    AccommodationImage.id == image_id,
+                    AccommodationImage.accommodation_id == id,
+                )
+            )
+        )
+        .scalars()
+        .first()
     )
-    image = (await db.execute(stmt)).scalars().first()
-    if not image:
+    if not target:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Accommodation image not found",
         )
 
-    reset_stmt = select(AccommodationImage).where(AccommodationImage.accommodation_id == id)
-    for img in (await db.execute(reset_stmt)).scalars().all():
-        img.is_cover = False
-    image.is_cover = True
+    # Clear the current cover with an immediate bulk UPDATE, then promote
+    # the target. Assigning both flags in one flush can violate the partial
+    # unique index depending on UPDATE order.
+    await db.execute(
+        update(AccommodationImage)
+        .where(
+            AccommodationImage.accommodation_id == id,
+            AccommodationImage.is_cover.is_(True),
+        )
+        .values(is_cover=False)
+    )
+    target.is_cover = True
 
-    await db.commit()
-    await db.refresh(image)
-    return AccommodationImageResponse.model_validate(image)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cover image changed concurrently; retry",
+        ) from None
+    await db.refresh(target)
+    return AccommodationImageResponse.model_validate(target)
 
 
 @router.post("/{id}/pricing-exceptions", response_model=PricingExceptionResponse)
