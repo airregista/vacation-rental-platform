@@ -76,9 +76,7 @@ def _install_getaddrinfo(monkeypatch: pytest.MonkeyPatch, addresses: list[str]) 
     def fake_getaddrinfo(host: str, port: int, *args: object, **kwargs: object):
         return [("", "", "", "", (address, port)) for address in addresses]
 
-    monkeypatch.setattr(
-        accommodations_module.socket, "getaddrinfo", fake_getaddrinfo
-    )
+    monkeypatch.setattr(accommodations_module.socket, "getaddrinfo", fake_getaddrinfo)
 
 
 @pytest.mark.parametrize(
@@ -163,9 +161,7 @@ def test_save_time_validation_does_not_resolve_dns(monkeypatch: pytest.MonkeyPat
         calls.append(host)
         return [("", "", "", "", ("127.0.0.1", port))]
 
-    monkeypatch.setattr(
-        accommodations_module.socket, "getaddrinfo", fake_getaddrinfo
-    )
+    monkeypatch.setattr(accommodations_module.socket, "getaddrinfo", fake_getaddrinfo)
     validate_external_feed_url("https://example.com/feed.ics", resolve=False)
     assert calls == []
 
@@ -314,9 +310,7 @@ async def test_sync_reconciles_ical_owned_rows(
         )
         await session.commit()
 
-    sync_url = (
-        f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync"
-    )
+    sync_url = f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync"
     monkeypatch.setattr(
         accommodations_module.httpx,
         "AsyncClient",
@@ -332,8 +326,7 @@ async def test_sync_reconciles_ical_owned_rows(
             for row in (
                 await session.execute(
                     select(PricingException).where(
-                        PricingException.accommodation_id
-                        == external_calendar_accommodation.id
+                        PricingException.accommodation_id == external_calendar_accommodation.id
                     )
                 )
             )
@@ -366,8 +359,7 @@ async def test_sync_reconciles_ical_owned_rows(
             for row in (
                 await session.execute(
                     select(PricingException).where(
-                        PricingException.accommodation_id
-                        == external_calendar_accommodation.id
+                        PricingException.accommodation_id == external_calendar_accommodation.id
                     )
                 )
             )
@@ -420,14 +412,17 @@ async def test_empty_feed_clears_ical_block_on_priced_row(
 
     async with AsyncSessionLocal() as session:
         row = (
-            await session.execute(
-                select(PricingException).where(
-                    PricingException.accommodation_id
-                    == external_calendar_accommodation.id,
-                    PricingException.date == priced_date,
+            (
+                await session.execute(
+                    select(PricingException).where(
+                        PricingException.accommodation_id == external_calendar_accommodation.id,
+                        PricingException.date == priced_date,
+                    )
                 )
             )
-        ).scalars().one()
+            .scalars()
+            .one()
+        )
 
     assert row.price == Decimal("123000")
     assert row.manual_blocked is False
@@ -500,15 +495,82 @@ async def test_manual_block_survives_ical_removal(
 
     async with AsyncSessionLocal() as session:
         row = (
-            await session.execute(
-                select(PricingException).where(
-                    PricingException.accommodation_id
-                    == external_calendar_accommodation.id,
-                    PricingException.date == blocked_date,
+            (
+                await session.execute(
+                    select(PricingException).where(
+                        PricingException.accommodation_id == external_calendar_accommodation.id,
+                        PricingException.date == blocked_date,
+                    )
                 )
             )
-        ).scalars().one()
+            .scalars()
+            .one()
+        )
 
     assert row.manual_blocked is True
     assert row.ical_blocked is False
     assert row.is_blocked is True
+
+
+@pytest.mark.asyncio
+async def test_sync_fetches_outside_transaction(
+    client: AsyncClient,
+    external_calendar_accommodation: Accommodation,
+    hardening_host_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.database import get_db
+    from app.main import app
+
+    captured = {}
+
+    async def override_get_db():
+        async with AsyncSessionLocal() as session:
+            captured["session"] = session
+            yield session
+            await session.commit()
+
+    # The existing helper is ``_ics_for_dates(dates: list[date])`` and emits
+    # one one-day VEVENT per date. It does not accept YYYYMMDD strings.
+    blocked = [
+        date.today() + timedelta(days=10),
+        date.today() + timedelta(days=11),
+        date.today() + timedelta(days=12),
+    ]
+
+    async def fake_fetch(url: str) -> str:
+        assert captured["session"].in_transaction() is False
+        return _ics_for_dates(blocked)
+
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(accommodations_module, "_fetch_calendar_feed", fake_fetch)
+    try:
+        resp = await client.post(
+            f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync",
+            headers=hardening_host_headers,
+        )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.json()["blocked_days_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_sync_timeout_maps_to_504(
+    client: AsyncClient,
+    external_calendar_accommodation: Accommodation,
+    hardening_host_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def boom(url: str) -> str:
+        raise TimeoutError
+
+    monkeypatch.setattr(accommodations_module, "_fetch_calendar_feed", boom)
+    resp = await client.post(
+        f"/api/v1/accommodations/{external_calendar_accommodation.id}/calendar/sync",
+        headers=hardening_host_headers,
+    )
+    assert resp.status_code == status.HTTP_504_GATEWAY_TIMEOUT
+    assert "timed out" in resp.json()["detail"].lower()
+    assert "https://" not in resp.text
