@@ -51,12 +51,20 @@ const nextConfig: NextConfig = {
   // Uploaded accommodation images are served by the FastAPI backend as
   // `/uploads/<file>`. Proxying that path keeps stored URLs relative, so they
   // work in <img> tags everywhere without rewriting every render site.
+  // The backend generates flat ASCII names (`uuid4().hex` + `.jpg/.png/.webp`),
+  // so the source matches exactly one such filename segment — no `:path*`,
+  // slashes, or percent-encoded traversal forms are relayed to the backend.
   async rewrites() {
     const backend = (process.env.BACKEND_ORIGIN || "http://127.0.0.1:8000").replace(
       /\/+$/,
       ""
     )
-    return [{ source: "/uploads/:path*", destination: `${backend}/uploads/:path*` }]
+    return [
+      {
+        source: "/uploads/:file([A-Za-z0-9._-]+)",
+        destination: `${backend}/uploads/:file`,
+      },
+    ]
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }]
