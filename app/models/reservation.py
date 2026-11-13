@@ -15,8 +15,11 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    column,
     func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -58,6 +61,20 @@ class Reservation(Base):
         Index("ix_reservations_overlap", "accommodation_id", "status", "check_in", "check_out"),
         Index("ix_reservations_user_created", "user_id", "created_at"),
         Index("ix_reservations_status_created", "status", "created_at"),
+        ExcludeConstraint(
+            (column("accommodation_id"), "="),
+            (
+                func.daterange(
+                    column("check_in"),
+                    column("check_out"),
+                    text("'[)'"),
+                ),
+                "&&",
+            ),
+            name="ex_reservations_no_overlap",
+            using="gist",
+            where=text("status = 'confirmed'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
@@ -122,4 +139,3 @@ class ReservationMessage(Base):
 
     reservation: Mapped["Reservation"] = relationship("Reservation", back_populates="messages")
     sender: Mapped["User"] = relationship("User")
-
