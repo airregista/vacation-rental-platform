@@ -9,12 +9,7 @@ import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Button } from "@/components/ui/button"
 import { applyTheme, isTheme, THEME_KEY } from "@/lib/theme"
 
-export default function GlobalError({
-  retry,
-}: {
-  error: unknown
-  retry: () => void
-}) {
+export default function GlobalError({ retry }: { error: unknown; retry: () => void }) {
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(THEME_KEY)
@@ -56,25 +51,16 @@ export default function GlobalError({
             در اجرای این صفحه مشکلی پیش آمد
           </h1>
           <p className="relative mx-auto mt-3 max-w-sm text-sm leading-8 text-ink-soft">
-            ممکن است یک اختلال موقت شبکه یا خطای پیش‌بینی‌نشده رخ داده باشد.
-            یک‌بار دیگر تلاش کنید؛ اگر مشکل ادامه داشت به خانه برگردید و بعداً
-            دوباره سر بزنید.
+            ممکن است یک اختلال موقت شبکه یا خطای پیش‌بینی‌نشده رخ داده باشد. یک‌بار دیگر تلاش کنید؛
+            اگر مشکل ادامه داشت به خانه برگردید و بعداً دوباره سر بزنید.
           </p>
 
           <div className="relative mt-7 flex flex-col justify-center gap-2 sm:flex-row">
-            <Button
-              type="button"
-              onClick={() => retry()}
-              className="gap-2"
-            >
+            <Button type="button" onClick={() => retry()} className="gap-2">
               <RotateCcw className="size-4" />
               تلاش دوباره
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="gap-2 bg-paper-card shadow-none"
-            >
+            <Button asChild variant="outline" className="gap-2 bg-paper-card shadow-none">
               <Link href="/">
                 <Home className="size-4" />
                 بازگشت به خانه

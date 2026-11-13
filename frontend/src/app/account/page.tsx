@@ -85,8 +85,7 @@ export default function AccountPage() {
     )
   }
 
-  const displayName =
-    [user.first_name, user.last_name].filter(Boolean).join(" ") || "کاربر آشیانک"
+  const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || "کاربر آشیانک"
   const initials =
     user.first_name && user.last_name
       ? `${user.first_name[0]} ${user.last_name[0]}`
@@ -131,9 +130,7 @@ export default function AccountPage() {
                 <h2 className="truncate text-xl font-black text-ink">{displayName}</h2>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
                   <Phone className="size-3.5 text-brick" />
-                  <span className="tabular-nums">
-                    {toPersianDigits(user.phone)}
-                  </span>
+                  <span className="tabular-nums">{toPersianDigits(user.phone)}</span>
                 </p>
               </div>
               <span className="rounded-full border border-line bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
@@ -152,7 +149,12 @@ export default function AccountPage() {
               <p className="text-[11px] font-bold tracking-[0.18em] text-brick">میان‌برهای من</p>
               <div className="mt-3 space-y-1">
                 <QuickLink href="/trips" icon={Luggage} label="سفرهای من" hint="رزروها و گفتگو" />
-                <QuickLink href="/wishlists" icon={Heart} label="نشان‌شده‌ها" hint="اقامتگاه‌های ذخیره‌شده" />
+                <QuickLink
+                  href="/wishlists"
+                  icon={Heart}
+                  label="نشان‌شده‌ها"
+                  hint="اقامتگاه‌های ذخیره‌شده"
+                />
                 {isHost ? (
                   <QuickLink
                     href="/host/dashboard"
@@ -185,17 +187,15 @@ export default function AccountPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-ink">حالت نمایش</p>
-                  <p className="mt-0.5 text-[11px] text-ink-soft">
-                    روشن، تاریک یا همراه با سیستم
-                  </p>
+                  <p className="mt-0.5 text-[11px] text-ink-soft">روشن، تاریک یا همراه با سیستم</p>
                 </div>
                 <ThemeToggle className="border border-line bg-paper text-ink" />
               </div>
               <Separator className="my-4 bg-line/70" />
               <div className="flex items-start gap-2 text-[11px] leading-6 text-ink-soft">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" />
-                اطلاعات شما رمزنگاری‌شده نگه‌داری می‌شود و بدون اجازه در اختیار
-                میزبان قرار نمی‌گیرد.
+                اطلاعات شما رمزنگاری‌شده نگه‌داری می‌شود و بدون اجازه در اختیار میزبان قرار
+                نمی‌گیرد.
               </div>
             </CardContent>
           </Card>
@@ -275,9 +275,7 @@ function ProfileForm({ user }: { user: UserResponse }) {
       setSaved(true)
     } catch (err: unknown) {
       setError(
-        err instanceof ApiError
-          ? err.detail
-          : "ذخیرهٔ اطلاعات انجام نشد. لطفاً دوباره تلاش کنید."
+        err instanceof ApiError ? err.detail : "ذخیرهٔ اطلاعات انجام نشد. لطفاً دوباره تلاش کنید.",
       )
     } finally {
       setIsSaving(false)
@@ -288,9 +286,7 @@ function ProfileForm({ user }: { user: UserResponse }) {
     <CardContent className="p-5 sm:p-6">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">
-            اطلاعات شخصی
-          </p>
+          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">اطلاعات شخصی</p>
           <h3 className="mt-1 text-lg font-black text-ink">مشخصات شما</h3>
           <p className="mt-1 text-xs leading-6 text-ink-soft">
             نامی که اینجا می‌نویسید روی قرارداد و فاکتور رزروها استفاده می‌شود.
@@ -374,11 +370,7 @@ function ProfileForm({ user }: { user: UserResponse }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line/70 pt-4">
           <Button type="submit" disabled={isSaving || !isDirty} className="gap-2 font-bold">
-            {isSaving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
-            )}
+            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             <span>{isSaving ? "در حال ذخیره..." : "ذخیرهٔ تغییرات"}</span>
           </Button>
           <span className="text-[11px] text-ink-soft">

@@ -1,7 +1,12 @@
 export interface HostAccommodationItem {
   id: number
   title: string
-  city: { id: number; province_id: number; name: string; province: { id: number; name: string } | null } | null
+  city: {
+    id: number
+    province_id: number
+    name: string
+    province: { id: number; name: string } | null
+  } | null
   base_price: number
   is_active: boolean
   average_rating: number | null

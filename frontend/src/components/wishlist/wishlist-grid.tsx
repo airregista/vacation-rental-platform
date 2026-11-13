@@ -2,16 +2,9 @@
 
 import * as React from "react"
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
-import {
-  Heart,
-  Star,
-  MapPin,
-  Compass,
-  Sparkles,
-  Check,
-  FolderPlus,
-} from "lucide-react"
+import { Heart, Star, MapPin, Compass, Sparkles, Check, FolderPlus } from "lucide-react"
 import type { WishlistFolder, WishlistItemResponse } from "@/types/wishlist"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
@@ -96,8 +89,7 @@ export function WishlistGrid({
           [acc.city?.province?.name, acc.city?.name].filter(Boolean).join("، ") || "ایران"
 
         const numericPrice = Math.round(Number(acc.base_price) || 0)
-        const formattedPrice =
-          new Intl.NumberFormat("fa-IR").format(numericPrice) + " تومان / شب"
+        const formattedPrice = new Intl.NumberFormat("fa-IR").format(numericPrice) + " تومان / شب"
 
         const averageRating =
           acc.average_rating !== null && acc.average_rating !== undefined
@@ -114,9 +106,7 @@ export function WishlistGrid({
               }).format(averageRating)
             : null
 
-        const formattedReviewsCount = new Intl.NumberFormat("fa-IR").format(
-          acc.reviews_count || 0
-        )
+        const formattedReviewsCount = new Intl.NumberFormat("fa-IR").format(acc.reviews_count || 0)
 
         return (
           <Card
@@ -125,18 +115,28 @@ export function WishlistGrid({
           >
             {/* Cover image container */}
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-paper-deep">
-              <Link
-                href={`/accommodations/${item.accommodation_id}`}
-                className="block size-full"
-              >
+              <Link href={`/accommodations/${item.accommodation_id}`} className="block size-full">
                 {!hasImgError ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={acc.cover_image!}
-                    alt={acc.title}
-                    onError={() => handleImageError(item.accommodation_id)}
-                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  acc.cover_image!.startsWith("/") ? (
+                    <Image
+                      src={acc.cover_image!}
+                      alt={acc.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                      onError={() => handleImageError(item.accommodation_id)}
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    // Hosts can paste arbitrary external image URLs; next/image
+                    // would reject those without a per-domain allowlist.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={acc.cover_image!}
+                      alt={acc.title}
+                      onError={() => handleImageError(item.accommodation_id)}
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )
                 ) : (
                   <div className="flex size-full flex-col items-center justify-center bg-paper-deep text-ink-soft">
                     <Compass className="mb-1 size-8 opacity-40" />
@@ -177,14 +177,12 @@ export function WishlistGrid({
                       .filter((folder) => folder.id !== "all")
                       .map((folder) => {
                         const isInFolder = (folder.accommodation_ids || []).includes(
-                          item.accommodation_id
+                          item.accommodation_id,
                         )
                         return (
                           <DropdownMenuItem
                             key={folder.id}
-                            onClick={() =>
-                              onToggleFolder(folder.id, item.accommodation_id)
-                            }
+                            onClick={() => onToggleFolder(folder.id, item.accommodation_id)}
                             className="cursor-pointer gap-2"
                           >
                             {isInFolder ? (
@@ -197,9 +195,7 @@ export function WishlistGrid({
                         )
                       })}
                     {folders.filter((folder) => folder.id !== "all").length === 0 && (
-                      <DropdownMenuItem disabled>
-                        هنوز پوشه‌ای نساخته‌اید
-                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>هنوز پوشه‌ای نساخته‌اید</DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -259,9 +255,7 @@ export function WishlistGrid({
                 <div className="text-[11px] text-ink-soft">
                   <span>شروع از</span>
                 </div>
-                <div className="text-sm font-black tabular-nums text-brick">
-                  {formattedPrice}
-                </div>
+                <div className="text-sm font-black tabular-nums text-brick">{formattedPrice}</div>
               </div>
             </CardContent>
           </Card>

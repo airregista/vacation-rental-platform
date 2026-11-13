@@ -50,21 +50,13 @@ export function useHeroRotation({
   cycleKey: string
   onAdvance: () => void
 }) {
-  const startPaused = React.useSyncExternalStore(
-    subscribeNever,
-    getInitialSceneLink,
-    () => false
-  )
+  const startPaused = React.useSyncExternalStore(subscribeNever, getInitialSceneLink, () => false)
   const reducedMotion = React.useSyncExternalStore(
     subscribeReducedMotion,
     getReducedMotion,
-    () => false
+    () => false,
   )
-  const hidden = React.useSyncExternalStore(
-    subscribeVisibility,
-    getHidden,
-    () => false
-  )
+  const hidden = React.useSyncExternalStore(subscribeVisibility, getHidden, () => false)
 
   const [autoPreference, setAutoPreference] = React.useState<boolean | null>(null)
   const [hovered, setHovered] = React.useState(false)
@@ -105,7 +97,7 @@ export function useHeroRotation({
     const remaining = manualPauseUntil - Date.now()
     const timer = window.setTimeout(
       () => advanceRef.current(),
-      remaining > 0 ? remaining : AUTO_ADVANCE_MS
+      remaining > 0 ? remaining : AUTO_ADVANCE_MS,
     )
     return () => window.clearTimeout(timer)
   }, [paused, cycleKey, manualPauseUntil])
@@ -124,10 +116,7 @@ export function useHeroRotation({
       onFocus: (event: React.FocusEvent) => {
         // Mouse clicks also focus buttons; only keyboard focus should halt
         // the carousel, otherwise a clicked pill would pause it forever.
-        if (
-          event.target instanceof HTMLElement &&
-          event.target.matches(":focus-visible")
-        ) {
+        if (event.target instanceof HTMLElement && event.target.matches(":focus-visible")) {
           setFocused(true)
         }
       },

@@ -61,12 +61,9 @@ export function PolicySelector({
   const freeHoursValue = freeHours ?? 24
   const penaltyPercentValue = penaltyPercent ?? 50
 
-  const freeHoursInvalid =
-    !Number.isInteger(freeHoursValue) || freeHoursValue < 0
+  const freeHoursInvalid = !Number.isInteger(freeHoursValue) || freeHoursValue < 0
   const penaltyInvalid =
-    !Number.isFinite(penaltyPercentValue) ||
-    penaltyPercentValue < 0 ||
-    penaltyPercentValue > 100
+    !Number.isFinite(penaltyPercentValue) || penaltyPercentValue < 0 || penaltyPercentValue > 100
 
   return (
     <div className="space-y-3">
@@ -82,14 +79,14 @@ export function PolicySelector({
               aria-pressed={isActive}
               className={cn(
                 "h-auto w-full flex-col items-start justify-center gap-0.5 whitespace-normal rounded-xl px-4 py-3 text-right",
-                !isActive && "border-line bg-paper-card hover:bg-paper-deep"
+                !isActive && "border-line bg-paper-card hover:bg-paper-deep",
               )}
             >
               <span className="text-sm font-bold">{option.label}</span>
               <span
                 className={cn(
                   "text-[11px] font-medium leading-5",
-                  isActive ? "text-on-brick/75" : "text-ink-soft"
+                  isActive ? "text-on-brick/75" : "text-ink-soft",
                 )}
               >
                 {option.hint}
@@ -103,19 +100,14 @@ export function PolicySelector({
         <div className="rounded-xl border border-line/70 bg-paper-deep/35 p-3.5">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label
-                htmlFor={`${fieldId}-free-hours`}
-                className="text-xs font-bold text-ink"
-              >
+              <label htmlFor={`${fieldId}-free-hours`} className="text-xs font-bold text-ink">
                 ساعت لغو رایگان پیش از تحویل
               </label>
               <PersianNumberInput
                 id={`${fieldId}-free-hours`}
                 min={0}
                 value={freeHoursValue}
-                onValueChange={(value) =>
-                  onFreeHoursChange?.(value ?? 0)
-                }
+                onValueChange={(value) => onFreeHoursChange?.(value ?? 0)}
                 disabled={!onFreeHoursChange}
                 aria-invalid={freeHoursInvalid}
                 className="h-11 border-line bg-paper-card tabular-nums"
@@ -131,10 +123,7 @@ export function PolicySelector({
             </div>
 
             <div className="space-y-1.5">
-              <label
-                htmlFor={`${fieldId}-penalty-percent`}
-                className="text-xs font-bold text-ink"
-              >
+              <label htmlFor={`${fieldId}-penalty-percent`} className="text-xs font-bold text-ink">
                 درصد جریمه پس از این مهلت
               </label>
               <PersianNumberInput
@@ -143,9 +132,7 @@ export function PolicySelector({
                 max={100}
                 allowDecimal
                 value={penaltyPercentValue}
-                onValueChange={(value) =>
-                  onPenaltyPercentChange?.(value ?? 0)
-                }
+                onValueChange={(value) => onPenaltyPercentChange?.(value ?? 0)}
                 disabled={!onPenaltyPercentChange}
                 aria-invalid={penaltyInvalid}
                 className="h-11 border-line bg-paper-card tabular-nums"

@@ -18,11 +18,10 @@ function formatValue(value: number | null | undefined, allowDecimal: boolean): s
   return toPersianDigits(text).replace(".", "٫")
 }
 
-export interface PersianNumberInputProps
-  extends Omit<
-    React.ComponentProps<typeof Input>,
-    "type" | "value" | "defaultValue" | "onChange"
-  > {
+export interface PersianNumberInputProps extends Omit<
+  React.ComponentProps<typeof Input>,
+  "type" | "value" | "defaultValue" | "onChange"
+> {
   value: number | null | undefined
   onValueChange: (value: number | null) => void
   allowDecimal?: boolean

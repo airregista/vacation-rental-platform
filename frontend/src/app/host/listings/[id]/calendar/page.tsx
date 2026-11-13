@@ -19,10 +19,7 @@ import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate } from "@/lib/format-fa"
 import type { CalendarDayInfo } from "@/types/detail"
-import type {
-  HostAccommodationDetail,
-  HostReservationRecord,
-} from "@/components/host/types"
+import type { HostAccommodationDetail, HostReservationRecord } from "@/components/host/types"
 import {
   MAX_CALENDAR_BATCH_DAYS,
   PartialBatchError,
@@ -70,8 +67,7 @@ interface CalendarPageProps {
 type DayKind = "available" | "booked" | "blocked" | "priced" | "past"
 
 const DAY_KIND_CLASSES: Record<DayKind, string> = {
-  available:
-    "border-line bg-paper-card text-ink hover:border-line-strong hover:bg-paper-deep/30",
+  available: "border-line bg-paper-card text-ink hover:border-line-strong hover:bg-paper-deep/30",
   booked: "border-night/30 bg-night text-night-foreground",
   blocked: "border-brick/30 bg-brick/10 text-ink",
   priced: "border-gold/40 bg-gold-soft/70 text-ink",
@@ -85,11 +81,7 @@ const LEGEND: { kind: DayKind; label: string; dot: string }[] = [
   { kind: "booked", label: "رزروشده", dot: "bg-night" },
 ]
 
-const PRICING_STEPS = [
-  "روزها را انتخاب کنید",
-  "نرخ ویژه را وارد کنید",
-  "اعمال کنید",
-] as const
+const PRICING_STEPS = ["روزها را انتخاب کنید", "نرخ ویژه را وارد کنید", "اعمال کنید"] as const
 
 const WEEK_DAY_LABELS = [
   "شنبه",
@@ -132,11 +124,7 @@ function collectBookedDates(reservations: HostReservationRecord[]): Set<string> 
   return dates
 }
 
-function dayKind(
-  day: CalendarDayInfo,
-  bookedDates: Set<string>,
-  today: string
-): DayKind {
+function dayKind(day: CalendarDayInfo, bookedDates: Set<string>, today: string): DayKind {
   if (bookedDates.has(day.date)) return "booked"
   if (!day.is_available) return "blocked"
   if (day.date < today) return "past"
@@ -163,9 +151,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
   const [metaError, setMetaError] = React.useState<string | null>(null)
   const [isNotFound, setIsNotFound] = React.useState(false)
 
-  const [monthStart, setMonthStart] = React.useState(() =>
-    persianMonthStart(toLocalIsoDate())
-  )
+  const [monthStart, setMonthStart] = React.useState(() => persianMonthStart(toLocalIsoDate()))
   const [days, setDays] = React.useState<CalendarDayInfo[]>([])
   const [isCalendarLoading, setIsCalendarLoading] = React.useState(true)
   const [calendarError, setCalendarError] = React.useState<string | null>(null)
@@ -203,9 +189,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
         if (error instanceof ApiError && error.status === 404) {
           setIsNotFound(true)
         } else {
-          setMetaError(
-            getApiErrorMessage(error, "بارگذاری اطلاعات اقامتگاه با خطا مواجه شد.")
-          )
+          setMetaError(getApiErrorMessage(error, "بارگذاری اطلاعات اقامتگاه با خطا مواجه شد."))
         }
       } finally {
         if (isCurrent) setIsMetaLoading(false)
@@ -225,16 +209,14 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
       try {
         const dayCount = daysInPersianMonth(monthStart)
         const calendarDays = await apiClient.get<CalendarDayInfo[]>(
-          `/accommodations/${listingId}/calendar?start_date=${monthStart}&days=${dayCount}`
+          `/accommodations/${listingId}/calendar?start_date=${monthStart}&days=${dayCount}`,
         )
         if (!isCurrent) return
         setDays(Array.isArray(calendarDays) ? calendarDays : [])
         setCalendarError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setCalendarError(
-          getApiErrorMessage(error, "بارگذاری تقویم ماه با خطا مواجه شد.")
-        )
+        setCalendarError(getApiErrorMessage(error, "بارگذاری تقویم ماه با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsCalendarLoading(false)
       }
@@ -250,17 +232,11 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
   const monthTitle = getPersianParts(monthStart).title
 
   const monthDays = React.useMemo(
-    () =>
-      days.filter(
-        (day) => getPersianParts(day.date).key === getPersianParts(monthStart).key
-      ),
-    [days, monthStart]
+    () => days.filter((day) => getPersianParts(day.date).key === getPersianParts(monthStart).key),
+    [days, monthStart],
   )
 
-  const monthGroup = React.useMemo(
-    () => groupByPersianMonth(monthDays)[0],
-    [monthDays]
-  )
+  const monthGroup = React.useMemo(() => groupByPersianMonth(monthDays)[0], [monthDays])
 
   const counts = React.useMemo(() => {
     const result: Record<DayKind, number> = {
@@ -282,19 +258,14 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
         const kind = dayKind(day, bookedDates, today)
         return kind !== "booked" && kind !== "past"
       }),
-    [monthDays, bookedDates, today]
+    [monthDays, bookedDates, today],
   )
 
   const selectedWeekdays = React.useMemo(() => {
     const result = new Set<number>()
     for (let weekday = 0; weekday < 7; weekday += 1) {
-      const matches = selectableDays.filter(
-        (day) => weekIndexOf(day.date) === weekday
-      )
-      if (
-        matches.length > 0 &&
-        matches.every((day) => selected.has(day.date))
-      ) {
+      const matches = selectableDays.filter((day) => weekIndexOf(day.date) === weekday)
+      if (matches.length > 0 && matches.every((day) => selected.has(day.date))) {
         result.add(weekday)
       }
     }
@@ -346,9 +317,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
   }
 
   const toggleWeekday = (weekday: number) => {
-    const matches = selectableDays.filter(
-      (day) => weekIndexOf(day.date) === weekday
-    )
+    const matches = selectableDays.filter((day) => weekIndexOf(day.date) === weekday)
     if (matches.length === 0) return
     const allSelected = matches.every((day) => selected.has(day.date))
 
@@ -373,7 +342,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           const weekday = weekIndexOf(day.date)
           return weekday === 5 || weekday === 6
         })
-        .map((day) => day.date)
+        .map((day) => day.date),
     )
   }
 
@@ -390,14 +359,10 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
 
     const totalDays =
       Math.round(
-        (Date.parse(`${rangeEnd}T00:00:00Z`) -
-          Date.parse(`${rangeStart}T00:00:00Z`)) /
-          86_400_000
+        (Date.parse(`${rangeEnd}T00:00:00Z`) - Date.parse(`${rangeStart}T00:00:00Z`)) / 86_400_000,
       ) + 1
     if (totalDays > MAX_SELECTED_DAYS) {
-      setActionError(
-        `بازهٔ انتخابی نباید بیشتر از ${formatFaNumber(MAX_SELECTED_DAYS)} روز باشد.`
-      )
+      setActionError(`بازهٔ انتخابی نباید بیشتر از ${formatFaNumber(MAX_SELECTED_DAYS)} روز باشد.`)
       return
     }
 
@@ -409,14 +374,13 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           Math.round(
             (Date.parse(`${chunk.end_date}T00:00:00Z`) -
               Date.parse(`${chunk.start_date}T00:00:00Z`)) /
-              86_400_000
+              86_400_000,
           ) + 1
         const chunkDays = await apiClient.get<CalendarDayInfo[]>(
-          `/accommodations/${listingId}/calendar?start_date=${chunk.start_date}&days=${dayCount}`
+          `/accommodations/${listingId}/calendar?start_date=${chunk.start_date}&days=${dayCount}`,
         )
         for (const day of chunkDays) {
-          if (!day.is_available || day.date < today || bookedDates.has(day.date))
-            continue
+          if (!day.is_available || day.date < today || bookedDates.has(day.date)) continue
           dates.push(day.date)
         }
       }
@@ -434,8 +398,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
     if (selected.size === 0) return
 
     const price = priceInput.trim() === "" ? undefined : Number(priceInput)
-    const minNights =
-      minNightsInput.trim() === "" ? undefined : Number(minNightsInput)
+    const minNights = minNightsInput.trim() === "" ? undefined : Number(minNightsInput)
 
     if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
       setActionError("نرخ واردشده باید عددی بزرگ‌تر یا مساوی صفر باشد.")
@@ -465,9 +428,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           min_nights: minNights,
         })
       }
-      setNotice(
-        `نرخ و شرایط اقامت برای ${formatFaNumber(selected.size)} روز اعمال شد.`
-      )
+      setNotice(`نرخ و شرایط اقامت برای ${formatFaNumber(selected.size)} روز اعمال شد.`)
       setSelected(new Set())
       setPriceInput("")
       setMinNightsInput("")
@@ -476,7 +437,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
     } catch (error: unknown) {
       if (error instanceof PartialBatchError) {
         setActionError(
-          "بخشی از روزهای انتخاب‌شده اعمال شد و ادامه آن با خطا مواجه شد؛ تقویم را بررسی و برای باقی روزها دوباره تلاش کنید."
+          "بخشی از روزهای انتخاب‌شده اعمال شد و ادامه آن با خطا مواجه شد؛ تقویم را بررسی و برای باقی روزها دوباره تلاش کنید.",
         )
       } else {
         setActionError(getApiErrorMessage(error, "اعمال تغییرات تقویم با خطا مواجه شد."))
@@ -505,7 +466,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
     } catch (error: unknown) {
       if (error instanceof PartialBatchError) {
         setActionError(
-          "بخشی از روزها مسدود شد و ادامه آن با خطا مواجه شد؛ تقویم را بررسی و برای باقی روزها دوباره تلاش کنید."
+          "بخشی از روزها مسدود شد و ادامه آن با خطا مواجه شد؛ تقویم را بررسی و برای باقی روزها دوباره تلاش کنید.",
         )
       } else {
         setActionError(getApiErrorMessage(error, "مسدودسازی روزها با خطا مواجه شد."))
@@ -523,9 +484,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
     try {
       for (const date of Array.from(selected).sort()) {
         try {
-          await apiClient.delete(
-            `/accommodations/${listingId}/pricing-exceptions/${date}`
-          )
+          await apiClient.delete(`/accommodations/${listingId}/pricing-exceptions/${date}`)
         } catch (error: unknown) {
           if (!(error instanceof ApiError) || error.status !== 404) throw error
         }
@@ -604,9 +563,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-black tracking-tight text-ink">
-              {detail.title}
-            </h2>
+            <h2 className="text-xl font-black tracking-tight text-ink">{detail.title}</h2>
             <span className="rounded-full border border-line bg-paper-card px-2.5 py-0.5 text-[10px] font-bold text-ink-soft">
               نرخ پایه {formatToman(detail.base_price)} تومان
             </span>
@@ -676,8 +633,8 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           </Button>
         </div>
         <p className="mt-2 text-[11px] leading-5 text-ink-soft">
-          روزهای مسدودشده از iCal و مسدودی‌های دستی هر دو با نشان مسدود نمایش داده
-          می‌شوند؛ مرجع تفکیک منبع، تنظیمات همگام‌سازی است.
+          روزهای مسدودشده از iCal و مسدودی‌های دستی هر دو با نشان مسدود نمایش داده می‌شوند؛ مرجع
+          تفکیک منبع، تنظیمات همگام‌سازی است.
         </p>
       </div>
 
@@ -717,15 +674,11 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
             <Sparkles className="size-4" aria-hidden="true" />
           </span>
           <div className="space-y-1">
-            <h3
-              id="per-night-pricing-title"
-              className="text-sm font-black text-ink sm:text-base"
-            >
+            <h3 id="per-night-pricing-title" className="text-sm font-black text-ink sm:text-base">
               قیمت هر شب را جداگانه تعیین کنید
             </h3>
             <p className="text-[11px] leading-6 text-ink-soft">
-              با انتخاب چند روز از تقویم، نرخ ویژه، حداقل اقامت یا مسدودی همان
-              شب‌ها را تعیین کنید.
+              با انتخاب چند روز از تقویم، نرخ ویژه، حداقل اقامت یا مسدودی همان شب‌ها را تعیین کنید.
             </p>
           </div>
         </div>
@@ -739,9 +692,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
               <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brick text-[10px] font-black tabular-nums text-on-brick">
                 {formatFaNumber(index + 1)}
               </span>
-              <span className="text-[11px] font-medium leading-5 text-ink">
-                {step}
-              </span>
+              <span className="text-[11px] font-medium leading-5 text-ink">{step}</span>
             </li>
           ))}
         </ol>
@@ -757,10 +708,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
               key={item.kind}
               className="flex items-center gap-1.5 text-[10px] font-medium text-ink-soft"
             >
-              <span
-                className={cn("size-2.5 rounded-full", item.dot)}
-                aria-hidden="true"
-              />
+              <span className={cn("size-2.5 rounded-full", item.dot)} aria-hidden="true" />
               {item.label}
             </span>
           ))}
@@ -864,7 +812,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
                       DAY_KIND_CLASSES[kind],
                       canSelect ? "cursor-pointer" : "cursor-not-allowed",
                       isSelected &&
-                        "z-10 border-brick ring-2 ring-brick ring-offset-2 ring-offset-paper"
+                        "z-10 border-brick ring-2 ring-brick ring-offset-2 ring-offset-paper",
                     )}
                   >
                     <span className="flex w-full items-center justify-between gap-1">
@@ -940,10 +888,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           <span className="font-bold text-ink">
             نرخ پایه: {formatToman(detail.base_price)} تومان
           </span>
-          <span
-            aria-hidden="true"
-            className="size-1 rounded-full bg-line-strong"
-          />
+          <span aria-hidden="true" className="size-1 rounded-full bg-line-strong" />
           <span>{formatFaNumber(counts.priced)} شب با نرخ ویژه در این ماه</span>
         </div>
 
@@ -969,7 +914,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
                   onClick={() => toggleWeekday(index)}
                   className={cn(
                     "h-8 min-w-8 px-2.5 text-[11px] font-bold",
-                    !isActive && "border-line bg-paper-card"
+                    !isActive && "border-line bg-paper-card",
                   )}
                 >
                   {label}
@@ -1043,33 +988,25 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
               min={0}
               value={priceInput.trim() === "" ? null : Number(priceInput)}
               emptyValue={null}
-              onValueChange={(value) =>
-                setPriceInput(value === null ? "" : String(value))
-              }
+              onValueChange={(value) => setPriceInput(value === null ? "" : String(value))}
               placeholder="مثلاً ۲٬۵۰۰٬۰۰۰"
               aria-describedby="calendar-price-hint"
               className="h-11 border-line bg-paper text-sm tabular-nums"
             />
-            <p
-              id="calendar-price-hint"
-              className="text-[10px] leading-5 text-ink-soft"
-            >
+            <p id="calendar-price-hint" className="text-[10px] leading-5 text-ink-soft">
               خالی بگذارید تا نرخ پایه حفظ شود.
             </p>
           </div>
           <div className="space-y-2">
             <label htmlFor="calendar-min-nights" className="text-xs font-bold text-ink">
-              حداقل اقامت (شب){" "}
-              <span className="font-normal text-ink-soft">(اختیاری)</span>
+              حداقل اقامت (شب) <span className="font-normal text-ink-soft">(اختیاری)</span>
             </label>
             <PersianNumberInput
               id="calendar-min-nights"
               min={1}
               value={minNightsInput.trim() === "" ? null : Number(minNightsInput)}
               emptyValue={null}
-              onValueChange={(value) =>
-                setMinNightsInput(value === null ? "" : String(value))
-              }
+              onValueChange={(value) => setMinNightsInput(value === null ? "" : String(value))}
               placeholder="اختیاری"
               className="h-11 border-line bg-paper text-sm tabular-nums"
             />
@@ -1086,9 +1023,7 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
             disabled={selectedCount === 0 || isApplying}
             className="gap-2"
           >
-            {isApplying ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : null}
+            {isApplying ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
             <span>اعمال نرخ و حداقل اقامت</span>
           </Button>
           <Button
@@ -1114,9 +1049,9 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
         </div>
 
         <p className="mt-3 text-[11px] leading-5 text-ink-soft">
-          هر درخواست حداکثر {formatFaNumber(MAX_CALENDAR_BATCH_DAYS)} روز را پوشش
-          می‌دهد؛ بازه‌های بزرگ‌تر خودکار به چند درخواست تقسیم می‌شوند. اگر نرخ خالی
-          بماند، نرخ ویژه روزهای انتخابی حذف و نرخ پایه اعمال می‌شود.
+          هر درخواست حداکثر {formatFaNumber(MAX_CALENDAR_BATCH_DAYS)} روز را پوشش می‌دهد؛ بازه‌های
+          بزرگ‌تر خودکار به چند درخواست تقسیم می‌شوند. اگر نرخ خالی بماند، نرخ ویژه روزهای انتخابی
+          حذف و نرخ پایه اعمال می‌شود.
         </p>
       </section>
 
@@ -1137,9 +1072,9 @@ function ListingCalendarContent({ listingId }: { listingId: number }) {
           <DialogHeader>
             <DialogTitle>پاک‌کردن استثناهای تقویم</DialogTitle>
             <DialogDescription className="leading-7">
-              استثناهای نرخ، حداقل اقامت و مسدودی برای{" "}
-              {formatFaNumber(selectedCount)} روز انتخاب‌شده حذف می‌شود و این روزها
-              به شرایط پایه اقامتگاه برمی‌گردند. رزروهای ثبت‌شده تغییری نمی‌کنند.
+              استثناهای نرخ، حداقل اقامت و مسدودی برای {formatFaNumber(selectedCount)} روز
+              انتخاب‌شده حذف می‌شود و این روزها به شرایط پایه اقامتگاه برمی‌گردند. رزروهای ثبت‌شده
+              تغییری نمی‌کنند.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

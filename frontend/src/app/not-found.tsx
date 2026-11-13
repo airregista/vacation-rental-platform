@@ -30,22 +30,16 @@ export default function NotFound() {
         />
 
         <span className="relative mx-auto grid size-20 place-items-center">
-          <AshianakLogo
-            variant="mark"
-            className="size-20"
-          />
+          <AshianakLogo variant="mark" className="size-20" />
         </span>
 
-        <p className="mt-6 text-xs font-black tracking-[0.22em] text-brick">
-          خطای ۴۰۴
-        </p>
+        <p className="mt-6 text-xs font-black tracking-[0.22em] text-brick">خطای ۴۰۴</p>
         <h1 className="mt-3 text-balance text-2xl font-black leading-tight tracking-tight text-ink sm:text-3xl">
           این نشانی به هیچ آشیانه‌ای نمی‌رسد
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-8 text-ink-soft">
-          ممکن است صفحه جابه‌جا شده باشد، نشانی دستی تغییر کرده باشد یا این خانه
-          دیگر برای اقامت باز نباشد. نگران نباشید؛ از همین‌جا مسیر را دوباره
-          انتخاب کنید.
+          ممکن است صفحه جابه‌جا شده باشد، نشانی دستی تغییر کرده باشد یا این خانه دیگر برای اقامت باز
+          نباشد. نگران نباشید؛ از همین‌جا مسیر را دوباره انتخاب کنید.
         </p>
 
         <div className="mt-7 flex flex-col justify-center gap-2 sm:flex-row">
@@ -55,11 +49,7 @@ export default function NotFound() {
               بازگشت به خانه
             </Link>
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="gap-2 bg-paper-card shadow-none"
-          >
+          <Button asChild variant="outline" className="gap-2 bg-paper-card shadow-none">
             <Link href="/search">
               <Compass className="size-4" />
               جستجوی اقامتگاه

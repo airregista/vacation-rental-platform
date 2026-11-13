@@ -31,7 +31,7 @@ function PomegranateTree({
       [0.16, 0.82, -0.18],
       [-0.1, 1.12, 0.22],
     ],
-    []
+    [],
   )
 
   return (
@@ -143,7 +143,7 @@ function Rug({ palette }: { palette: ScenePalette }) {
             <boxGeometry args={[0.025, 0.01, 0.1]} />
             <meshStandardMaterial color={palette.cream} roughness={0.95} />
           </mesh>
-        ))
+        )),
       )}
     </group>
   )
@@ -285,7 +285,7 @@ export function KashanScene({ quality }: { quality: SceneTier }) {
 
   const archGeometry = useDisposableGeometry(React.useMemo(() => archShape(1.0, 1.35, 0.045), []))
   const archPanelGeometry = useDisposableGeometry(
-    React.useMemo(() => archShape(0.86, 1.22, 0.03), [])
+    React.useMemo(() => archShape(0.86, 1.22, 0.03), []),
   )
 
   return (

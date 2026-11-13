@@ -59,15 +59,14 @@ export function BottomNav() {
     >
       <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-2">
         {ITEMS.map(({ label, href, icon: Icon }) => {
-          const active =
-            href === "/search" ? pathname === "/search" : pathname.startsWith(href)
+          const active = href === "/search" ? pathname === "/search" : pathname.startsWith(href)
           return (
             <Link
               key={href}
               href={href}
               className={cn(
                 "flex h-full min-h-[48px] flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
-                active ? "font-bold text-brick" : "text-ink-soft hover:text-ink"
+                active ? "font-bold text-brick" : "text-ink-soft hover:text-ink",
               )}
             >
               <Icon className={cn("size-5", active && "stroke-[2.5px]")} />
@@ -81,7 +80,7 @@ export function BottomNav() {
             href="/account"
             className={cn(
               "flex h-full min-h-[48px] flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
-              accountActive ? "font-bold text-brick" : "text-ink-soft hover:text-ink"
+              accountActive ? "font-bold text-brick" : "text-ink-soft hover:text-ink",
             )}
           >
             {accountContent}

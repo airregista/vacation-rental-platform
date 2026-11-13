@@ -6,10 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import {
-  describeCancellationPolicy,
-  getCancellationPolicyLabel,
-} from "@/lib/cancellation-policy"
+import { describeCancellationPolicy, getCancellationPolicyLabel } from "@/lib/cancellation-policy"
 import { toPersianDigits } from "@/lib/format-fa"
 import type { PublicHost } from "@/types/auth"
 
@@ -81,9 +78,7 @@ export function HostCard({
         {/* Host Header */}
         <div className="flex items-center gap-4">
           <Avatar className="size-16 border-2 border-line">
-            {host?.avatar_url && (
-              <AvatarImage src={host.avatar_url} alt={hostFullName} />
-            )}
+            {host?.avatar_url && <AvatarImage src={host.avatar_url} alt={hostFullName} />}
             <AvatarFallback className="bg-brick-soft/70 text-lg font-black text-brick-deep">
               {hostInitials}
             </AvatarFallback>
@@ -101,11 +96,7 @@ export function HostCard({
               </Badge>
             </div>
 
-            {joinedDate && (
-              <p className="text-xs text-ink-soft">
-                عضویت از {joinedDate}
-              </p>
-            )}
+            {joinedDate && <p className="text-xs text-ink-soft">عضویت از {joinedDate}</p>}
 
             <div className="flex items-center gap-2 pt-0.5">
               <span className="flex items-center gap-1 text-xs text-ink-soft">
@@ -146,9 +137,7 @@ export function HostCard({
                 {policyLabel}
               </Badge>
             </div>
-            <p className="pr-5 text-xs leading-6 text-ink-soft">
-              {policyDescription}
-            </p>
+            <p className="pr-5 text-xs leading-6 text-ink-soft">{policyDescription}</p>
           </div>
         </div>
 

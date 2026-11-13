@@ -103,7 +103,10 @@ function KashanPoster() {
 function ForestPoster() {
   return (
     <>
-      <path d="M 82 424 Q 300 396 518 424 L 518 470 Q 300 486 82 470 Z" fill="var(--hero-green-deep)" />
+      <path
+        d="M 82 424 Q 300 396 518 424 L 518 470 Q 300 486 82 470 Z"
+        fill="var(--hero-green-deep)"
+      />
       <ellipse cx="175" cy="330" rx="140" ry="20" fill="var(--hero-mist)" opacity="0.4" />
       <ellipse cx="430" cy="296" rx="130" ry="18" fill="var(--hero-mist)" opacity="0.3" />
 
@@ -133,13 +136,42 @@ function ForestPoster() {
       ))}
 
       {/* Stream */}
-      <path d="M 118 440 Q 210 424 300 446 Q 390 466 478 440" stroke="var(--hero-teal)" strokeWidth="14" fill="none" opacity="0.85" strokeLinecap="round" />
-      <path d="M 310 420 Q 330 444 352 470" stroke="var(--hero-sand-deep)" strokeWidth="16" fill="none" opacity="0.55" strokeLinecap="round" />
+      <path
+        d="M 118 440 Q 210 424 300 446 Q 390 466 478 440"
+        stroke="var(--hero-teal)"
+        strokeWidth="14"
+        fill="none"
+        opacity="0.85"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 310 420 Q 330 444 352 470"
+        stroke="var(--hero-sand-deep)"
+        strokeWidth="16"
+        fill="none"
+        opacity="0.55"
+        strokeLinecap="round"
+      />
 
       {/* Footbridge over the stream */}
-      <path d="M 168 446 L 238 416" stroke="var(--hero-wood)" strokeWidth="15" strokeLinecap="round" />
-      <path d="M 162 444 L 232 414" stroke="var(--hero-wood)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M 174 452 L 244 422" stroke="var(--hero-wood)" strokeWidth="4" strokeLinecap="round" />
+      <path
+        d="M 168 446 L 238 416"
+        stroke="var(--hero-wood)"
+        strokeWidth="15"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 162 444 L 232 414"
+        stroke="var(--hero-wood)"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 174 452 L 244 422"
+        stroke="var(--hero-wood)"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
       {[0.25, 0.5, 0.75].map((t) => (
         <path
           key={t}
@@ -155,7 +187,15 @@ function ForestPoster() {
         [174, 452],
         [244, 422],
       ].map(([x, y], index) => (
-        <rect key={index} x={x - 1.5} y={y - 10} width="3" height="12" rx="1.5" fill="var(--hero-wood)" />
+        <rect
+          key={index}
+          x={x - 1.5}
+          y={y - 10}
+          width="3"
+          height="12"
+          rx="1.5"
+          fill="var(--hero-wood)"
+        />
       ))}
 
       {/* Stacked firewood beside the cabin */}
@@ -216,8 +256,15 @@ function DesertPoster() {
       ))}
 
       {/* Door and lantern */}
-      <path d="M 292 416 L 292 354 Q 292 322 320 314 Q 348 322 348 354 L 348 416 Z" fill="var(--hero-clay-deep)" />
-      <path d="M 302 416 L 302 360 Q 302 336 320 330 Q 338 336 338 360 L 338 416 Z" fill="var(--hero-ember)" opacity="0.45" />
+      <path
+        d="M 292 416 L 292 354 Q 292 322 320 314 Q 348 322 348 354 L 348 416 Z"
+        fill="var(--hero-clay-deep)"
+      />
+      <path
+        d="M 302 416 L 302 360 Q 302 336 320 330 Q 338 336 338 360 L 338 416 Z"
+        fill="var(--hero-ember)"
+        opacity="0.45"
+      />
 
       {/* Pool with tiled rim and fountain */}
       <rect x="246" y="426" width="110" height="22" rx="4" fill="var(--hero-clay)" />
@@ -376,8 +423,19 @@ function MountainPoster() {
 
       {/* Spring spout and falling water */}
       <rect x="182" y="424" width="5" height="22" fill="var(--hero-wood)" />
-      <path d="M 186 426 L 164 436" stroke="var(--hero-wood)" strokeWidth="5" strokeLinecap="round" />
-      <path d="M 164 439 L 159 446" stroke="var(--hero-cream)" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
+      <path
+        d="M 186 426 L 164 436"
+        stroke="var(--hero-wood)"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 164 439 L 159 446"
+        stroke="var(--hero-cream)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        opacity="0.75"
+      />
 
       {/* Hardy shrubs */}
       <circle cx="430" cy="446" r="7" fill="var(--hero-green-deep)" />
@@ -404,7 +462,10 @@ function ZagrosPoster() {
     <>
       <path d="M 60 360 L 170 240 L 270 350 Z" fill="var(--hero-stone)" opacity="0.55" />
       <path d="M 300 356 L 410 250 L 540 356 Z" fill="var(--hero-stone)" opacity="0.45" />
-      <path d="M 84 434 Q 300 404 516 434 L 516 470 Q 300 486 84 470 Z" fill="var(--hero-sand-deep)" />
+      <path
+        d="M 84 434 Q 300 404 516 434 L 516 470 Q 300 486 84 470 Z"
+        fill="var(--hero-sand-deep)"
+      />
 
       {/* Black tent: low body with a woven ridge roof */}
       <rect x="210" y="386" width="184" height="46" fill="var(--hero-tent)" />
@@ -479,13 +540,13 @@ function ZagrosPoster() {
         />
       ))}
       <ellipse cx="438" cy="416" rx="7" ry="6" fill="var(--hero-ink)" />
-      <path d="M 444 414 L 450 408" stroke="var(--hero-ink)" strokeWidth="2.5" strokeLinecap="round" />
       <path
-        d="M 431 410 Q 438 402 445 410"
+        d="M 444 414 L 450 408"
         stroke="var(--hero-ink)"
-        strokeWidth="2"
-        fill="none"
+        strokeWidth="2.5"
+        strokeLinecap="round"
       />
+      <path d="M 431 410 Q 438 402 445 410" stroke="var(--hero-ink)" strokeWidth="2" fill="none" />
       <circle cx="438" cy="398" r="5" fill="var(--hero-mist)" opacity="0.45" />
       <circle cx="445" cy="383" r="7" fill="var(--hero-mist)" opacity="0.3" />
       <circle cx="454" cy="366" r="9" fill="var(--hero-mist)" opacity="0.18" />
@@ -591,11 +652,25 @@ function CoastPoster() {
       {/* Boat */}
       <g transform="translate(400 438)">
         <path d="M -48 0 Q 0 26 48 0 L 38 16 Q 0 30 -38 16 Z" fill="var(--hero-wood)" />
-        <path d="M -44 2 Q 0 22 44 2" stroke="var(--hero-cream)" strokeWidth="3" fill="none" opacity="0.8" />
+        <path
+          d="M -44 2 Q 0 22 44 2"
+          stroke="var(--hero-cream)"
+          strokeWidth="3"
+          fill="none"
+          opacity="0.8"
+        />
         <rect x="-2" y="-52" width="4" height="54" fill="var(--hero-wood)" />
         <path d="M 4 -48 L 30 -8 L 4 -8 Z" fill="var(--hero-cream)" opacity="0.92" />
         <path d="M 2 -52 L 18 -47 L 2 -42 Z" fill="var(--hero-red)" />
-        <rect x="-12" y="-3" width="22" height="4" rx="1.5" fill="var(--hero-cream)" opacity="0.9" />
+        <rect
+          x="-12"
+          y="-3"
+          width="22"
+          height="4"
+          rx="1.5"
+          fill="var(--hero-cream)"
+          opacity="0.9"
+        />
         <path d="M -24 3 L 10 -16" stroke="var(--hero-cream)" strokeWidth="2" opacity="0.65" />
       </g>
     </>
@@ -625,12 +700,7 @@ export function HeroPoster({
   const Poster = POSTERS[scene]
 
   return (
-    <svg
-      viewBox="0 0 600 520"
-      className={className}
-      role="img"
-      aria-label={LABELS[scene]}
-    >
+    <svg viewBox="0 0 600 520" className={className} role="img" aria-label={LABELS[scene]}>
       <ellipse cx="300" cy="470" rx="216" ry="26" fill="var(--hero-clay)" opacity="0.16" />
       <circle cx="300" cy="138" r="62" fill="var(--hero-gold)" opacity="0.4" />
       <Poster />

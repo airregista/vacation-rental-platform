@@ -62,15 +62,15 @@ export function HostStory() {
               ”
             </span>
             <p className="text-balance text-xl font-medium leading-10 text-ink sm:text-2xl">
-              مهمان که می‌آید، در خانه را باز می‌کنم؛ نه فقط اتاق را. دوست دارم
-              صبح با بوی نان محلی بیدار شود و شب با قصهٔ باغ بخوابد.
+              مهمان که می‌آید، در خانه را باز می‌کنم؛ نه فقط اتاق را. دوست دارم صبح با بوی نان محلی
+              بیدار شود و شب با قصهٔ باغ بخوابد.
             </p>
           </blockquote>
 
           <p className="mt-5 max-w-xl text-[15px] leading-8 text-ink-soft">
-            مریم رضایی، میزبان خانهٔ باغی زیر سرو در برزک کاشان است. او خانهٔ
-            پدربزرگش را با همان حیاط، حوض و سروهای قدیمی نگه داشته و حالا بعد از
-            دوازده سال، مهمان‌هایش را مثل خانوادهٔ خودش می‌شناسد.
+            مریم رضایی، میزبان خانهٔ باغی زیر سرو در برزک کاشان است. او خانهٔ پدربزرگش را با همان
+            حیاط، حوض و سروهای قدیمی نگه داشته و حالا بعد از دوازده سال، مهمان‌هایش را مثل خانوادهٔ
+            خودش می‌شناسد.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line/70 pt-5">
@@ -79,9 +79,7 @@ export function HostStory() {
                 مریم رضایی
                 <BadgeCheck className="size-4 text-trust" aria-label="میزبان تأییدشده" />
               </p>
-              <p className="mt-1 text-xs text-ink-soft">
-                میزبان آشیانک در کاشان · ۱۲ سال میزبانی
-              </p>
+              <p className="mt-1 text-xs text-ink-soft">میزبان آشیانک در کاشان · ۱۲ سال میزبانی</p>
             </div>
             <Button
               asChild

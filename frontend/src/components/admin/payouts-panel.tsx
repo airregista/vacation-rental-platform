@@ -1,14 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  AlertCircle,
-  Banknote,
-  CheckCircle2,
-  Landmark,
-  Loader2,
-  Wallet,
-} from "lucide-react"
+import { AlertCircle, Banknote, CheckCircle2, Landmark, Loader2, Wallet } from "lucide-react"
 
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate } from "@/lib/format-fa"
@@ -79,7 +72,7 @@ export function PayoutsPanel({
     setIsSettling(true)
     try {
       const updated = await apiClient.post<AdminPayout>(
-        `/payments/host/payouts/${selected.id}/settle`
+        `/payments/host/payouts/${selected.id}/settle`,
       )
       onSettled(updated)
       setIsOpen(false)
@@ -95,15 +88,11 @@ export function PayoutsPanel({
     <section aria-labelledby="admin-payouts-title">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2
-            id="admin-payouts-title"
-            className="text-lg font-black tracking-tight text-ink"
-          >
+          <h2 id="admin-payouts-title" className="text-lg font-black tracking-tight text-ink">
             تسویه میزبانان
           </h2>
           <p className="mt-1 text-xs leading-6 text-ink-soft">
-            ردیف‌های تسویه را بررسی کنید؛ پرداخت فقط پس از رسیدن تاریخ ورود و
-            ثبت شبا انجام می‌شود.
+            ردیف‌های تسویه را بررسی کنید؛ پرداخت فقط پس از رسیدن تاریخ ورود و ثبت شبا انجام می‌شود.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -162,9 +151,7 @@ export function PayoutsPanel({
                     className="border-t border-line/60 transition-colors hover:bg-paper-deep/25"
                   >
                     <td className="px-4 py-3.5">
-                      <p className="text-xs font-bold text-ink">
-                        تسویهٔ {formatCount(payout.id)}
-                      </p>
+                      <p className="text-xs font-bold text-ink">تسویهٔ {formatCount(payout.id)}</p>
                       <p className="mt-1 text-[11px] text-ink-soft">
                         رزرو {formatCount(payout.reservation_id)} · میزبان{" "}
                         {formatCount(payout.host_id)}
@@ -187,9 +174,7 @@ export function PayoutsPanel({
                     <td className="px-4 py-3.5 text-[11px] leading-6 text-ink-soft">
                       <p>ثبت: {formatPersianDate(payout.created_at)}</p>
                       {payout.paid_at ? (
-                        <p className="text-trust">
-                          پرداخت: {formatPersianDate(payout.paid_at)}
-                        </p>
+                        <p className="text-trust">پرداخت: {formatPersianDate(payout.paid_at)}</p>
                       ) : null}
                     </td>
                     <td className="px-4 py-3.5">
@@ -221,9 +206,7 @@ export function PayoutsPanel({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-ink">
-                      تسویهٔ {formatCount(payout.id)}
-                    </p>
+                    <p className="text-sm font-bold text-ink">تسویهٔ {formatCount(payout.id)}</p>
                     <p className="mt-1 text-[11px] text-ink-soft">
                       رزرو {formatCount(payout.reservation_id)} · میزبان{" "}
                       {formatCount(payout.host_id)}
@@ -254,13 +237,9 @@ export function PayoutsPanel({
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-ink-soft">
-                      ثبت: {formatPersianDate(payout.created_at)}
-                    </p>
+                    <p className="text-ink-soft">ثبت: {formatPersianDate(payout.created_at)}</p>
                     {payout.paid_at ? (
-                      <p className="text-trust">
-                        پرداخت: {formatPersianDate(payout.paid_at)}
-                      </p>
+                      <p className="text-trust">پرداخت: {formatPersianDate(payout.paid_at)}</p>
                     ) : null}
                   </div>
                 </div>
@@ -291,8 +270,8 @@ export function PayoutsPanel({
           <DialogHeader>
             <DialogTitle className="text-lg font-black">تأیید تسویهٔ میزبان</DialogTitle>
             <DialogDescription className="text-xs leading-6 text-ink-soft">
-              این اقدام مبلغ خالص را به‌عنوان پرداخت‌شده ثبت می‌کند. پیش از تأیید،
-              شمارهٔ شبا و تاریخ ورود رزرو را بررسی کنید.
+              این اقدام مبلغ خالص را به‌عنوان پرداخت‌شده ثبت می‌کند. پیش از تأیید، شمارهٔ شبا و تاریخ
+              ورود رزرو را بررسی کنید.
             </DialogDescription>
           </DialogHeader>
 
@@ -335,12 +314,7 @@ export function PayoutsPanel({
             >
               انصراف
             </Button>
-            <Button
-              type="button"
-              onClick={handleSettle}
-              disabled={isSettling}
-              className="gap-2"
-            >
+            <Button type="button" onClick={handleSettle} disabled={isSettling} className="gap-2">
               {isSettling ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (

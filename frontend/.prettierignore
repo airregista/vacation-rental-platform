@@ -1,0 +1,8 @@
+.next/
+node_modules/
+package-lock.json
+
+# Vendored verbatim from @shadcn/react@0.3.1 (MIT) — see
+# src/components/ui/message-scroller/LICENSE.md and eslint.config.mjs.
+# Formatting edits would break diff parity with upstream.
+src/components/ui/message-scroller/

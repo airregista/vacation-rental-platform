@@ -9,11 +9,7 @@ import { HostAccessGate } from "@/components/host/host-access-gate"
 import { HostPageLayout } from "@/components/host/host-page-layout"
 import { PayoutLedger } from "@/components/host/payout-ledger"
 import { PayoutStatusSummary } from "@/components/host/payout-summary"
-import {
-  fetchAllPages,
-  formatFaNumber,
-  getApiErrorMessage,
-} from "@/components/host/host-utils"
+import { fetchAllPages, formatFaNumber, getApiErrorMessage } from "@/components/host/host-utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -58,9 +54,7 @@ function HostPayoutsContent() {
         setFetchError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setFetchError(
-          getApiErrorMessage(error, "بارگذاری گزارش مالی میزبان با خطا مواجه شد.")
-        )
+        setFetchError(getApiErrorMessage(error, "بارگذاری گزارش مالی میزبان با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -161,9 +155,9 @@ function HostPayoutsContent() {
 
       <div className="rounded-2xl border border-line/70 bg-paper-deep/35 p-4">
         <p className="text-[11px] leading-6 text-ink-soft">
-          تسویه‌ها پس از تکمیل اقامت و تایید مالی سامانه انجام می‌شوند. مبلغ کمیسیون
-          از مبلغ ناخالص رزرو کسر و باقی‌مانده به‌عنوان سهم خالص میزبان ثبت می‌شود.
-          در صورت نیاز به اصلاح اطلاعات بانکی، با پشتیبانی سامانه در تماس باشید.
+          تسویه‌ها پس از تکمیل اقامت و تایید مالی سامانه انجام می‌شوند. مبلغ کمیسیون از مبلغ ناخالص
+          رزرو کسر و باقی‌مانده به‌عنوان سهم خالص میزبان ثبت می‌شود. در صورت نیاز به اصلاح اطلاعات
+          بانکی، با پشتیبانی سامانه در تماس باشید.
         </p>
       </div>
     </div>

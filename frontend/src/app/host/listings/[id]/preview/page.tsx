@@ -60,13 +60,7 @@ function PreviewSkeleton() {
   )
 }
 
-function ListingGallery({
-  images,
-  title,
-}: {
-  images: HostImageRecord[]
-  title: string
-}) {
+function ListingGallery({ images, title }: { images: HostImageRecord[]; title: string }) {
   const [brokenIds, setBrokenIds] = React.useState<Set<number>>(new Set())
 
   const ordered = sortHostImages(images)
@@ -76,9 +70,7 @@ function ListingGallery({
     return (
       <div className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-paper-deep/35 text-ink-soft">
         <ImagePlus className="size-8" aria-hidden="true" />
-        <span className="text-xs font-medium">
-          هنوز تصویری برای این اقامتگاه ثبت نشده است
-        </span>
+        <span className="text-xs font-medium">هنوز تصویری برای این اقامتگاه ثبت نشده است</span>
       </div>
     )
   }
@@ -95,9 +87,7 @@ function ListingGallery({
         <img
           src={cover.image_url}
           alt={title}
-          onError={() =>
-            setBrokenIds((current) => new Set(current).add(cover.id))
-          }
+          onError={() => setBrokenIds((current) => new Set(current).add(cover.id))}
           className="h-full w-full object-cover"
         />
         {cover.is_cover ? (
@@ -121,9 +111,7 @@ function ListingGallery({
               <img
                 src={image.image_url}
                 alt={`${title} — تصویر ${formatFaNumber(image.sort_order + 1)}`}
-                onError={() =>
-                  setBrokenIds((current) => new Set(current).add(image.id))
-                }
+                onError={() => setBrokenIds((current) => new Set(current).add(image.id))}
                 className="h-full w-full object-cover"
               />
             </div>
@@ -148,9 +136,7 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
 
     const loadListing = async () => {
       try {
-        const detail = await apiClient.get<HostAccommodationDetail>(
-          `/accommodations/${listingId}`
-        )
+        const detail = await apiClient.get<HostAccommodationDetail>(`/accommodations/${listingId}`)
         if (!isCurrent) return
         setData(detail)
         setLoadError(null)
@@ -160,9 +146,7 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
         if (error instanceof ApiError && error.status === 404) {
           setIsNotFound(true)
         } else {
-          setLoadError(
-            getApiErrorMessage(error, "بارگذاری پیش‌نمایش اقامتگاه با خطا مواجه شد.")
-          )
+          setLoadError(getApiErrorMessage(error, "بارگذاری پیش‌نمایش اقامتگاه با خطا مواجه شد."))
         }
       } finally {
         if (isCurrent) setIsLoading(false)
@@ -265,8 +249,8 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
               </Badge>
             </div>
             <p className="text-[11px] leading-5 text-ink-soft">
-              این صفحه فقط برای شماست و همان چیزی را نشان می‌دهد که مهمان در صفحه
-              عمومی اقامتگاه می‌بیند.
+              این صفحه فقط برای شماست و همان چیزی را نشان می‌دهد که مهمان در صفحه عمومی اقامتگاه
+              می‌بیند.
             </p>
           </div>
         </div>
@@ -357,10 +341,7 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
             </div>
           </section>
 
-          <AmenitiesList
-            amenities={data.amenities}
-            customAmenities={data.custom_amenities ?? []}
-          />
+          <AmenitiesList amenities={data.amenities} customAmenities={data.custom_amenities ?? []} />
 
           <HostCard
             host={data.host}
@@ -375,9 +356,7 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
 
         <aside className="space-y-4 lg:sticky lg:top-6 lg:col-span-5">
           <div className="rounded-3xl border border-line/80 bg-paper-card p-5 shadow-lift">
-            <p className="text-xs font-bold tracking-wide text-ink-soft">
-              نرخ اقامت
-            </p>
+            <p className="text-xs font-bold tracking-wide text-ink-soft">نرخ اقامت</p>
             <p className="mt-1 flex items-baseline gap-1.5">
               <span className="text-3xl font-black tabular-nums text-brick">
                 {formatToman(data.base_price)}
@@ -419,11 +398,7 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
                   <span>مشاهده صفحه عمومی</span>
                 </Link>
               </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="w-full gap-2 border-line bg-transparent"
-              >
+              <Button asChild variant="outline" className="w-full gap-2 border-line bg-transparent">
                 <Link href={`/host/listings/${listingId}/calendar`}>
                   <CalendarDays className="size-4" aria-hidden="true" />
                   <span>مدیریت تقویم و قیمت</span>
@@ -438,9 +413,8 @@ function PreviewListingContent({ listingId }: { listingId: number }) {
               پیش‌نمایش فقط برای میزبان
             </p>
             <p className="mt-1.5 text-[11px] leading-6 text-ink-soft">
-              مهمان‌ها این صفحه را نمی‌بینند. برای انتشار تغییرات، از صفحه ویرایش
-              اقامتگاه استفاده کنید. در صورت غیرفعال بودن اقامتگاه، صفحه عمومی برای
-              مهمان‌ها در دسترس نیست.
+              مهمان‌ها این صفحه را نمی‌بینند. برای انتشار تغییرات، از صفحه ویرایش اقامتگاه استفاده
+              کنید. در صورت غیرفعال بودن اقامتگاه، صفحه عمومی برای مهمان‌ها در دسترس نیست.
             </p>
           </div>
         </aside>

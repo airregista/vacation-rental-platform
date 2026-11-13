@@ -8,6 +8,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Verification
+
+- `npm run typecheck` — TypeScript, fastest gate; run before committing.
+- `npm run lint` — ESLint (next/core-web-vitals).
+- `npm test` — Vitest unit tests (`src/lib`).
+- `npm run build` — full production build; run before pushing.
+- `npm run format:check` — Prettier formatting gate; run `npm run format` to fix before pushing.
+
 ## Security response headers
 
 The CSP lives in one place: `frontend/next.config.ts` (`securityHeaders`).

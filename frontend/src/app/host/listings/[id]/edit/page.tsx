@@ -22,10 +22,7 @@ import { HostPageLayout } from "@/components/host/host-page-layout"
 import { FormSection } from "@/components/host/form-section"
 import { NumberStepper } from "@/components/host/number-stepper"
 import { AmenityPicker } from "@/components/host/amenity-picker"
-import {
-  ImageUploader,
-  type ImageUploaderItem,
-} from "@/components/host/image-uploader"
+import { ImageUploader, type ImageUploaderItem } from "@/components/host/image-uploader"
 import {
   POLICY_OPTIONS,
   PolicySelector,
@@ -165,9 +162,7 @@ function EditListingContent({ listingId }: { listingId: number }) {
         setLoadError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setLoadError(
-          getApiErrorMessage(error, "بارگذاری اطلاعات اقامتگاه با خطا مواجه شد.")
-        )
+        setLoadError(getApiErrorMessage(error, "بارگذاری اطلاعات اقامتگاه با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -179,10 +174,7 @@ function EditListingContent({ listingId }: { listingId: number }) {
     }
   }, [listingId, reloadKey])
 
-  const setField = <K extends keyof EditFormState>(
-    key: K,
-    value: EditFormState[K]
-  ) => {
+  const setField = <K extends keyof EditFormState>(key: K, value: EditFormState[K]) => {
     setForm((current) => (current ? { ...current, [key]: value } : current))
   }
 
@@ -215,12 +207,8 @@ function EditListingContent({ listingId }: { listingId: number }) {
       errors.push("تعداد اتاق و تخت نمی‌تواند منفی باشد.")
     if (form.min_nights < 1 || !Number.isInteger(form.min_nights))
       errors.push("حداقل اقامت باید عدد صحیح و حداقل ۱ شب باشد.")
-    if (!form.check_in_time || !form.check_out_time)
-      errors.push("ساعت ورود و خروج را وارد کنید.")
-    if (
-      !Number.isInteger(form.cancellation_free_hours) ||
-      form.cancellation_free_hours < 0
-    )
+    if (!form.check_in_time || !form.check_out_time) errors.push("ساعت ورود و خروج را وارد کنید.")
+    if (!Number.isInteger(form.cancellation_free_hours) || form.cancellation_free_hours < 0)
       errors.push("ساعت لغو رایگان باید عدد صحیح و نامنفی باشد.")
     if (
       !Number.isFinite(form.cancellation_penalty_percent) ||
@@ -249,33 +237,30 @@ function EditListingContent({ listingId }: { listingId: number }) {
     setIsSaving(true)
     setSaveError(null)
     try {
-      const updated = await apiClient.put<HostAccommodationDetail>(
-        `/accommodations/${listingId}`,
-        {
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          address: form.address.trim(),
-          city_id: form.city_id,
-          category_id: form.category_id,
-          base_price: form.base_price,
-          cleaning_fee: form.cleaning_fee,
-          capacity: form.capacity,
-          max_capacity: form.max_capacity,
-          rooms_count: form.rooms_count,
-          beds_count: form.beds_count,
-          min_nights: form.min_nights,
-          check_in_time: form.check_in_time,
-          check_out_time: form.check_out_time,
-          rules: form.rules.trim() || null,
-          cancellation_policy: form.cancellation_policy,
-          cancellation_free_hours: form.cancellation_free_hours,
-          cancellation_penalty_percent: form.cancellation_penalty_percent,
-          amenity_ids: form.amenity_ids,
-          custom_amenities: form.custom_amenities,
-          is_active: form.is_active,
-          external_calendar_url: form.external_calendar_url.trim() || null,
-        }
-      )
+      const updated = await apiClient.put<HostAccommodationDetail>(`/accommodations/${listingId}`, {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        address: form.address.trim(),
+        city_id: form.city_id,
+        category_id: form.category_id,
+        base_price: form.base_price,
+        cleaning_fee: form.cleaning_fee,
+        capacity: form.capacity,
+        max_capacity: form.max_capacity,
+        rooms_count: form.rooms_count,
+        beds_count: form.beds_count,
+        min_nights: form.min_nights,
+        check_in_time: form.check_in_time,
+        check_out_time: form.check_out_time,
+        rules: form.rules.trim() || null,
+        cancellation_policy: form.cancellation_policy,
+        cancellation_free_hours: form.cancellation_free_hours,
+        cancellation_penalty_percent: form.cancellation_penalty_percent,
+        amenity_ids: form.amenity_ids,
+        custom_amenities: form.custom_amenities,
+        is_active: form.is_active,
+        external_calendar_url: form.external_calendar_url.trim() || null,
+      })
       setData(updated)
       setForm(buildFormState(updated))
       setImages(sortHostImages(updated.images))
@@ -291,20 +276,17 @@ function EditListingContent({ listingId }: { listingId: number }) {
   const handleAddImage = async (image: ImageUploaderItem) => {
     setImageError(null)
     try {
-      const created = await apiClient.post<HostImageRecord>(
-        `/accommodations/${listingId}/images`,
-        {
-          image_url: image.image_url,
-          is_cover: image.is_cover,
-          sort_order: image.sort_order,
-        }
-      )
+      const created = await apiClient.post<HostImageRecord>(`/accommodations/${listingId}/images`, {
+        image_url: image.image_url,
+        is_cover: image.is_cover,
+        sort_order: image.sort_order,
+      })
       setImages((current) =>
         sortHostImages(
           image.is_cover
             ? [...current.map((item) => ({ ...item, is_cover: false })), created]
-            : [...current, created]
-        )
+            : [...current, created],
+        ),
       )
     } catch (error: unknown) {
       setImageError(getApiErrorMessage(error, "افزودن تصویر با خطا مواجه شد."))
@@ -328,15 +310,15 @@ function EditListingContent({ listingId }: { listingId: number }) {
     setImageError(null)
     try {
       const updated = await apiClient.post<HostImageRecord>(
-        `/accommodations/${listingId}/images/${image.id}/cover`
+        `/accommodations/${listingId}/images/${image.id}/cover`,
       )
       setImages((current) =>
         sortHostImages(
           current.map((item) => ({
             ...item,
             is_cover: item.id === updated.id,
-          }))
-        )
+          })),
+        ),
       )
     } catch (error: unknown) {
       setImageError(getApiErrorMessage(error, "تعیین تصویر کاور با خطا مواجه شد."))
@@ -490,10 +472,7 @@ function EditListingContent({ listingId }: { listingId: number }) {
               id="edit-category"
               value={form.category_id || ""}
               onChange={(event) =>
-                setField(
-                  "category_id",
-                  event.target.value ? Number(event.target.value) : 0
-                )
+                setField("category_id", event.target.value ? Number(event.target.value) : 0)
               }
               className="h-11 w-full rounded-xl border border-line bg-paper-card px-3 text-sm text-ink outline-none transition-colors focus:border-brick focus:ring-2 focus:ring-brick/20"
             >
@@ -680,17 +659,15 @@ function EditListingContent({ listingId }: { listingId: number }) {
               "amenity_ids",
               form.amenity_ids.includes(amenityId)
                 ? form.amenity_ids.filter((id) => id !== amenityId)
-                : [...form.amenity_ids, amenityId]
+                : [...form.amenity_ids, amenityId],
             )
           }
           customAmenities={form.custom_amenities}
-          onAddCustom={(name) =>
-            setField("custom_amenities", [...form.custom_amenities, name])
-          }
+          onAddCustom={(name) => setField("custom_amenities", [...form.custom_amenities, name])}
           onRemoveCustom={(name) =>
             setField(
               "custom_amenities",
-              form.custom_amenities.filter((item) => item !== name)
+              form.custom_amenities.filter((item) => item !== name),
             )
           }
         />
@@ -709,12 +686,8 @@ function EditListingContent({ listingId }: { listingId: number }) {
               onChange={setPolicy}
               freeHours={form.cancellation_free_hours}
               penaltyPercent={form.cancellation_penalty_percent}
-              onFreeHoursChange={(value) =>
-                setField("cancellation_free_hours", value)
-              }
-              onPenaltyPercentChange={(value) =>
-                setField("cancellation_penalty_percent", value)
-              }
+              onFreeHoursChange={(value) => setField("cancellation_free_hours", value)}
+              onPenaltyPercentChange={(value) => setField("cancellation_penalty_percent", value)}
             />
             <p className="text-[11px] text-ink-soft">
               {POLICY_OPTIONS.find((option) => option.value === form.cancellation_policy)?.hint}
@@ -752,8 +725,7 @@ function EditListingContent({ listingId }: { listingId: number }) {
                 اقامتگاه فعال و قابل رزرو باشد
               </span>
               <span className="block text-[11px] leading-5 text-ink-soft">
-                با غیرفعال‌کردن، اقامتگاه از نتایج جستجو خارج می‌شود اما سابقه
-                رزروها حفظ می‌شود.
+                با غیرفعال‌کردن، اقامتگاه از نتایج جستجو خارج می‌شود اما سابقه رزروها حفظ می‌شود.
               </span>
             </span>
           </label>
@@ -771,8 +743,8 @@ function EditListingContent({ listingId }: { listingId: number }) {
               className="h-11 border-line bg-paper-card text-left"
             />
             <p className="text-[11px] leading-5 text-ink-soft">
-              فقط آدرس‌های عمومی HTTP/HTTPS پشتیبانی می‌شوند. همگام‌سازی، روزهای
-              مسدود در تقویم بیرونی را در تقویم اقامتگاه علامت می‌زند.
+              فقط آدرس‌های عمومی HTTP/HTTPS پشتیبانی می‌شوند. همگام‌سازی، روزهای مسدود در تقویم
+              بیرونی را در تقویم اقامتگاه علامت می‌زند.
             </p>
             {data.last_calendar_sync_at ? (
               <p className="flex items-center gap-1.5 text-[11px] text-trust">
@@ -820,8 +792,8 @@ function EditListingContent({ listingId }: { listingId: number }) {
             </span>
             <DialogTitle>تغییرات ذخیره شد</DialogTitle>
             <DialogDescription className="leading-7">
-              اطلاعات اقامتگاه با موفقیت به‌روزرسانی شد. می‌توانید پیش‌نمایش میزبان را
-              ببینید یا به فهرست اقامتگاه‌ها برگردید.
+              اطلاعات اقامتگاه با موفقیت به‌روزرسانی شد. می‌توانید پیش‌نمایش میزبان را ببینید یا به
+              فهرست اقامتگاه‌ها برگردید.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">

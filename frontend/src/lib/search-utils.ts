@@ -6,10 +6,14 @@ export function buildAccommodationQuery(params: AccommodationSearchParams): stri
   if (params.city_id !== undefined) query.set("city_id", String(params.city_id))
   if (params.province_id !== undefined) query.set("province_id", String(params.province_id))
   if (params.category_id !== undefined) query.set("category_id", String(params.category_id))
-  if (params.guests_count !== undefined && params.guests_count > 0) query.set("guests_count", String(params.guests_count))
-  if (params.min_rooms !== undefined && params.min_rooms > 0) query.set("min_rooms", String(params.min_rooms))
-  if (params.min_beds !== undefined && params.min_beds > 0) query.set("min_beds", String(params.min_beds))
-  if (params.min_price !== undefined && params.min_price > 0) query.set("min_price", String(params.min_price))
+  if (params.guests_count !== undefined && params.guests_count > 0)
+    query.set("guests_count", String(params.guests_count))
+  if (params.min_rooms !== undefined && params.min_rooms > 0)
+    query.set("min_rooms", String(params.min_rooms))
+  if (params.min_beds !== undefined && params.min_beds > 0)
+    query.set("min_beds", String(params.min_beds))
+  if (params.min_price !== undefined && params.min_price > 0)
+    query.set("min_price", String(params.min_price))
   if (params.max_price !== undefined) query.set("max_price", String(params.max_price))
 
   // Date invariant: Both check_in and check_out must be supplied together
@@ -76,7 +80,9 @@ function isRealDate(value: string): boolean {
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
 }
 
-export function parseAccommodationQuery(searchParams: SearchParamsGetter): AccommodationSearchParams {
+export function parseAccommodationQuery(
+  searchParams: SearchParamsGetter,
+): AccommodationSearchParams {
   const params: AccommodationSearchParams = {}
 
   const cityId = parsePositiveInt(searchParams.get("city_id"))
@@ -105,13 +111,7 @@ export function parseAccommodationQuery(searchParams: SearchParamsGetter): Accom
 
   const checkIn = searchParams.get("check_in")
   const checkOut = searchParams.get("check_out")
-  if (
-    checkIn &&
-    checkOut &&
-    isRealDate(checkIn) &&
-    isRealDate(checkOut) &&
-    checkOut > checkIn
-  ) {
+  if (checkIn && checkOut && isRealDate(checkIn) && isRealDate(checkOut) && checkOut > checkIn) {
     params.check_in = checkIn
     params.check_out = checkOut
   }
@@ -129,9 +129,7 @@ export function parseAccommodationQuery(searchParams: SearchParamsGetter): Accom
 
   const amenityIds = searchParams.getAll("amenity_ids")
   if (amenityIds.length > 0) {
-    const parsed = amenityIds
-      .map(Number)
-      .filter((n) => Number.isInteger(n) && n > 0)
+    const parsed = amenityIds.map(Number).filter((n) => Number.isInteger(n) && n > 0)
     if (parsed.length > 0) params.amenity_ids = parsed
   }
 

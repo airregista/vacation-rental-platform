@@ -296,10 +296,7 @@ export default function HelpPage() {
   const [query, setQuery] = React.useState("")
   const [activeCategory, setActiveCategory] = React.useState<string>("all")
 
-  const tokens = React.useMemo(
-    () => normalizeText(query).split(/\s+/).filter(Boolean),
-    [query]
-  )
+  const tokens = React.useMemo(() => normalizeText(query).split(/\s+/).filter(Boolean), [query])
 
   const visibleCategories = React.useMemo(() => {
     return FAQ_CATEGORIES.flatMap((category) => {
@@ -310,10 +307,7 @@ export default function HelpPage() {
     })
   }, [activeCategory, tokens])
 
-  const resultCount = visibleCategories.reduce(
-    (total, category) => total + category.faqs.length,
-    0
-  )
+  const resultCount = visibleCategories.reduce((total, category) => total + category.faqs.length, 0)
 
   const clearFilters = () => {
     setQuery("")
@@ -356,8 +350,7 @@ export default function HelpPage() {
                   دنبال چه پاسخی هستید؟
                 </h2>
                 <p className="mt-2 text-sm leading-7 text-ink-soft">
-                  کلمه‌ای مثل «لغو»، «شبا» یا «کد تخفیف» را بنویسید. میان همهٔ
-                  بخش‌ها جستجو می‌کنیم.
+                  کلمه‌ای مثل «لغو»، «شبا» یا «کد تخفیف» را بنویسید. میان همهٔ بخش‌ها جستجو می‌کنیم.
                 </p>
               </div>
               <Badge
@@ -401,7 +394,7 @@ export default function HelpPage() {
                   "rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   activeCategory === "all"
                     ? "border-brick bg-brick text-on-brick"
-                    : "border-line bg-paper text-ink-soft hover:border-line-strong hover:text-ink"
+                    : "border-line bg-paper text-ink-soft hover:border-line-strong hover:text-ink",
                 )}
               >
                 همهٔ موضوع‌ها
@@ -416,7 +409,7 @@ export default function HelpPage() {
                     "rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     activeCategory === category.id
                       ? "border-brick bg-brick text-on-brick"
-                      : "border-line bg-paper text-ink-soft hover:border-line-strong hover:text-ink"
+                      : "border-line bg-paper text-ink-soft hover:border-line-strong hover:text-ink",
                   )}
                 >
                   {category.title}
@@ -466,9 +459,7 @@ export default function HelpPage() {
                       >
                         {category.title}
                       </h2>
-                      <p className="mt-1 text-xs leading-6 text-ink-soft">
-                        {category.description}
-                      </p>
+                      <p className="mt-1 text-xs leading-6 text-ink-soft">{category.description}</p>
                     </div>
                   </div>
 
@@ -476,10 +467,7 @@ export default function HelpPage() {
                     {category.faqs.map((faq, index) => (
                       <details
                         key={faq.question}
-                        className={cn(
-                          "group border-line/70",
-                          index !== 0 && "border-t"
-                        )}
+                        className={cn("group border-line/70", index !== 0 && "border-t")}
                       >
                         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 text-right transition-colors hover:bg-paper-deep/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5 [&::-webkit-details-marker]:hidden">
                           <span className="text-sm font-bold leading-7 text-ink">
@@ -515,9 +503,8 @@ export default function HelpPage() {
                   وقتی پاسخ‌ها کافی نیست
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-soft">
-                  شمارهٔ رزرو یا نام کاربری‌تان را آماده داشته باشید؛ این‌طور
-                  سریع‌تر می‌توانیم پروندهٔ شما را پیدا کنیم و دقیق راهنمایی‌تان
-                  کنیم.
+                  شمارهٔ رزرو یا نام کاربری‌تان را آماده داشته باشید؛ این‌طور سریع‌تر می‌توانیم
+                  پروندهٔ شما را پیدا کنیم و دقیق راهنمایی‌تان کنیم.
                 </p>
               </div>
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-trust/25 bg-trust-soft/60 px-3 py-1 text-[11px] font-bold text-trust">
@@ -547,9 +534,7 @@ export default function HelpPage() {
                           </span>
                         </p>
                       </div>
-                      <p className="mt-auto text-[11px] leading-5 text-ink-soft">
-                        {channel.hint}
-                      </p>
+                      <p className="mt-auto text-[11px] leading-5 text-ink-soft">{channel.hint}</p>
                     </CardContent>
                   </Card>
                 )
@@ -587,9 +572,8 @@ export default function HelpPage() {
               خانه‌تان را به یک مقصد ماندگار تبدیل کنید
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-7 text-night-foreground/65">
-              اقامتگاه‌تان را ثبت کنید، تقویم و قیمت را خودتان مدیریت کنید و
-              درآمدتان را با گزارش شفاف تسویه بگیرید. تیم میزبانی از اولین قدم
-              تا اولین مهمان کنار شماست.
+              اقامتگاه‌تان را ثبت کنید، تقویم و قیمت را خودتان مدیریت کنید و درآمدتان را با گزارش
+              شفاف تسویه بگیرید. تیم میزبانی از اولین قدم تا اولین مهمان کنار شماست.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button asChild className="gap-2">
@@ -615,8 +599,8 @@ export default function HelpPage() {
                 سفر بعدی‌تان را از همین‌جا شروع کنید
               </h2>
               <p className="mt-3 text-sm leading-7 text-ink-soft">
-                همهٔ رزروها، پرداخت‌ها و گفت‌وگو با میزبان در صفحهٔ سفرهای من
-                جمع شده است. یک قدم تا خانهٔ بعدی فاصله دارید.
+                همهٔ رزروها، پرداخت‌ها و گفت‌وگو با میزبان در صفحهٔ سفرهای من جمع شده است. یک قدم تا
+                خانهٔ بعدی فاصله دارید.
               </p>
             </div>
             <div className="mt-6 flex flex-wrap gap-2">

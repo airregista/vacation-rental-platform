@@ -5,17 +5,11 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BadgeCheck, HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
+import { safeNext } from "@/lib/safe-next"
 import { OtpForm } from "@/components/auth/otp-form"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-
-/** Only same-origin paths are allowed as post-login destinations. */
-function safeNext(value: string | null): string {
-  if (!value) return "/"
-  if (!value.startsWith("/") || value.startsWith("//")) return "/"
-  return value
-}
 
 function LoginContent() {
   const router = useRouter()
@@ -60,8 +54,8 @@ function LoginContent() {
             درِ خانه‌های ایران باز می‌شود.
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-8 text-ink-soft">
-            با شماره همراه خود وارد شوید تا رزروها، نشان‌شده‌ها و گفتگوی
-            میزبان‌هایتان همیشه همراهتان باشد. ثبت‌نام جداگانه‌ای لازم نیست.
+            با شماره همراه خود وارد شوید تا رزروها، نشان‌شده‌ها و گفتگوی میزبان‌هایتان همیشه
+            همراهتان باشد. ثبت‌نام جداگانه‌ای لازم نیست.
           </p>
 
           <div className="mt-8 grid max-w-lg gap-3 sm:grid-cols-2">

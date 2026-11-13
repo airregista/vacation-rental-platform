@@ -58,7 +58,7 @@ export function AccommodationCard({
               src={item.cover_image}
               alt={item.title}
               fill
-              unoptimized
+              unoptimized={!item.cover_image.startsWith("/")}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               onError={() => setFailedImageSrc(item.cover_image)}
               className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
@@ -93,7 +93,7 @@ export function AccommodationCard({
           <Heart
             className={cn(
               "size-4 transition-colors",
-              isWishlisted ? "fill-brick text-brick" : "text-ink/70"
+              isWishlisted ? "fill-brick text-brick" : "text-ink/70",
             )}
           />
         </Button>

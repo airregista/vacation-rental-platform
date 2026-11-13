@@ -24,12 +24,7 @@ import {
   MessageScrollerItem,
   MessageScrollerButton,
 } from "@/components/ui/message-scroller"
-import {
-  Message,
-  MessageAvatar,
-  MessageContent,
-  MessageHeader,
-} from "@/components/ui/message"
+import { Message, MessageAvatar, MessageContent, MessageHeader } from "@/components/ui/message"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
@@ -61,7 +56,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       if (trip) return msg.sender_id === trip.user_id
       return false
     },
-    [user, trip]
+    [user, trip],
   )
 
   // Depend on the reservation id, not the trip object: the parent creates
@@ -111,13 +106,11 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             setErrorMessage(null)
             if (isInitial) setHasLoadedInitially(true)
             const hasUnreadIncoming = data.some(
-              (m) => m.sender_id !== viewerId && m.read_at == null
+              (m) => m.sender_id !== viewerId && m.read_at == null,
             )
             if (viewerId !== undefined && hasUnreadIncoming) {
               void apiClient
-                .post<{ marked_read: number }>(
-                  `/reservations/${tripId}/messages/read`
-                )
+                .post<{ marked_read: number }>(`/reservations/${tripId}/messages/read`)
                 .catch(() => {
                   // A failed read receipt must not interrupt the conversation.
                 })
@@ -137,16 +130,27 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
 
     refreshMessages(true)
 
-    // Poll for new messages every 8 seconds
-    const interval = setInterval(() => refreshMessages(false), 8000)
+    // Poll for new messages every 8 seconds. Skip ticks while the tab is
+    // hidden so background tabs don't keep hammering the messages endpoint.
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return
+      refreshMessages(false)
+    }, 8000)
 
     const handleFocus = () => refreshMessages(false)
     window.addEventListener("focus", handleFocus)
+
+    // Catch up immediately when the tab becomes visible again.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshMessages(false)
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
       isMounted = false
       clearInterval(interval)
       window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibility)
     }
   }, [isOpen, tripId, viewerId])
 
@@ -159,15 +163,12 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     setErrorMessage(null)
 
     try {
-      const sent = await apiClient.post<ChatMessageItem>(
-        `/reservations/${trip.id}/messages`,
-        { message: trimmed }
-      )
+      const sent = await apiClient.post<ChatMessageItem>(`/reservations/${trip.id}/messages`, {
+        message: trimmed,
+      })
       // Dedupe on append: a poll tick that landed between the persist and
       // this POST resolution already contains the sent message.
-      setMessages((prev) =>
-        prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]
-      )
+      setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
       setInputText("")
       textareaRef.current?.focus()
     } catch (err: unknown) {
@@ -216,8 +217,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             )}
           </div>
           <SheetDescription className="line-clamp-1 pr-12 text-[11px] text-ink-soft">
-            {trip?.accommodation_title ||
-              (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
+            {trip?.accommodation_title || (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
           </SheetDescription>
         </SheetHeader>
 
@@ -249,11 +249,10 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
                     <span className="grid size-14 place-items-center rounded-b-2xl rounded-t-full bg-brick/10 text-brick">
                       <MessageSquare className="size-6" />
                     </span>
-                    <p className="text-sm font-bold text-ink">
-                      هنوز پیامی رد و بدل نشده است.
-                    </p>
+                    <p className="text-sm font-bold text-ink">هنوز پیامی رد و بدل نشده است.</p>
                     <p className="max-w-xs text-xs leading-6">
-                      اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود را انجام دهید.
+                      اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود
+                      را انجام دهید.
                     </p>
                   </div>
                 ) : (

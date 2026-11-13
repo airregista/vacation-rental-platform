@@ -27,13 +27,7 @@ import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -56,11 +50,7 @@ export interface BookingWidgetProps {
   checkOut: string | null
 }
 
-export function BookingWidget({
-  accommodation,
-  checkIn,
-  checkOut,
-}: BookingWidgetProps) {
+export function BookingWidget({ accommodation, checkIn, checkOut }: BookingWidgetProps) {
   const router = useRouter()
   const { isAuthenticated, openOtpModal } = useAuth()
 
@@ -113,7 +103,7 @@ export function BookingWidget({
       try {
         const res = await apiClient.post<PriceCalculationResponse>(
           "/reservations/calculate-price",
-          payload
+          payload,
         )
         if (isCurrent) {
           setPriceData(res)
@@ -163,14 +153,7 @@ export function BookingWidget({
       // doesn't stick on "در حال محاسبه قیمت...".
       setIsCalculating(false)
     }
-  }, [
-    accommodation.id,
-    checkIn,
-    checkOut,
-    guestsCount,
-    appliedCoupon,
-    isValidRange,
-  ])
+  }, [accommodation.id, checkIn, checkOut, guestsCount, appliedCoupon, isValidRange])
 
   // Coupon handlers
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -290,10 +273,7 @@ export function BookingWidget({
               <span>تاریخ سفر</span>
             </span>
             {nightsCount > 0 && (
-              <Badge
-                variant="secondary"
-                className="px-2 py-0.5 text-[11px] font-bold tabular-nums"
-              >
+              <Badge variant="secondary" className="px-2 py-0.5 text-[11px] font-bold tabular-nums">
                 {formatPersian(nightsCount)} شب
               </Badge>
             )}
@@ -314,9 +294,7 @@ export function BookingWidget({
               onClick={handleDateBoxClick}
             >
               <span className="mb-0.5 block text-[10px] text-ink-soft">تاریخ ورود</span>
-              <span className="font-bold tabular-nums text-ink">
-                {formatPersianDate(checkIn)}
-              </span>
+              <span className="font-bold tabular-nums text-ink">{formatPersianDate(checkIn)}</span>
             </div>
             <div
               role="button"
@@ -332,9 +310,7 @@ export function BookingWidget({
               onClick={handleDateBoxClick}
             >
               <span className="mb-0.5 block text-[10px] text-ink-soft">تاریخ خروج</span>
-              <span className="font-bold tabular-nums text-ink">
-                {formatPersianDate(checkOut)}
-              </span>
+              <span className="font-bold tabular-nums text-ink">{formatPersianDate(checkOut)}</span>
             </div>
           </div>
 
@@ -441,18 +417,20 @@ export function BookingWidget({
             )}
           </form>
 
-          {appliedCoupon && !couponError && effectivePriceData && effectivePriceData.discount_amount > 0 && (
-            <div className="flex items-center gap-1 pt-1 text-[11px] font-medium text-trust">
-              <CheckCircle2 className="size-3.5" />
-              <span>
-                کد «{appliedCoupon}» اعمال شد ({formatPersian(effectivePriceData.discount_amount)} تومان تخفیف)
-              </span>
-            </div>
-          )}
+          {appliedCoupon &&
+            !couponError &&
+            effectivePriceData &&
+            effectivePriceData.discount_amount > 0 && (
+              <div className="flex items-center gap-1 pt-1 text-[11px] font-medium text-trust">
+                <CheckCircle2 className="size-3.5" />
+                <span>
+                  کد «{appliedCoupon}» اعمال شد ({formatPersian(effectivePriceData.discount_amount)}{" "}
+                  تومان تخفیف)
+                </span>
+              </div>
+            )}
 
-          {couponError && (
-            <p className="pt-0.5 text-[11px] text-destructive">{couponError}</p>
-          )}
+          {couponError && <p className="pt-0.5 text-[11px] text-destructive">{couponError}</p>}
         </div>
 
         {/* Error Alert */}
@@ -479,9 +457,7 @@ export function BookingWidget({
               ) : effectivePriceData ? (
                 <>
                   <div className="flex justify-between">
-                    <span>
-                      {formatPersian(effectivePriceData.total_nights)} شب اقامت
-                    </span>
+                    <span>{formatPersian(effectivePriceData.total_nights)} شب اقامت</span>
                     <span className="font-medium tabular-nums text-ink">
                       {formatPersian(effectivePriceData.nights_total)} تومان
                     </span>
@@ -498,8 +474,7 @@ export function BookingWidget({
                         className="flex h-9 w-full items-center justify-between rounded-lg px-0 text-[11px] font-semibold text-ink-soft hover:bg-transparent hover:text-ink"
                       >
                         <span>
-                          جزئیات قیمت هر شب (
-                          {formatPersian(effectivePriceData.total_nights)} شب)
+                          جزئیات قیمت هر شب ({formatPersian(effectivePriceData.total_nights)} شب)
                         </span>
                         {isBreakdownOpen ? (
                           <ChevronUp className="size-4 text-brick" aria-hidden="true" />
@@ -541,7 +516,8 @@ export function BookingWidget({
                   {effectivePriceData.extra_guest_total > 0 && (
                     <div className="flex justify-between">
                       <span>
-                        هزینه نفرات اضافه ({formatPersian(effectivePriceData.extra_guests_count)} نفر)
+                        هزینه نفرات اضافه ({formatPersian(effectivePriceData.extra_guests_count)}{" "}
+                        نفر)
                       </span>
                       <span className="font-medium tabular-nums text-ink">
                         {formatPersian(effectivePriceData.extra_guest_total)} تومان
@@ -561,16 +537,16 @@ export function BookingWidget({
                   {effectivePriceData.discount_amount > 0 && (
                     <div className="flex justify-between font-medium text-trust">
                       <span>تخفیف</span>
-                      <span className="tabular-nums">- {formatPersian(effectivePriceData.discount_amount)} تومان</span>
+                      <span className="tabular-nums">
+                        - {formatPersian(effectivePriceData.discount_amount)} تومان
+                      </span>
                     </div>
                   )}
 
                   <Separator className="bg-line" />
 
                   <div className="flex items-baseline justify-between pt-1">
-                    <span className="text-sm font-bold text-ink">
-                      مجموع قابل پرداخت
-                    </span>
+                    <span className="text-sm font-bold text-ink">مجموع قابل پرداخت</span>
                     <span className="text-xl font-black tabular-nums text-brick">
                       {formatPersian(effectivePriceData.total_price)} تومان
                     </span>
@@ -693,7 +669,9 @@ export function BookingWidget({
                     onClick={() => {
                       setIsMobileSheetOpen(false)
                       setTimeout(() => {
-                        document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" })
+                        document
+                          .getElementById("availability-calendar")
+                          ?.scrollIntoView({ behavior: "smooth" })
                       }, 100)
                     }}
                     className="mt-3 flex w-full items-center justify-center gap-2 border-line bg-paper-card text-xs font-semibold text-ink shadow-none hover:bg-paper"

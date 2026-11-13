@@ -2,14 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  AlertCircle,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  Wallet,
-  XCircle,
-} from "lucide-react"
+import { AlertCircle, CalendarDays, CheckCircle2, Clock3, Wallet, XCircle } from "lucide-react"
 import type { HostReservationRecord } from "@/components/host/types"
 import { HostAccessGate } from "@/components/host/host-access-gate"
 import { HostPageLayout } from "@/components/host/host-page-layout"
@@ -50,17 +43,13 @@ function HostReservationsContent() {
 
     const loadReservations = async () => {
       try {
-        const nextReservations = await fetchAllPages<HostReservationRecord>(
-          "/reservations/host"
-        )
+        const nextReservations = await fetchAllPages<HostReservationRecord>("/reservations/host")
         if (!isCurrent) return
         setReservations(nextReservations)
         setFetchError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setFetchError(
-          getApiErrorMessage(error, "بارگذاری رزروهای دریافتی با خطا مواجه شد.")
-        )
+        setFetchError(getApiErrorMessage(error, "بارگذاری رزروهای دریافتی با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -91,11 +80,10 @@ function HostReservationsContent() {
     () =>
       reservations
         .filter(
-          (reservation) =>
-            reservation.status === "confirmed" || reservation.status === "completed"
+          (reservation) => reservation.status === "confirmed" || reservation.status === "completed",
         )
         .reduce((sum, reservation) => sum + reservation.total_price, 0),
-    [reservations]
+    [reservations],
   )
 
   const handleRetry = () => {
@@ -185,8 +173,7 @@ function HostReservationsContent() {
         <div className="space-y-1">
           <h2 className="text-lg font-black tracking-tight text-ink">رزروهای دریافتی</h2>
           <p className="text-xs leading-6 text-ink-soft">
-            رزروهای همه اقامتگاه‌های شما در یک فهرست؛ با تب‌ها می‌توانید وضعیت‌ها را
-            جدا کنید.
+            رزروهای همه اقامتگاه‌های شما در یک فهرست؛ با تب‌ها می‌توانید وضعیت‌ها را جدا کنید.
           </p>
         </div>
 

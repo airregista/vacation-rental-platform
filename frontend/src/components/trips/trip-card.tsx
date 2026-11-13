@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -32,17 +33,11 @@ export interface TripCardProps {
   onOpenReview: (trip: TripReservationItem) => void
 }
 
-export function TripCard({
-  trip,
-  onOpenChat,
-  onOpenCancel,
-  onOpenReview,
-}: TripCardProps) {
+export function TripCard({ trip, onOpenChat, onOpenCancel, onOpenReview }: TripCardProps) {
   const [imageError, setImageError] = useState(false)
   const { canCancel, canReview, canChat } = useTripPermissions(trip)
 
-  const title =
-    trip.accommodation_title || `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
+  const title = trip.accommodation_title || `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
   const nightsText = `${toPersianDigits(trip.total_nights)} شب`
   const guestsText = `${toPersianDigits(trip.guests_count)} نفر`
   const trackingCode = getReservationCode(trip.id)
@@ -76,21 +71,32 @@ export function TripCard({
             aria-label={`جزئیات رزرو ${title}`}
           >
             {trip.accommodation_image && !imageError ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={trip.accommodation_image}
-                alt={title}
-                onError={() => setImageError(true)}
-                className="size-full object-cover transition-transform duration-500 hover:scale-[1.03]"
-              />
+              trip.accommodation_image.startsWith("/") ? (
+                <Image
+                  src={trip.accommodation_image}
+                  alt={title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 192px"
+                  onError={() => setImageError(true)}
+                  className="object-cover transition-transform duration-500 hover:scale-[1.03]"
+                />
+              ) : (
+                // Reservation snapshots can carry absolute external image URLs;
+                // next/image would reject those without a per-domain allowlist.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={trip.accommodation_image}
+                  alt={title}
+                  onError={() => setImageError(true)}
+                  className="size-full object-cover transition-transform duration-500 hover:scale-[1.03]"
+                />
+              )
             ) : (
               <div className="flex size-full flex-col items-center justify-center gap-1.5 bg-paper-deep p-4 text-center text-brick/70">
                 <span className="grid size-11 place-items-center rounded-b-xl rounded-t-full bg-brick/10">
                   <Building className="size-6 stroke-[1.5]" />
                 </span>
-                <span className="text-[11px] font-medium text-ink-soft">
-                  تصویر اقامتگاه
-                </span>
+                <span className="text-[11px] font-medium text-ink-soft">تصویر اقامتگاه</span>
               </div>
             )}
           </Link>
@@ -109,8 +115,8 @@ export function TripCard({
                 <div className="flex items-center gap-1.5">
                   <Calendar className="size-3.5 text-brick" />
                   <span className="tabular-nums">
-                    {formatPersianDate(trip.check_in)} الی{" "}
-                    {formatPersianDate(trip.check_out)} ({nightsText})
+                    {formatPersianDate(trip.check_in)} الی {formatPersianDate(trip.check_out)} (
+                    {nightsText})
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -121,15 +127,12 @@ export function TripCard({
 
               {trip.status === "cancelled" && (
                 <div className="mt-3 space-y-1 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-[11px] leading-6 text-destructive">
-                  {trip.cancellation_reason && (
-                    <p>علت لغو: {trip.cancellation_reason}</p>
+                  {trip.cancellation_reason && <p>علت لغو: {trip.cancellation_reason}</p>}
+                  {trip.refund_amount !== null && trip.refund_amount !== undefined && (
+                    <p className="tabular-nums">
+                      مبلغ مسترد شده: {formatFaPrice(trip.refund_amount)} تومان
+                    </p>
                   )}
-                  {trip.refund_amount !== null &&
-                    trip.refund_amount !== undefined && (
-                      <p className="tabular-nums">
-                        مبلغ مسترد شده: {formatFaPrice(trip.refund_amount)} تومان
-                      </p>
-                    )}
                 </div>
               )}
             </div>
@@ -138,9 +141,7 @@ export function TripCard({
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line/70 pt-3">
               <div>
                 <span className="block text-[11px] text-ink-soft">
-                  {trip.status === "pending"
-                    ? "مبلغ قابل پرداخت"
-                    : "مبلغ کل پرداختی"}
+                  {trip.status === "pending" ? "مبلغ قابل پرداخت" : "مبلغ کل پرداختی"}
                 </span>
                 <div className="flex items-baseline gap-1">
                   <span className="text-lg font-black tabular-nums text-ink">
@@ -151,7 +152,12 @@ export function TripCard({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button asChild variant="ghost" size="sm" className="gap-1.5 text-ink-soft hover:text-brick">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-ink-soft hover:text-brick"
+                >
                   <Link href={detailHref}>
                     <span>جزئیات رزرو</span>
                     <ArrowLeft className="size-3.5" />

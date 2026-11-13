@@ -76,7 +76,7 @@ export function HeroSceneSwitcher({
               "h-9 shrink-0 gap-1.5 px-3 text-xs font-semibold",
               active === scene.id
                 ? "border border-border bg-card text-foreground shadow-sm hover:bg-card"
-                : "text-muted-foreground"
+                : "text-muted-foreground",
             )}
           >
             <scene.Icon className="size-3.5" aria-hidden="true" />
@@ -89,9 +89,7 @@ export function HeroSceneSwitcher({
         variant="ghost"
         size="icon"
         shape="pill"
-        aria-label={
-          autoPlay ? "توقف چرخش خودکار اقلیم‌ها" : "شروع چرخش خودکار اقلیم‌ها"
-        }
+        aria-label={autoPlay ? "توقف چرخش خودکار اقلیم‌ها" : "شروع چرخش خودکار اقلیم‌ها"}
         title={autoPlay ? "توقف چرخش خودکار" : "شروع چرخش خودکار"}
         onClick={onToggleAutoPlay}
         className="size-9 min-h-9 min-w-9 shrink-0 border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted"

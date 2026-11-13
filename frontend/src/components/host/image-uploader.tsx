@@ -83,9 +83,7 @@ export function ImageUploader({
     const validationErrors: string[] = []
     const validFiles = files.filter((file) => {
       if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
-        validationErrors.push(
-          `«${file.name}» فقط در قالب JPEG، PNG یا WebP قابل بارگذاری است.`
-        )
+        validationErrors.push(`«${file.name}» فقط در قالب JPEG، PNG یا WebP قابل بارگذاری است.`)
         return false
       }
       if (file.size > MAX_FILE_SIZE) {
@@ -100,8 +98,7 @@ export function ImageUploader({
 
     setIsUploading(true)
     const uploadErrors: string[] = []
-    let nextSortOrder =
-      images.reduce((max, image) => Math.max(max, image.sort_order), -1) + 1
+    let nextSortOrder = images.reduce((max, image) => Math.max(max, image.sort_order), -1) + 1
     let needsCover = makeCover || !images.some((image) => image.is_cover)
     let uploadedCount = 0
 
@@ -112,10 +109,7 @@ export function ImageUploader({
 
         let uploadedUrl: string
         try {
-          const result = await apiClient.post<{ url: string }>(
-            "/uploads/image",
-            formData
-          )
+          const result = await apiClient.post<{ url: string }>("/uploads/image", formData)
           if (!result.url) {
             throw new Error("missing-upload-url")
           }
@@ -133,9 +127,7 @@ export function ImageUploader({
             sort_order: nextSortOrder,
           })
         } catch {
-          uploadErrors.push(
-            `افزودن «${file.name}» به گالری با خطا مواجه شد.`
-          )
+          uploadErrors.push(`افزودن «${file.name}» به گالری با خطا مواجه شد.`)
           continue
         }
 
@@ -198,9 +190,7 @@ export function ImageUploader({
                     <img
                       src={image.image_url}
                       alt={`تصویر ${toPersianDigits(index + 1)} اقامتگاه`}
-                      onError={() =>
-                        setBrokenKeys((current) => new Set(current).add(key))
-                      }
+                      onError={() => setBrokenKeys((current) => new Set(current).add(key))}
                       className="h-full w-full object-cover"
                     />
                   )}

@@ -3,14 +3,7 @@
 import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
-import {
-  ChevronRight,
-  ChevronLeft,
-  LayoutGrid,
-  ArrowRight,
-  Heart,
-  ImageIcon,
-} from "lucide-react"
+import { ChevronRight, ChevronLeft, LayoutGrid, ArrowRight, Heart, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatFaNumber } from "@/lib/format-fa"
@@ -23,6 +16,15 @@ import {
 } from "@/components/ui/dialog"
 import type { AccommodationImage } from "@/types/detail"
 
+/**
+ * Seed/demo data can contain absolute external image URLs (e.g. Unsplash);
+ * next/image would reject those without a remotePatterns entry, so only
+ * relative /uploads paths go through the built-in optimizer.
+ */
+function isOptimizable(src: string) {
+  return src.startsWith("/")
+}
+
 export interface PhotoGalleryProps {
   images: AccommodationImage[]
   title: string
@@ -30,12 +32,7 @@ export interface PhotoGalleryProps {
   onToggleFavorite?: () => void
 }
 
-export function PhotoGallery({
-  images,
-  title,
-  isFavorite,
-  onToggleFavorite,
-}: PhotoGalleryProps) {
+export function PhotoGallery({ images, title, isFavorite, onToggleFavorite }: PhotoGalleryProps) {
   const [isLightboxOpen, setIsLightboxOpen] = React.useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = React.useState(0)
   const [internalFavorite, setInternalFavorite] = React.useState(false)
@@ -66,8 +63,7 @@ export function PhotoGallery({
 
   // Clamp: the image list can shrink (e.g. navigating to a listing with
   // fewer photos) while this index persists, so never index out of range.
-  const safeActivePhotoIndex =
-    totalImages > 0 ? Math.min(activePhotoIndex, totalImages - 1) : 0
+  const safeActivePhotoIndex = totalImages > 0 ? Math.min(activePhotoIndex, totalImages - 1) : 0
 
   const openLightbox = (index: number) => {
     setActivePhotoIndex(index)
@@ -159,11 +155,7 @@ export function PhotoGallery({
             onClick={handleToggleFavorite}
             className="pointer-events-auto size-9 rounded-full bg-paper/85 text-ink shadow-soft backdrop-blur-sm transition-colors hover:bg-paper"
           >
-            <Heart
-              className={`size-5 ${
-                favorite ? "fill-brick text-brick" : "text-ink"
-              }`}
-            />
+            <Heart className={`size-5 ${favorite ? "fill-brick text-brick" : "text-ink"}`} />
           </Button>
         </div>
 
@@ -181,8 +173,9 @@ export function PhotoGallery({
             src={sortedImages[safeActivePhotoIndex].image_url}
             alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
             fill
-            unoptimized
+            unoptimized={!isOptimizable(sortedImages[safeActivePhotoIndex].image_url)}
             priority
+            sizes="(max-width: 1024px) 100vw, 100vw"
             className="object-cover"
           />
         </div>
@@ -236,8 +229,9 @@ export function PhotoGallery({
               src={sortedImages[0].image_url}
               alt={title}
               fill
-              unoptimized
+              unoptimized={!isOptimizable(sortedImages[0].image_url)}
               priority
+              sizes="(max-width: 1024px) 100vw, 100vw"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           </div>
@@ -261,15 +255,20 @@ export function PhotoGallery({
                 src={sortedImages[0].image_url}
                 alt={`${title} - تصویر ۱`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[0].image_url)}
                 priority
+                sizes="(max-width: 1024px) 100vw, 66vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
             {/* Secondary Images */}
             <div
               className={`grid h-full gap-2 ${
-                totalImages === 4 ? "grid-rows-3" : totalImages === 3 ? "grid-rows-2" : "grid-rows-1"
+                totalImages === 4
+                  ? "grid-rows-3"
+                  : totalImages === 3
+                    ? "grid-rows-2"
+                    : "grid-rows-1"
               }`}
             >
               {sortedImages.slice(1, totalImages).map((img, idx) => (
@@ -282,7 +281,8 @@ export function PhotoGallery({
                     src={img.image_url}
                     alt={`${title} - تصویر ${idx + 2}`}
                     fill
-                    unoptimized
+                    unoptimized={!isOptimizable(img.image_url)}
+                    sizes="(max-width: 1024px) 50vw, 17vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                 </div>
@@ -303,8 +303,9 @@ export function PhotoGallery({
                 src={sortedImages[0].image_url}
                 alt={`${title} - تصویر ۱`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[0].image_url)}
                 priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
@@ -320,7 +321,8 @@ export function PhotoGallery({
                   src={img.image_url}
                   alt={`${title} - تصویر ${idx + 2}`}
                   fill
-                  unoptimized
+                  unoptimized={!isOptimizable(img.image_url)}
+                  sizes="(max-width: 1024px) 50vw, 17vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               </div>
@@ -366,7 +368,8 @@ export function PhotoGallery({
                 src={sortedImages[safeActivePhotoIndex].image_url}
                 alt={`${title} - تصویر ${safeActivePhotoIndex + 1}`}
                 fill
-                unoptimized
+                unoptimized={!isOptimizable(sortedImages[safeActivePhotoIndex].image_url)}
+                sizes="(max-width: 1024px) 100vw, 66vw"
                 className="object-contain"
               />
             </div>
@@ -416,7 +419,8 @@ export function PhotoGallery({
                     src={img.image_url}
                     alt={`${title} - پیش‌نمایش ${idx + 1}`}
                     fill
-                    unoptimized
+                    unoptimized={!isOptimizable(img.image_url)}
+                    sizes="80px"
                     className="object-cover"
                   />
                 </button>

@@ -1,10 +1,4 @@
-import {
-  BadgeCheck,
-  CreditCard,
-  Headphones,
-  ShieldCheck,
-  type LucideIcon,
-} from "lucide-react"
+import { BadgeCheck, CreditCard, Headphones, ShieldCheck, type LucideIcon } from "lucide-react"
 
 const PILLARS: { title: string; description: string; Icon: LucideIcon }[] = [
   {
@@ -51,21 +45,9 @@ export function TrustBand() {
         fill="none"
         className="pointer-events-none absolute -left-24 -top-16 h-[420px] w-[420px] text-night-foreground/10 sm:-left-10"
       >
-        <path
-          d="M20 420V190a95 95 0 0 1 190 0v230"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          d="M70 420V200a70 70 0 0 1 140 0v220"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          d="M120 420V215a45 45 0 0 1 90 0v205"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
+        <path d="M20 420V190a95 95 0 0 1 190 0v230" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M70 420V200a70 70 0 0 1 140 0v220" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M120 420V215a45 45 0 0 1 90 0v205" stroke="currentColor" strokeWidth="1.5" />
       </svg>
 
       <div className="relative mx-auto grid w-full max-w-[1360px] gap-12 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:gap-10 lg:px-8 lg:py-20">
@@ -83,9 +65,8 @@ export function TrustBand() {
             بقیه‌اش با ما.
           </h2>
           <p className="mt-4 max-w-md text-[15px] leading-8 text-night-foreground/70">
-            رزرو یک خانه فقط انتخاب عکس نیست؛ به معنای سپردن چند روز از زندگی به
-            یک میزبان است. ما این اعتماد را با بررسی، ضمانت و پشتیبانی نگه
-            می‌داریم.
+            رزرو یک خانه فقط انتخاب عکس نیست؛ به معنای سپردن چند روز از زندگی به یک میزبان است. ما
+            این اعتماد را با بررسی، ضمانت و پشتیبانی نگه می‌داریم.
           </p>
 
           <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-night-foreground/15 pt-6">
@@ -112,9 +93,7 @@ export function TrustBand() {
                 <Icon className="size-4 shrink-0 text-gold" aria-hidden="true" />
                 <h3 className="text-sm font-bold text-night-foreground">{title}</h3>
               </div>
-              <p className="mt-2 text-xs leading-6 text-night-foreground/60">
-                {description}
-              </p>
+              <p className="mt-2 text-xs leading-6 text-night-foreground/60">{description}</p>
             </div>
           ))}
         </div>

@@ -1,11 +1,4 @@
-export const SCENE_IDS = [
-  "kashan",
-  "forest",
-  "desert",
-  "mountain",
-  "zagros",
-  "coast",
-] as const
+export const SCENE_IDS = ["kashan", "forest", "desert", "mountain", "zagros", "coast"] as const
 
 export type SceneId = (typeof SCENE_IDS)[number]
 

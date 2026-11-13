@@ -10,22 +10,13 @@ export const CANCELLATION_POLICY_LABELS: Record<CancellationPolicy, string> = {
 }
 
 export function isCancellationPolicy(
-  value: string | null | undefined
+  value: string | null | undefined,
 ): value is CancellationPolicy {
-  return (
-    value === "flexible" ||
-    value === "moderate" ||
-    value === "strict" ||
-    value === "custom"
-  )
+  return value === "flexible" || value === "moderate" || value === "strict" || value === "custom"
 }
 
-export function getCancellationPolicyLabel(
-  policy: string | null | undefined
-): string {
-  return isCancellationPolicy(policy)
-    ? CANCELLATION_POLICY_LABELS[policy]
-    : "استاندارد"
+export function getCancellationPolicyLabel(policy: string | null | undefined): string {
+  return isCancellationPolicy(policy) ? CANCELLATION_POLICY_LABELS[policy] : "استاندارد"
 }
 
 /**
@@ -34,7 +25,7 @@ export function getCancellationPolicyLabel(
  */
 export function describeCancellationPolicy(
   policy: string | null | undefined,
-  options: { freeHours?: number | null; penaltyPercent?: number | string | null } = {}
+  options: { freeHours?: number | null; penaltyPercent?: number | string | null } = {},
 ): string {
   switch (policy) {
     case "flexible":

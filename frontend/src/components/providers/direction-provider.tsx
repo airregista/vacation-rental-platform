@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Direction } from "radix-ui"
+import { DirectionProvider as DirectionProviderPrimitive } from "@radix-ui/react-direction"
 
 /**
  * Radix primitives (radio groups, dropdown menus, sliders…) read their
@@ -9,5 +9,5 @@ import { Direction } from "radix-ui"
  * `dir="rtl"` on those elements. One provider fixes all of them.
  */
 export function DirectionProvider({ children }: { children: React.ReactNode }) {
-  return <Direction.Provider dir="rtl">{children}</Direction.Provider>
+  return <DirectionProviderPrimitive dir="rtl">{children}</DirectionProviderPrimitive>
 }

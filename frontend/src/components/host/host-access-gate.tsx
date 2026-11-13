@@ -52,7 +52,10 @@ function GateCard({
 
 function HostGateSkeleton() {
   return (
-    <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-line/70 bg-paper-card p-8" aria-busy="true">
+    <div
+      className="mx-auto max-w-xl space-y-4 rounded-3xl border border-line/70 bg-paper-card p-8"
+      aria-busy="true"
+    >
       <Skeleton className="mx-auto size-16 rounded-b-3xl rounded-t-full" />
       <Skeleton className="mx-auto h-6 w-52" />
       <Skeleton className="mx-auto h-4 w-full max-w-sm" />
@@ -85,9 +88,7 @@ export function HostAccessGate({
     try {
       await becomeHost()
     } catch (error: unknown) {
-      setPromoteError(
-        getApiErrorMessage(error, "خطایی در ارتقای نقش کاربری رخ داد.")
-      )
+      setPromoteError(getApiErrorMessage(error, "خطایی در ارتقای نقش کاربری رخ داد."))
     } finally {
       setIsPromoting(false)
     }

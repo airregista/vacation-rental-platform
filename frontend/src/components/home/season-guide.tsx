@@ -88,9 +88,7 @@ export function SeasonGuide() {
 
               <div>
                 <p className="text-[15px] font-bold text-ink">{item.title}</p>
-                <p className="mt-1 max-w-md text-xs leading-6 text-ink-soft">
-                  {item.description}
-                </p>
+                <p className="mt-1 max-w-md text-xs leading-6 text-ink-soft">{item.description}</p>
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {item.tags.map((tag) => (
                     <span

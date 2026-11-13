@@ -79,7 +79,7 @@ export function DioramaBase({
         bevelEnabled: false,
         curveSegments: 6,
       }).rotateX(-Math.PI / 2)
-    }, [])
+    }, []),
   )
 
   return (
@@ -202,19 +202,11 @@ export function Palm({
       <group position={[0.04, 1.45, 0]}>
         {angles.map((angle) => (
           <group key={angle} rotation={[0, (angle * Math.PI) / 180, 0]}>
-            <mesh
-              position={[0.32, 0.02, 0]}
-              rotation={[0, 0, -0.42]}
-              castShadow
-            >
+            <mesh position={[0.32, 0.02, 0]} rotation={[0, 0, -0.42]} castShadow>
               <boxGeometry args={[0.68, 0.025, 0.13]} />
               <meshStandardMaterial color={palette.green} roughness={0.85} flatShading />
             </mesh>
-            <mesh
-              position={[0.24, -0.04, 0]}
-              rotation={[0, 0, -0.85]}
-              castShadow
-            >
+            <mesh position={[0.24, -0.04, 0]} rotation={[0, 0, -0.85]} castShadow>
               <boxGeometry args={[0.42, 0.02, 0.1]} />
               <meshStandardMaterial color={palette.greenDeep} roughness={0.85} flatShading />
             </mesh>
@@ -277,7 +269,7 @@ export function Rope({
   const midpoint = start.clone().add(end).multiplyScalar(0.5)
   const quaternion = new THREE.Quaternion().setFromUnitVectors(
     new THREE.Vector3(0, 1, 0),
-    direction.normalize()
+    direction.normalize(),
   )
 
   return (

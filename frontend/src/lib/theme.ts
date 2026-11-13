@@ -7,10 +7,7 @@ export function isTheme(value: string | null): value is Theme {
 }
 
 export function systemPrefersDark() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  )
+  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
 }
 
 export function applyTheme(theme: Theme) {

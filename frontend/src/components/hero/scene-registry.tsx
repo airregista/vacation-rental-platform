@@ -75,7 +75,7 @@ const SCENE_MAP: Record<SceneId, HeroSceneDefinition> = SCENES.reduce(
     map[scene.id] = scene
     return map
   },
-  {} as Record<SceneId, HeroSceneDefinition>
+  {} as Record<SceneId, HeroSceneDefinition>,
 )
 
 /**

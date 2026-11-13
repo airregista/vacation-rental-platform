@@ -3,12 +3,7 @@
 import * as React from "react"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { apiClient, ApiError } from "@/lib/api-client"
-import type {
-  UserResponse,
-  TokenResponse,
-  OTPResponse,
-  AuthContextType,
-} from "@/types/auth"
+import type { UserResponse, TokenResponse, OTPResponse, AuthContextType } from "@/types/auth"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -133,7 +128,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateUser,
       logout,
     }),
-    [user, token, isLoading, isOtpModalOpen, openOtpModal, closeOtpModal, sendOtp, verifyOtp, becomeHost, updateUser, logout]
+    [
+      user,
+      token,
+      isLoading,
+      isOtpModalOpen,
+      openOtpModal,
+      closeOtpModal,
+      sendOtp,
+      verifyOtp,
+      becomeHost,
+      updateUser,
+      logout,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

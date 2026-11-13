@@ -45,7 +45,7 @@ function toISODate(d: Date): string {
 function splitRange(
   start: string,
   end: string,
-  maxDays: number
+  maxDays: number,
 ): { start_date: string; end_date: string }[] {
   const chunks: { start_date: string; end_date: string }[] = []
   let cur = new Date(`${start}T00:00:00Z`)
@@ -98,30 +98,22 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
   const minNightsError =
     minNights === "" || minNightsValid
       ? null
-      : minNightsValue !== null &&
-          Number.isFinite(minNightsValue) &&
-          minNightsValue < 1
+      : minNightsValue !== null && Number.isFinite(minNightsValue) && minNightsValue < 1
         ? "حداقل اقامت باید حداقل ۱ شب باشد."
         : "حداقل اقامت باید عدد صحیح باشد."
   const rateValid =
-    datesValid &&
-    price !== "" &&
-    Number.isFinite(priceValue) &&
-    priceValue >= 0 &&
-    minNightsValid
+    datesValid && price !== "" && Number.isFinite(priceValue) && priceValue >= 0 && minNightsValid
 
-  const runBatch = async (
-    body: Record<string, unknown>
-  ): Promise<void> => {
+  const runBatch = async (body: Record<string, unknown>): Promise<void> => {
     if (accommodationId === null) return
     const chunks = splitRange(startDate, endDate, MAX_BLOCK_DAYS)
     let applied = 0
     try {
       for (const chunk of chunks) {
-        await apiClient.post(
-          `/accommodations/${accommodationId}/pricing-exceptions/batch`,
-          { ...chunk, ...body }
-        )
+        await apiClient.post(`/accommodations/${accommodationId}/pricing-exceptions/batch`, {
+          ...chunk,
+          ...body,
+        })
         applied += 1
       }
     } catch (err) {
@@ -129,7 +121,7 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
         // Earlier chunks already committed; say so, so the host knows
         // part of the range was applied and can safely retry the rest.
         throw new Error(
-          "بخشی از بازهٔ انتخاب‌شده اعمال شد و ادامهٔ آن با خطا مواجه شد؛ برای تکمیل بازه دوباره تلاش کنید."
+          "بخشی از بازهٔ انتخاب‌شده اعمال شد و ادامهٔ آن با خطا مواجه شد؛ برای تکمیل بازه دوباره تلاش کنید.",
         )
       }
       throw err
@@ -196,12 +188,7 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
   const form = (
     <div className="space-y-4 py-2 text-right" dir="rtl">
       <div className="grid grid-cols-2 gap-3">
-        <JalaliDateField
-          boxed
-          label="تاریخ شروع"
-          value={startDate}
-          onChange={setStartDate}
-        />
+        <JalaliDateField boxed label="تاریخ شروع" value={startDate} onChange={setStartDate} />
         <JalaliDateField
           boxed
           label="تاریخ پایان"
@@ -241,9 +228,7 @@ export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: Qui
             min={1}
             value={minNights.trim() === "" ? null : Number(minNights)}
             emptyValue={null}
-            onValueChange={(value) =>
-              setMinNights(value === null ? "" : String(value))
-            }
+            onValueChange={(value) => setMinNights(value === null ? "" : String(value))}
             placeholder="اختیاری"
             className="h-11 rounded-xl text-sm"
           />

@@ -41,7 +41,7 @@ export function PayoutLedger({ payouts, reservations }: PayoutLedgerProps) {
   // excluded (a cancelled payout is not money the host will receive).
   const counted = useMemo(
     () => payouts.filter((payout) => payout.status === "pending" || payout.status === "completed"),
-    [payouts]
+    [payouts],
   )
 
   const totals = useMemo(
@@ -52,9 +52,9 @@ export function PayoutLedger({ payouts, reservations }: PayoutLedgerProps) {
           commission: result.commission + payout.commission_amount,
           net: result.net + payout.payout_amount,
         }),
-        { gross: 0, commission: 0, net: 0 }
+        { gross: 0, commission: 0, net: 0 },
       ),
-    [counted]
+    [counted],
   )
 
   const stayDates = (reservationId: number) => {
@@ -126,13 +126,27 @@ export function PayoutLedger({ payouts, reservations }: PayoutLedgerProps) {
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="border-b border-line/70 bg-paper-deep/35 text-[11px] font-bold text-ink-soft">
-                    <th scope="col" className="px-4 py-3 font-bold">رزرو</th>
-                    <th scope="col" className="px-4 py-3 font-bold">تاریخ اقامت</th>
-                    <th scope="col" className="px-4 py-3 font-bold">مبلغ رزرو</th>
-                    <th scope="col" className="px-4 py-3 font-bold">کارمزد</th>
-                    <th scope="col" className="px-4 py-3 font-bold">مبلغ قابل تسویه</th>
-                    <th scope="col" className="px-4 py-3 font-bold">وضعیت</th>
-                    <th scope="col" className="px-4 py-3 font-bold">تاریخ ثبت</th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      رزرو
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      تاریخ اقامت
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      مبلغ رزرو
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      کارمزد
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      مبلغ قابل تسویه
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      وضعیت
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-bold">
+                      تاریخ ثبت
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,9 +199,7 @@ export function PayoutLedger({ payouts, reservations }: PayoutLedgerProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1.5 text-sm">
-                  <p className="text-xs text-ink-soft">
-                    {stayDates(payout.reservation_id)}
-                  </p>
+                  <p className="text-xs text-ink-soft">{stayDates(payout.reservation_id)}</p>
                   <div className="flex justify-between">
                     <span className="text-ink-soft">مبلغ رزرو</span>
                     <span className="tabular-nums text-ink">

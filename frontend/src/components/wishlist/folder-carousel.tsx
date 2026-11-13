@@ -51,9 +51,7 @@ export function FolderCarousel({
     if (!trimmed) return
 
     if (editingFolder) {
-      onFoldersChange(
-        folders.map((f) => (f.id === editingFolder.id ? { ...f, name: trimmed } : f))
-      )
+      onFoldersChange(folders.map((f) => (f.id === editingFolder.id ? { ...f, name: trimmed } : f)))
       setEditingFolder(null)
       setNewFolderName("")
       setIsCreateOpen(false)
@@ -81,9 +79,7 @@ export function FolderCarousel({
     <section className="relative" aria-label="دسته‌بندی‌های نشان‌شده">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">
-            قفسه‌های سفر
-          </p>
+          <p className="text-[11px] font-bold tracking-[0.18em] text-brick">قفسه‌های سفر</p>
           <h2 className="mt-1 text-base font-black text-ink">پوشه‌ها و دسته‌ها</h2>
         </div>
         <Button
@@ -101,9 +97,7 @@ export function FolderCarousel({
         {folders.map((folder) => {
           const isActive = folder.id === activeFolderId
           const count =
-            folder.id === "all"
-              ? totalItemsCount
-              : folder.accommodation_ids?.length || 0
+            folder.id === "all" ? totalItemsCount : folder.accommodation_ids?.length || 0
 
           return (
             <div key={folder.id} className="flex flex-shrink-0 items-center gap-1">
@@ -116,17 +110,15 @@ export function FolderCarousel({
                   "h-auto min-h-0 gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all active:scale-95 sm:text-sm",
                   isActive
                     ? "border-transparent bg-brick text-on-brick shadow-soft hover:bg-brick-deep hover:text-on-brick"
-                    : "border-line bg-paper-card text-ink-soft hover:border-line-strong hover:bg-paper-deep hover:text-ink"
+                    : "border-line bg-paper-card text-ink-soft hover:border-line-strong hover:bg-paper-deep hover:text-ink",
                 )}
               >
-                <FolderOpen
-                  className={cn("size-4", isActive ? "text-on-brick" : "text-brick")}
-                />
+                <FolderOpen className={cn("size-4", isActive ? "text-on-brick" : "text-brick")} />
                 <span>{folder.name}</span>
                 <span
                   className={cn(
                     "text-[11px] font-medium tabular-nums",
-                    isActive ? "text-on-brick/80" : "text-ink-soft"
+                    isActive ? "text-on-brick/80" : "text-ink-soft",
                   )}
                 >
                   ({formatCount(count)})
