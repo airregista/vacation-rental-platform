@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useSyncExternalStore } from "react"
 import { useAuth } from "@/context/auth-context"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,16 @@ function getServerMountedSnapshot(): boolean {
   return false
 }
 
+/** Visible brand header shared by the sheet and dialog frames. */
+function OtpBrandHeader() {
+  return (
+    <div className="flex flex-col items-center gap-1 border-b border-line/70 pb-4">
+      <AshianakLogo withLatin={false} />
+      <p className="text-[11px] text-ink-soft">اقامتگاه‌های بومی ایران</p>
+    </div>
+  )
+}
+
 /**
  * Auth entry point for every page. The phone/OTP flow itself lives in
  * OtpForm so the modal and /login can never drift apart; this component only
@@ -75,6 +86,7 @@ export function OtpModal() {
 
   const body = (
     <div className="flex flex-col gap-5">
+      <OtpBrandHeader />
       <OtpForm
         key={session}
         active={isOtpModalOpen}

@@ -7,7 +7,6 @@ import {
   CreditCard,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   User,
   FileText,
   Lock,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { BrandLoader } from "@/components/brand/brand-loader"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -333,12 +333,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
 
   // Loading State
   if (isLoading || isAuthLoading) {
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 bg-paper p-4 text-ink">
-        <Loader2 className="size-8 animate-spin text-brick" />
-        <p className="text-sm font-medium text-ink-soft">در حال دریافت اطلاعات رزرو...</p>
-      </div>
-    )
+    return <BrandLoader label="در حال دریافت اطلاعات رزرو..." />
   }
 
   // Error State

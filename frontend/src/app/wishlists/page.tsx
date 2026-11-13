@@ -328,6 +328,7 @@ export default function WishlistsPage() {
               icon={Heart}
               title="اول سلیقه‌تان را ثبت کنیم"
               description="برای دیدن اقامتگاه‌های نشان‌شده، ساختن پوشه‌های سفر و هماهنگی تاریخ با همسفران، وارد حساب مهمانی خود شوید."
+              showBrandMark
               action={
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
                   <Button onClick={openOtpModal} className="gap-2">

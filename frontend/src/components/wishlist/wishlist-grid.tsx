@@ -72,6 +72,7 @@ export function WishlistGrid({
           icon={Heart}
           title={emptyTitle}
           description={emptyDescription}
+          showBrandMark
           action={
             <Button asChild className="gap-2">
               <Link href="/">

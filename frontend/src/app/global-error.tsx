@@ -3,9 +3,9 @@
 import * as React from "react"
 import "./globals.css"
 import Link from "next/link"
-import { AlertTriangle, Home, RotateCcw } from "lucide-react"
-
+import { Home, RotateCcw } from "lucide-react"
 import { ThemeScript } from "@/components/theme/theme-script"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Button } from "@/components/ui/button"
 import { applyTheme, isTheme, THEME_KEY } from "@/lib/theme"
 
@@ -45,8 +45,8 @@ export default function GlobalError({
             className="absolute -bottom-24 -right-10 size-52 rounded-full border border-line/50"
           />
 
-          <span className="relative mx-auto grid size-20 place-items-center rounded-b-3xl rounded-t-full border border-brick/20 bg-brick/10 text-brick shadow-soft">
-            <AlertTriangle className="size-9" />
+          <span className="relative mx-auto grid size-20 place-items-center">
+            <AshianakLogo variant="mark" className="size-20" />
           </span>
 
           <p className="relative mt-6 text-xs font-black tracking-[0.22em] text-brick">

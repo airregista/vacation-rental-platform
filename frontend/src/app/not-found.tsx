@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Compass, Home, LifeBuoy, MapPinOff } from "lucide-react"
+import { ArrowLeft, Compass, Home, LifeBuoy } from "lucide-react"
 
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
@@ -28,8 +29,11 @@ export default function NotFound() {
           className="absolute -bottom-24 -right-10 size-56 rounded-full border border-line/50"
         />
 
-        <span className="mx-auto grid size-20 place-items-center rounded-b-3xl rounded-t-full border border-brick/20 bg-brick/10 text-brick shadow-soft">
-          <MapPinOff className="size-9" />
+        <span className="relative mx-auto grid size-20 place-items-center">
+          <AshianakLogo
+            variant="mark"
+            className="size-20"
+          />
         </span>
 
         <p className="mt-6 text-xs font-black tracking-[0.22em] text-brick">

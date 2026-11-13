@@ -335,6 +335,7 @@ export default function CheckoutSuccessPage({
       title="پرداخت با موفقیت انجام شد"
       description="رزرو شما تایید شد و جزئیات اقامت برای شما ارسال شده است. از سفر خود لذت ببرید."
       code={reservationCode}
+      brandMark
       actions={
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
           <Button asChild className="h-11 gap-2">

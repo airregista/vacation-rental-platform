@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,6 +62,8 @@ export interface PaymentResultViewProps {
   children?: ReactNode
   actions?: ReactNode
   footer?: ReactNode
+  /** Show the brand logomark under the reservation code (success moments). */
+  brandMark?: boolean
 }
 
 /**
@@ -78,6 +81,7 @@ export function PaymentResultView({
   children,
   actions,
   footer,
+  brandMark = false,
 }: PaymentResultViewProps) {
   const styles = VARIANT_STYLES[variant]
   const Icon = icon ?? styles.defaultIcon
@@ -151,6 +155,13 @@ export function PaymentResultView({
                   </bdi>
                 </span>
               ) : null}
+
+              {brandMark ? (
+                <AshianakLogo
+                  variant="mark"
+                  className="mt-2 size-12 opacity-90"
+                />
+              ) : null}
             </div>
           </div>
 
@@ -198,7 +209,10 @@ export function PaymentResultSkeleton() {
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
         <div className="rounded-3xl border border-line/80 bg-paper-card p-5 shadow-soft sm:p-7">
           <div className="flex flex-col items-center gap-3 py-6">
-            <Skeleton className="size-16 rounded-3xl" />
+            <AshianakLogo
+              variant="mark"
+              className="size-16 animate-pulse [animation-duration:2.4s]"
+            />
             <Skeleton className="h-7 w-64 max-w-full rounded-lg" />
             <Skeleton className="h-4 w-80 max-w-full rounded-md" />
             <Skeleton className="h-8 w-48 max-w-full rounded-full" />

@@ -163,6 +163,7 @@ export default function TripsPage() {
             icon={Luggage}
             title="اول کلید خانه را بگیریم"
             description="برای دیدن سفرها، ووچر رزرو، گفتگو با میزبان و استرداد وجه، وارد حساب مهمانی خود شوید."
+            showBrandMark
             action={
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
                 <Button onClick={openOtpModal} className="gap-2">
@@ -304,6 +305,7 @@ export default function TripsPage() {
                 icon={Luggage}
                 title="هنوز هیچ سفری رزرو نکرده‌اید"
                 description="برای تعطیلات بعدی خود از میان ویلا، سوئیت و اقامتگاه بوم‌گردی آشیانک انتخاب کنید."
+                showBrandMark
                 action={
                   <Button asChild className="gap-1.5">
                     <Link href="/">
@@ -335,6 +337,7 @@ export default function TripsPage() {
                 icon={Compass}
                 title="هیچ سفر فعالی ندارید"
                 description="شما در حال حاضر رزرو در انتظار پرداخت یا اقامت قطعی تاییدشده ندارید."
+                showBrandMark
                 action={
                   <Button asChild className="gap-1.5">
                     <Link href="/">

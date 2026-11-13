@@ -205,6 +205,7 @@ function HostDashboardContent() {
               icon={Building2}
               title="هنوز اقامتگاهی ثبت نکرده‌اید"
               description="اولین اقامتگاه خود را در پنج مرحله ثبت کنید تا مهمان‌ها بتوانند آن را ببینند و رزرو کنند."
+              showBrandMark
               action={
                 <Button asChild className="gap-2">
                   <Link href="/host/new">
