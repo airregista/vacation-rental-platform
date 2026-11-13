@@ -115,6 +115,16 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **106** | `106-companion-roster-split.md` | P3 | M | 099 recommended | **DONE (reviewed; 918→637 lines)** | `advisor/106-companion-roster-split` | `80a474e` |
 | **107** | `107-travel-poll-design.md` | P3 | L (spike) | 099 recommended | **DONE (design doc collected)** | `advisor/107-travel-poll-design` | `1931835` |
 | **108** | `108-thumbnail-pipeline-design.md` | P3 | L (spike) | 090 recommended | **DONE (design doc collected)** | `advisor/108-thumbnail-pipeline-design` | `512944f` |
+
+> **MERGED 2026-11-14**: all three lanes are on `main` — merge order
+> docs → B (`bc3cfcf`) → C (`248d894`, 2 conflicts resolved by combining
+> both sides' complementary changes) → A (`7a33ae8`, 16 formatting-only
+> conflicts resolved by keeping the merged logic then re-running
+> `npm run format` over the whole tree, `5341f4d`). Post-merge gates all
+> green: typecheck 0, lint 0, **64/64 tests**, build 26 pages. The two
+> stale `.next` type errors (hero-preview remnants) clear after deleting
+> `.next`; 2 format-fa tests updated from their FIXME(P081) UTC pins to the
+> Tehran expectations. Nothing pushed.
 | **109** | `109-search-count-design.md` | P3 | M (spike) | 088 recommended | **DONE (design doc collected)** | `advisor/109-search-count-design` | `d78e031` |
 
 > **2026-11-14 frontend audit (planned at `b94e2bd`)**: a read-only audit of
