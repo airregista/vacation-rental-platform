@@ -40,10 +40,14 @@ def _retry_after(bucket: deque[float], now: float) -> int:
     )
 
 
-def _raise_too_many(retry_after: int) -> NoReturn:
+def _raise_too_many(
+    retry_after: int,
+    *,
+    detail: str = "Too many failed login attempts. Try again later.",
+) -> NoReturn:
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        detail="Too many failed login attempts. Try again later.",
+        detail=detail,
         headers={"Retry-After": str(retry_after)},
     )
 
@@ -69,7 +73,9 @@ def check_login_rate_limit(key: str, *, limit: int | None = None) -> None:
     _raise_too_many(retry_after)
 
 
-def check_and_record_failed_login(key: str, *, limit: int | None = None) -> None:
+def check_and_record_failed_login(
+    key: str, *, limit: int | None = None, detail: str | None = None
+) -> None:
     """Record one failed attempt and raise 429 when it crosses the limit.
 
     The append and the threshold decision happen under the same lock, so a
@@ -91,7 +97,10 @@ def check_and_record_failed_login(key: str, *, limit: int | None = None) -> None
         if len(bucket) <= effective_limit:
             return
         retry_after = _retry_after(bucket, now)
-    _raise_too_many(retry_after)
+    _raise_too_many(
+        retry_after,
+        detail=detail or "Too many failed login attempts. Try again later.",
+    )
 
 
 def clear_login_attempts(key: str | None = None) -> None:
