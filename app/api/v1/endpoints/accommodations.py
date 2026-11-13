@@ -1046,13 +1046,32 @@ async def update_accommodation(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> AccommodationDetail:
-    stmt = select(Accommodation).where(Accommodation.id == id)
-    res = await db.execute(stmt)
-    acc = res.scalars().first()
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+                .execution_options(populate_existing=True)
+            )
+        )
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
     _require_host_or_admin(acc, current_user)
+
+    is_admin = current_user.role == "admin"
+    if acc_in.is_active is True and not is_admin and acc.admin_deactivated_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "This listing was deactivated by an administrator and "
+                "cannot be re-activated by the host"
+            ),
+        )
 
     if acc_in.city_id is not None:
         city_exists = (
@@ -1113,6 +1132,9 @@ async def update_accommodation(
     for field, value in update_data.items():
         setattr(acc, field, value)
 
+    if is_admin and acc_in.is_active is not None:
+        acc.admin_deactivated_at = None if acc_in.is_active else datetime.now(timezone.utc)
+
     await db.commit()
     db.expire(acc)  # Invalidate accommodation to reload fresh amenities in get_accommodation
     return await get_accommodation(id, db, current_user=current_user)
@@ -1124,9 +1146,18 @@ async def delete_accommodation(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> None:
-    stmt = select(Accommodation).where(Accommodation.id == id)
-    res = await db.execute(stmt)
-    acc = res.scalars().first()
+    acc = (
+        (
+            await db.execute(
+                select(Accommodation)
+                .where(Accommodation.id == id)
+                .with_for_update(of=Accommodation)
+                .execution_options(populate_existing=True)
+            )
+        )
+        .scalars()
+        .first()
+    )
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
@@ -1136,6 +1167,8 @@ async def delete_accommodation(
 
     # Soft delete / deactivate
     acc.is_active = False
+    if current_user.role == "admin":
+        acc.admin_deactivated_at = datetime.now(timezone.utc)
     await db.commit()
 
 
