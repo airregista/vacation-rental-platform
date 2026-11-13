@@ -10,7 +10,6 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.config import settings
 from app.models.accommodation import Accommodation
-from app.models.coupon import Coupon
 from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation
 from app.schemas.payment import (
@@ -20,6 +19,7 @@ from app.schemas.payment import (
     PaymentResponse,
     PaymentVerifyRequest,
 )
+from app.services.coupon_service import lock_coupon_by_code
 from app.services.reservation_service import check_and_expire_reservation, check_booking_overlap
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -70,13 +70,17 @@ async def checkout_payment(
         )
 
     existing = (
-        await db.execute(
-            select(Payment).where(
-                Payment.reservation_id == reservation.id,
-                Payment.status == "pending",
+        (
+            await db.execute(
+                select(Payment).where(
+                    Payment.reservation_id == reservation.id,
+                    Payment.status == "pending",
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if existing:
         # Reusing a pending payment is not a creation, so report 200 instead of
         # the route's default 201.
@@ -117,9 +121,7 @@ async def verify_payment(
 ) -> PaymentResponse:
     stmt = (
         select(Payment)
-        .options(
-            selectinload(Payment.reservation).selectinload(Reservation.accommodation)
-        )
+        .options(selectinload(Payment.reservation).selectinload(Reservation.accommodation))
         .where(Payment.id == req.payment_id)
     )
     res = await db.execute(stmt)
@@ -150,25 +152,33 @@ async def verify_payment(
 
     # Lock order everywhere: Reservation -> Accommodation/HostPayout -> Payment -> Coupon.
     reservation = (
-        await db.execute(
-            select(Reservation)
-            .options(selectinload(Reservation.accommodation))
-            .where(Reservation.id == payment.reservation_id)
-            .with_for_update(of=Reservation)
-            .execution_options(populate_existing=True)
+        (
+            await db.execute(
+                select(Reservation)
+                .options(selectinload(Reservation.accommodation))
+                .where(Reservation.id == payment.reservation_id)
+                .with_for_update(of=Reservation)
+                .execution_options(populate_existing=True)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
     # A concurrent verification may have completed while this request waited
     # for the reservation lock. Re-read the payment before rejecting on the
     # reservation status so duplicate verifications stay idempotent (200).
     payment = (
-        await db.execute(
-            select(Payment)
-            .where(Payment.id == req.payment_id)
-            .execution_options(populate_existing=True)
+        (
+            await db.execute(
+                select(Payment)
+                .where(Payment.id == req.payment_id)
+                .execution_options(populate_existing=True)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if payment and payment.status == "success":
         return PaymentResponse.model_validate(payment)
 
@@ -197,13 +207,17 @@ async def verify_payment(
         await db.execute(acc_stmt)
 
     payment = (
-        await db.execute(
-            select(Payment)
-            .where(Payment.id == req.payment_id)
-            .with_for_update(of=Payment)
-            .execution_options(populate_existing=True)
+        (
+            await db.execute(
+                select(Payment)
+                .where(Payment.id == req.payment_id)
+                .with_for_update(of=Payment)
+                .execution_options(populate_existing=True)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if not payment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found"
@@ -231,13 +245,12 @@ async def verify_payment(
             reservation.cancellation_reason = "Dates occupied by concurrent confirmed booking"
             reservation.cancelled_at = datetime.now(timezone.utc)
             if reservation.coupon_code:
-                c_stmt = (
-                    select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
-                )
-                c_obj = (await db.execute(c_stmt)).scalars().first()
+                c_obj = await lock_coupon_by_code(db, reservation.coupon_code)
                 if c_obj and c_obj.used_count > 0:
                     c_obj.used_count -= 1
-            await db.commit()  # Persist failed payment and cancelled reservation state before raising
+            await (
+                db.commit()
+            )  # Persist failed payment and cancelled reservation state before raising
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Dates are no longer available. Another booking was confirmed while payment was processing.",
@@ -248,7 +261,9 @@ async def verify_payment(
         reservation.status = "confirmed"
 
         host_id = reservation.accommodation.host_id
-        commission_amount = Decimal(round(reservation.total_price * settings.PLATFORM_COMMISSION_RATE))
+        commission_amount = Decimal(
+            round(reservation.total_price * settings.PLATFORM_COMMISSION_RATE)
+        )
         payout_amount = max(Decimal(0), reservation.total_price - commission_amount)
 
         payout = HostPayout(
@@ -299,9 +314,7 @@ async def list_host_payouts(
     if current_user.role != "admin":
         stmt = stmt.where(HostPayout.host_id == current_user.id)
     stmt = (
-        stmt.order_by(HostPayout.created_at.desc(), HostPayout.id.desc())
-        .offset(skip)
-        .limit(limit)
+        stmt.order_by(HostPayout.created_at.desc(), HostPayout.id.desc()).offset(skip).limit(limit)
     )
     result = await db.execute(stmt)
     payouts = result.scalars().all()
@@ -315,9 +328,7 @@ async def settle_host_payout(
     db: SessionDep,
 ) -> HostPayoutResponse:
     if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     stmt = (
         select(HostPayout)
@@ -328,9 +339,7 @@ async def settle_host_payout(
     result = await db.execute(stmt)
     payout = result.scalars().first()
     if not payout:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Payout record not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payout record not found")
     if payout.status == "completed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

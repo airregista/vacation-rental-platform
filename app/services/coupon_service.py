@@ -35,6 +35,32 @@ async def get_coupon_by_code(db: AsyncSession, code: str) -> Coupon | None:
     return (await db.execute(stmt)).scalars().first()
 
 
+async def lock_coupon_by_code(db: AsyncSession, code: str) -> Coupon | None:
+    """Lock and refresh a coupon row.
+
+    ``populate_existing=True`` is required because the same request may have
+    loaded the coupon during price calculation. Without it SQLAlchemy returns
+    the stale identity-map instance and ignores changes committed by another
+    request (deactivation, quota, expiry).
+
+    ``flush()`` is equally required. The session factory sets
+    ``autoflush=False`` (``app/core/database.py:21``), so when a caller loops
+    over several reservations that share one coupon (the TTL sweep in
+    ``expire_stale_pending_reservations``), an unflushed ``used_count -= 1``
+    from the previous iteration would be overwritten by the refreshed row.
+    Flushing first persists that decrement; the locking select then reads the
+    correct committed value.
+    """
+    await db.flush()
+    stmt = (
+        select(Coupon)
+        .where(Coupon.code == normalize_code(code))
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return (await db.execute(stmt)).scalars().first()
+
+
 def evaluate_coupon(
     coupon: Coupon | None,
     booking_amount: Decimal,
@@ -49,9 +75,7 @@ def evaluate_coupon(
     if now > coupon.valid_until:
         return CouponEvaluation(False, "Coupon has expired")
     if booking_amount < coupon.min_booking_amount:
-        return CouponEvaluation(
-            False, f"Minimum booking amount is {coupon.min_booking_amount}"
-        )
+        return CouponEvaluation(False, f"Minimum booking amount is {coupon.min_booking_amount}")
     if coupon.usage_limit is not None and coupon.used_count >= coupon.usage_limit:
         return CouponEvaluation(False, "Coupon usage limit reached")
 

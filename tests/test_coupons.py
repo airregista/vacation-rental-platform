@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, select, update
 
 from app.core.config import settings
 
@@ -421,3 +422,111 @@ def test_coupon_evaluation_applies_percentage_cap_and_expiry():
     expired = evaluate_coupon(coupon, Decimal(2000000), now)
     assert expired.is_valid is False
     assert expired.message == "Coupon has expired"
+
+
+@pytest.mark.asyncio
+async def test_lock_coupon_refreshes_stale_identity_map():
+    from app.core.database import AsyncSessionLocal
+    from app.models.coupon import Coupon
+    from app.services.coupon_service import get_coupon_by_code, lock_coupon_by_code
+
+    code = f"STALE_{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as setup:
+        coupon = Coupon(
+            code=code,
+            discount_type="fixed",
+            discount_value=Decimal(10000),
+            min_booking_amount=Decimal(0),
+            valid_from=now - timedelta(days=1),
+            valid_until=now + timedelta(days=1),
+            usage_limit=5,
+            used_count=0,
+            is_active=True,
+        )
+        setup.add(coupon)
+        await setup.commit()
+        coupon_id = coupon.id
+
+    try:
+        async with AsyncSessionLocal() as reader:
+            cached = await get_coupon_by_code(reader, code)
+            assert cached is not None
+            assert cached.is_active is True
+
+            async with AsyncSessionLocal() as writer:
+                row = await writer.get(Coupon, coupon_id)
+                assert row is not None
+                row.is_active = False
+                row.used_count = 1
+                await writer.commit()
+
+            refreshed = await lock_coupon_by_code(reader, code)
+            assert refreshed is not None
+            assert refreshed.is_active is False
+            assert refreshed.used_count == 1
+    finally:
+        async with AsyncSessionLocal() as cleanup:
+            await cleanup.execute(delete(Coupon).where(Coupon.code == code))
+            await cleanup.commit()
+
+
+@pytest.mark.asyncio
+async def test_sweep_decrements_each_reservation_coupon_use(
+    client: AsyncClient, admin_token: str, guest_token: str
+):
+    from app.core.database import AsyncSessionLocal
+    from app.models.coupon import Coupon
+    from app.models.reservation import Reservation
+    from app.services.reservation_service import expire_stale_pending_reservations
+
+    code = f"MULTI_{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now(timezone.utc)
+    create_coupon = await client.post(
+        f"{settings.API_V1_STR}/coupons/",
+        json={
+            "code": code,
+            "discount_type": "fixed",
+            "discount_value": 1000,
+            "min_booking_amount": 0,
+            "valid_from": (now - timedelta(days=1)).isoformat(),
+            "valid_until": (now + timedelta(days=30)).isoformat(),
+            "usage_limit": 5,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_coupon.status_code == 201
+
+    acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
+    acc_id = acc_res.json()[0]["id"]
+
+    reservation_ids = []
+    for offset in (210, 220):
+        check_in = date.today() + timedelta(days=offset)
+        booking = await client.post(
+            f"{settings.API_V1_STR}/reservations/",
+            json={
+                "accommodation_id": acc_id,
+                "check_in": check_in.isoformat(),
+                "check_out": (check_in + timedelta(days=1)).isoformat(),
+                "guests_count": 1,
+                "coupon_code": code,
+            },
+            headers={"Authorization": f"Bearer {guest_token}"},
+        )
+        assert booking.status_code == 201
+        reservation_ids.append(booking.json()["id"])
+
+    async with AsyncSessionLocal() as session:
+        coupon = (await session.execute(select(Coupon).where(Coupon.code == code))).scalar_one()
+        assert coupon.used_count == 2
+        await session.execute(
+            update(Reservation)
+            .where(Reservation.id.in_(reservation_ids))
+            .values(created_at=datetime.now(timezone.utc) - timedelta(minutes=31))
+        )
+        await session.commit()
+        assert (await expire_stale_pending_reservations(session, ttl_minutes=30)) == 2
+        await session.refresh(coupon)
+        assert coupon.used_count == 0
