@@ -17,7 +17,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
@@ -30,30 +29,6 @@ import {
   type PaymentResponse,
   formatFaPrice,
 } from "@/types/checkout"
-
-const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
-const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
-
-/** Normalise Persian/Arabic-Indic digits to Latin for validation only. */
-function toLatinDigits(value: string): string {
-  return value
-    .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
-}
-
-function onlyDigits(value: string, maxLength: number): string {
-  return toLatinDigits(value).replace(/\D/g, "").slice(0, maxLength)
-}
-
-/** Groups a raw 16-digit card number and renders it with Persian digits. */
-function formatCardNumberFa(digits: string): string {
-  const clean = digits.replace(/\D/g, "").slice(0, 16)
-  const parts: string[] = []
-  for (let i = 0; i < clean.length; i += 4) {
-    parts.push(clean.slice(i, i + 4))
-  }
-  return toPersianDigits(parts.join(" - "))
-}
 
 const GATEWAYS = [
   {
@@ -173,28 +148,10 @@ export function PaymentGatewayModal({
     setPrevGatewayProp(initialGateway)
     setGateway(initialGateway || "mellat")
   }
-  const [cardNumber, setCardNumber] = React.useState("")
-  const [cvv2, setCvv2] = React.useState("")
-  const [expMonth, setExpMonth] = React.useState("")
-  const [expYear, setExpYear] = React.useState("")
-  const [otp, setOtp] = React.useState("")
-  const [otpTimer, setOtpTimer] = React.useState(0)
-  const [isRequestingOtp, setIsRequestingOtp] = React.useState(false)
-
   const [isVerifying, setIsVerifying] = React.useState(false)
   const [verifyError, setVerifyError] = React.useState<string | null>(null)
 
   const hasInitiatedRef = React.useRef<number | null>(null)
-  const otpTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-
-  // Cleanup pending OTP timeouts on unmount
-  React.useEffect(() => {
-    return () => {
-      if (otpTimeoutRef.current) {
-        clearTimeout(otpTimeoutRef.current)
-      }
-    }
-  }, [])
 
   // Memoized initiate payment handler (strictly guarded to pending reservations)
   const initiatePayment = React.useCallback(async () => {
@@ -262,27 +219,6 @@ export function PaymentGatewayModal({
     initiatePayment()
   }, [isOpen, reservation.id, reservation.status, paymentData, initiatePayment])
 
-  // OTP cooldown timer
-  React.useEffect(() => {
-    if (otpTimer <= 0) return
-    const timer = setInterval(() => {
-      setOtpTimer((prev) => (prev > 0 ? prev - 1 : 0))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [otpTimer])
-
-  const handleRequestOtp = () => {
-    setIsRequestingOtp(true)
-    if (otpTimeoutRef.current) {
-      clearTimeout(otpTimeoutRef.current)
-    }
-    otpTimeoutRef.current = setTimeout(() => {
-      setOtp("849201")
-      setOtpTimer(120)
-      setIsRequestingOtp(false)
-    }, 600)
-  }
-
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!paymentData) return
@@ -326,13 +262,6 @@ export function PaymentGatewayModal({
     }
   }
 
-  const isFormValid =
-    cardNumber.length === 16 &&
-    cvv2.length >= 3 &&
-    expMonth.length === 2 &&
-    expYear.length === 2 &&
-    otp.length >= 5
-
   const formatToman = (amount: number | string | null | undefined) => {
     return `${formatFaPrice(amount)} تومان`
   }
@@ -353,7 +282,8 @@ export function PaymentGatewayModal({
                     درگاه امن پرداخت اینترنتی شاپرک
                   </DialogTitle>
                   <DialogDescription className="text-xs leading-5 text-ink-soft">
-                    اتصال مستقیم به سوئیچ مرکزی شبکه پرداخت الکترونیک کشور
+                    این یک درگاه پرداخت شبیه‌سازی‌شده (دمو) است و پرداخت واقعی
+                    انجام نمی‌شود
                   </DialogDescription>
                 </div>
               </div>
@@ -490,134 +420,6 @@ export function PaymentGatewayModal({
                 </div>
               </div>
 
-              {/* Card Fields */}
-              <div className="space-y-3 rounded-2xl border border-line/70 bg-paper-deep/40 p-3.5 sm:p-4">
-                {/* Card Number */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="pg-card-number"
-                    className="flex items-center justify-between gap-2 text-xs font-semibold text-ink"
-                  >
-                    <span>شماره کارت بانکی ۱۶ رقمی</span>
-                    <span className="text-[11px] font-normal text-ink-soft">
-                      تمامی کارت‌های شتاب
-                    </span>
-                  </label>
-                  <Input
-                    id="pg-card-number"
-                    type="text"
-                    dir="ltr"
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                    value={formatCardNumberFa(cardNumber)}
-                    onChange={(e) =>
-                      setCardNumber(onlyDigits(e.target.value, 16))
-                    }
-                    placeholder="۶۰۳۷ - ۹۹۷۵ - ۰۰۰۰ - ۰۰۰۰"
-                    className="h-11 border-line bg-paper text-center text-base font-bold tabular-nums tracking-wider text-ink"
-                  />
-                </div>
-
-                {/* CVV2 and Expiry */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="pg-cvv2"
-                      className="block text-xs font-semibold text-ink"
-                    >
-                      کد امنیتی CVV
-                    </label>
-                    <Input
-                      id="pg-cvv2"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="cc-csc"
-                      maxLength={4}
-                      value={toPersianDigits(cvv2)}
-                      onChange={(e) => setCvv2(onlyDigits(e.target.value, 4))}
-                      placeholder="۳ یا ۴ رقم"
-                      className="h-11 border-line bg-paper text-center text-sm tabular-nums text-ink"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="pg-exp-month"
-                      className="block text-xs font-semibold text-ink"
-                    >
-                      تاریخ انقضا (ماه / سال)
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        id="pg-exp-month"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="cc-exp-month"
-                        maxLength={2}
-                        value={toPersianDigits(expMonth)}
-                        onChange={(e) =>
-                          setExpMonth(onlyDigits(e.target.value, 2))
-                        }
-                        placeholder="ماه"
-                        className="h-11 border-line bg-paper px-1 text-center text-sm tabular-nums text-ink"
-                      />
-                      <span className="font-bold text-ink-soft">/</span>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="cc-exp-year"
-                        maxLength={2}
-                        value={toPersianDigits(expYear)}
-                        onChange={(e) =>
-                          setExpYear(onlyDigits(e.target.value, 2))
-                        }
-                        placeholder="سال"
-                        aria-label="سال انقضا"
-                        className="h-11 border-line bg-paper px-1 text-center text-sm tabular-nums text-ink"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dynamic Password (رمز پویا) */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="pg-otp"
-                    className="block text-xs font-semibold text-ink"
-                  >
-                    رمز پویا / دوم
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="pg-otp"
-                      type="password"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={8}
-                      value={otp}
-                      onChange={(e) => setOtp(onlyDigits(e.target.value, 8))}
-                      placeholder="رمز ارسال‌شده به تلفن همراه"
-                      className="h-11 flex-1 border-line bg-paper text-center text-sm tabular-nums text-ink"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={otpTimer > 0 || isRequestingOtp}
-                      onClick={handleRequestOtp}
-                      className="h-11 shrink-0 px-3 text-xs font-bold"
-                    >
-                      {isRequestingOtp ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : otpTimer > 0 ? (
-                        `${toPersianDigits(otpTimer)} ثانیه`
-                      ) : (
-                        "دریافت رمز پویا"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
               {/* Verification Error */}
               {verifyError && (
                 <Alert variant="destructive">
@@ -635,10 +437,6 @@ export function PaymentGatewayModal({
                   <ShieldCheck className="size-3.5 text-trust" />
                   <span>تایید هویت امن شاپرک و بانک مرکزی</span>
                 </div>
-                <span className="tabular-nums">
-                  آی‌پی:{" "}
-                  <bdi dir="ltr">{toPersianDigits("185.143.***.***")}</bdi>
-                </span>
               </div>
 
               {/* Submit Actions */}
@@ -654,7 +452,7 @@ export function PaymentGatewayModal({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!isFormValid || isVerifying}
+                  disabled={isVerifying}
                   className="h-11 flex-1 gap-2 text-sm font-bold"
                 >
                   {isVerifying ? (
