@@ -80,7 +80,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **071** | `071-gallery-reorder-and-cover.md` | P2 | M | 063, 068 | **DONE (reviewed)** | `advisor/071-gallery-reorder-and-cover` | `ee4abc4`+`dbab28c` |
 | **072** | `072-messaging-unread-state.md` | P2 | S | — | **DONE (reviewed)** | `advisor/072-messaging-unread-state` | `2b65288` |
 | **073** | `073-docs-and-env-truth.md` | P3 | S | 059, 066, 070, 071, 072 | **DONE (reviewed; integrated branch)** | `advisor/073-docs-and-env-truth` | `a07ec3b` on merges `eac1cef`+`318b3e5` |
-| **074** | `074-ci-type-and-format-gates.md` | P1 | M | 057, 058, 068; runs last | **TODO** | `advisor/074-ci-type-and-format-gates` | — |
+| **074** | `074-ci-type-and-format-gates.md` | P1 | M | 057, 058, 068; runs last | **DONE (reviewed, merged)** | `advisor/074-ci-type-and-format-gates` | `4df2204`+`f34730e` |
 
 > **2026-11-12 backend/PostgreSQL audit (re-anchored 2026-11-13 at `138a410`)**:
 > a read-only audit of `app/`, `tests/`, `migrations/`, `scripts/`, CI, and
@@ -136,6 +136,18 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 > paths / 64 operations. Plan 061 received a follow-up fixup (`4269c89`)
 > restoring Persian test address strings that had been corrupted to question
 > marks. Nothing was pushed. 074 runs last.
+
+> **2026-11-13 plan 074 — DONE (reviewed, merged)**: the tree was re-anchored
+> first (mypy surfaced three extra typing-only errors introduced by the merged
+> plans — `eebffe0` amenities validator, 058's `ensure_dates_bookable` call,
+> 072's `rowcount` — fixed on `main` in `0b6f9b3` with no behavior change), then
+> the plan executed on `advisor/074-ci-type-and-format-gates` (`4df2204` seed
+> constructor + `locked_reservation` narrowing; `f34730e` 18-file `ruff format`
+> + non-advisory CI gates `Format check` / `Type check`). Reviewer re-ran all
+> gates post-merge on `main`: **246 passed**, `mypy app/` **no issues in 57
+> files**, `ruff format --check` **87 already formatted**, `ruff check` clean,
+> `alembic check` clean. The whole 057–074 set is now merged; only the index
+> commit remains.
 
 > **2026-11-12 database/security audit (planned at `c43af4c`)**: a read-only audit of the public schema, data invariants, Alembic chain, test isolation, and runtime/auth surface produced plans **051–056**. The test suite was still running `create_all` + `seed()` against the development database `jabama_db` (now `ashianak_db`); a migration-built database did not match the ORM models; the development data contained two overlapping confirmed bookings and 37 pending rows whose `total_nights` disagreed with their date range; the public accommodation detail exposed full host PII; the outbound iCal guard was IPv4-only and leaked exception text; production accepted the `postgres` superuser with an empty password; and `/health` never touched the database. Plan **052** must land before **053** and **054** because it establishes migration truth and the disposable `jabama_test` database (now `ashianak_test`); **056** follows **053** and **055** because 053 rewrites the login query and 055 edits the same config/test files. The static OTP `1234` / `dev_code` and the `simulate_success` payment shortcut are accepted demo behavior and were **explicitly excluded** by the maintainer — see “Findings Considered and Rejected”.
 
