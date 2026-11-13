@@ -67,6 +67,26 @@ class CouponCreate(BaseModel):
         return self
 
 
+class CouponUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    discount_value: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=0)
+    max_discount_amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=0)
+    min_booking_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=0)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    usage_limit: int | None = Field(default=None, gt=0, le=INTEGER_MAX)
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def normalize_timestamps(self) -> Self:
+        for field in ("valid_from", "valid_until"):
+            value = getattr(self, field)
+            if value is not None and value.tzinfo is None:
+                setattr(self, field, value.replace(tzinfo=timezone.utc))
+        return self
+
+
 class CouponResponse(CouponCreate):
     model_config = ConfigDict(from_attributes=True)
 
