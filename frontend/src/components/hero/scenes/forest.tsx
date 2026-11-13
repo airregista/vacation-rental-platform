@@ -35,7 +35,7 @@ export function ForestScene({ quality }: { quality: SceneTier }) {
   const segments = quality === "full" ? 9 : 6
 
   const gableGeometry = useDisposableGeometry(
-    React.useMemo(() => trianglePrism(2.1, 0.62, 1.55), [])
+    React.useMemo(() => trianglePrism(2.1, 0.62, 1.55), []),
   )
 
   return (
@@ -55,12 +55,7 @@ export function ForestScene({ quality }: { quality: SceneTier }) {
           receiveShadow
         >
           <circleGeometry args={[radius, 14]} />
-          <meshStandardMaterial
-            color={palette.green}
-            roughness={0.95}
-            transparent
-            opacity={0.45}
-          />
+          <meshStandardMaterial color={palette.green} roughness={0.95} transparent opacity={0.45} />
         </mesh>
       ))}
       <mesh position={[0.1, FLOOR_TOP + 0.004, 1.35]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -157,10 +152,7 @@ export function ForestScene({ quality }: { quality: SceneTier }) {
       </group>
 
       {/* Stream and stepping stones */}
-      <mesh
-        position={[-1.7, FLOOR_TOP + 0.015, 1.25]}
-        rotation={[-Math.PI / 2, 0, 0.22]}
-      >
+      <mesh position={[-1.7, FLOOR_TOP + 0.015, 1.25]} rotation={[-Math.PI / 2, 0, 0.22]}>
         <planeGeometry args={[0.52, 2.3]} />
         <meshStandardMaterial
           color={palette.teal}
@@ -207,7 +199,7 @@ export function ForestScene({ quality }: { quality: SceneTier }) {
               <boxGeometry args={[0.05, 0.32, 0.05]} />
               <meshStandardMaterial color={palette.wood} roughness={0.92} />
             </mesh>
-          ))
+          )),
         )}
       </group>
 

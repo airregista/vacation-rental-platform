@@ -135,9 +135,7 @@ function DesertRug({ palette }: { palette: ScenePalette }) {
 export function DesertScene({ quality }: { quality: SceneTier }) {
   const palette = React.useMemo(() => getScenePalette(), [])
   const wallTexture = useMudbrickTexture(palette)
-  const archGeometry = useDisposableGeometry(
-    React.useMemo(() => archShape(0.9, 1.15, 0.04), [])
-  )
+  const archGeometry = useDisposableGeometry(React.useMemo(() => archShape(0.9, 1.15, 0.04), []))
 
   return (
     <group>

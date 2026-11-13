@@ -14,11 +14,5 @@ export function HomeSearchDock() {
     router.push(`/search${query}`)
   }
 
-  return (
-    <SearchPill
-      currentParams={{}}
-      onSearch={handleSearch}
-      variant="dock"
-    />
-  )
+  return <SearchPill currentParams={{}} onSearch={handleSearch} variant="dock" />
 }

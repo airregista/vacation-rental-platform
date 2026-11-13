@@ -30,10 +30,7 @@ export interface TripPermissions {
  * Single source of truth for the guest action guards. Kept out of the card so
  * the reservation detail page cannot drift from the list.
  */
-export function getTripPermissions(
-  trip: TripReservationItem,
-  now: number
-): TripPermissions {
+export function getTripPermissions(trip: TripReservationItem, now: number): TripPermissions {
   const checkInTimestamp = parseTripDate(trip.check_in, CHECK_IN_FALLBACK_TIME)
   const checkOutTimestamp = parseTripDate(trip.check_out, CHECK_OUT_FALLBACK_TIME)
 
@@ -42,8 +39,7 @@ export function getTripPermissions(
     checkOutTimestamp,
     canCancel: trip.status === "confirmed" && checkInTimestamp > now,
     canReview:
-      trip.status === "completed" ||
-      (trip.status === "confirmed" && checkOutTimestamp <= now),
+      trip.status === "completed" || (trip.status === "confirmed" && checkOutTimestamp <= now),
     canChat: trip.status === "confirmed" || trip.status === "completed",
   }
 }

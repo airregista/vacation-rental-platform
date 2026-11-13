@@ -75,8 +75,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         if (paymentsResult.status === "fulfilled" && Array.isArray(paymentsResult.value)) {
           setPayment(
             paymentsResult.value.find(
-              (item) => item.reservation_id === reservationId && item.status === "success"
-            ) ?? null
+              (item) => item.reservation_id === reservationId && item.status === "success",
+            ) ?? null,
           )
         }
       } catch (err: unknown) {
@@ -206,7 +206,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     },
     accommodation
       ? { cleaning_fee: accommodation.cleaning_fee, base_price: accommodation.base_price }
-      : null
+      : null,
   )
   const nightlyRate =
     accommodation && accommodation.base_price > 0
@@ -214,18 +214,15 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       : reservation.total_nights > 0
         ? Math.round(breakdown.baseTotal / reservation.total_nights)
         : 0
-  const guestName =
-    [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "مهمان آشیانک"
+  const guestName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "مهمان آشیانک"
   const invoiceNumber = `ASH-${toPersianDigits(String(reservation.id).padStart(6, "0"))}`
   const trackingCode =
-    payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code)
-      ? payment.tracking_code
-      : null
+    payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code) ? payment.tracking_code : null
   const paymentStatus = payment
     ? trackingCode
       ? `پرداخت‌شده با کد پیگیری ${toPersianDigits(trackingCode)}`
       : "پرداخت‌شده"
-    : STATUS_LABEL[reservation.status] ?? "در انتظار بررسی"
+    : (STATUS_LABEL[reservation.status] ?? "در انتظار بررسی")
 
   return (
     <div className="invoice-page bg-paper">
@@ -269,9 +266,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 <AshianakLogo size="lg" />
                 <div>
                   <p className="mt-1 text-[11px] text-ink-soft">اقامتگاه‌های بومی ایران</p>
-                  <p className="text-[10px] text-ink-soft">
-                    ashianak.ir · ۰۲۱–۹۱۰۰۰۰۰۰
-                  </p>
+                  <p className="text-[10px] text-ink-soft">ashianak.ir · ۰۲۱–۹۱۰۰۰۰۰۰</p>
                 </div>
               </div>
               <div className="text-left">
@@ -296,9 +291,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 <p className="text-[10px] font-bold tracking-[0.16em] text-ink-soft">مشتری</p>
                 <p className="mt-2 text-sm font-bold text-ink">{guestName}</p>
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-soft">
-                  <span className="tabular-nums">
-                    {toPersianDigits(user?.phone ?? "")}
-                  </span>
+                  <span className="tabular-nums">{toPersianDigits(user?.phone ?? "")}</span>
                 </p>
                 {user?.email ? (
                   <p className="mt-1 text-[11px] text-ink-soft" dir="ltr">
@@ -314,7 +307,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                   {location}
                 </p>
                 {accommodation?.address ? (
-                  <p className="mt-1 text-[11px] leading-5 text-ink-soft">{accommodation.address}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-ink-soft">
+                    {accommodation.address}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -397,9 +392,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                   ) : null}
                   {reservation.coupon_code && breakdown.discountAmount > 0 ? (
                     <tr className="text-trust">
-                      <td className="px-4 py-3.5">
-                        تخفیف کد {reservation.coupon_code}
-                      </td>
+                      <td className="px-4 py-3.5">تخفیف کد {reservation.coupon_code}</td>
                       <td className="px-4 py-3.5 tabular-nums">—</td>
                       <td className="px-4 py-3.5 font-bold tabular-nums">
                         - {formatFaPrice(breakdown.discountAmount)}
@@ -445,8 +438,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
             <div className="flex flex-col gap-4 text-[10px] leading-6 text-ink-soft sm:flex-row sm:items-center sm:justify-between">
               <p className="flex items-start gap-1.5">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" />
-                این فاکتور به‌صورت الکترونیکی صادر شده و برای پیگیری رزرو معتبر است.
-                پشتیبانی آشیانک: ۰۲۱–۹۱۰۰۰۰۰۰
+                این فاکتور به‌صورت الکترونیکی صادر شده و برای پیگیری رزرو معتبر است. پشتیبانی
+                آشیانک: ۰۲۱–۹۱۰۰۰۰۰۰
               </p>
               <p className="shrink-0 tabular-nums" dir="ltr">
                 {invoiceNumber}

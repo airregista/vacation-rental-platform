@@ -3,14 +3,7 @@
 import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
-import {
-  ChevronRight,
-  ChevronLeft,
-  LayoutGrid,
-  ArrowRight,
-  Heart,
-  ImageIcon,
-} from "lucide-react"
+import { ChevronRight, ChevronLeft, LayoutGrid, ArrowRight, Heart, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -38,12 +31,7 @@ export interface PhotoGalleryProps {
   onToggleFavorite?: () => void
 }
 
-export function PhotoGallery({
-  images,
-  title,
-  isFavorite,
-  onToggleFavorite,
-}: PhotoGalleryProps) {
+export function PhotoGallery({ images, title, isFavorite, onToggleFavorite }: PhotoGalleryProps) {
   const [isLightboxOpen, setIsLightboxOpen] = React.useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = React.useState(0)
   const [internalFavorite, setInternalFavorite] = React.useState(false)
@@ -74,8 +62,7 @@ export function PhotoGallery({
 
   // Clamp: the image list can shrink (e.g. navigating to a listing with
   // fewer photos) while this index persists, so never index out of range.
-  const safeActivePhotoIndex =
-    totalImages > 0 ? Math.min(activePhotoIndex, totalImages - 1) : 0
+  const safeActivePhotoIndex = totalImages > 0 ? Math.min(activePhotoIndex, totalImages - 1) : 0
 
   const openLightbox = (index: number) => {
     setActivePhotoIndex(index)
@@ -167,11 +154,7 @@ export function PhotoGallery({
             onClick={handleToggleFavorite}
             className="pointer-events-auto size-9 rounded-full bg-paper/85 text-ink shadow-soft backdrop-blur-sm transition-colors hover:bg-paper"
           >
-            <Heart
-              className={`size-5 ${
-                favorite ? "fill-brick text-brick" : "text-ink"
-              }`}
-            />
+            <Heart className={`size-5 ${favorite ? "fill-brick text-brick" : "text-ink"}`} />
           </Button>
         </div>
 
@@ -280,7 +263,11 @@ export function PhotoGallery({
             {/* Secondary Images */}
             <div
               className={`grid h-full gap-2 ${
-                totalImages === 4 ? "grid-rows-3" : totalImages === 3 ? "grid-rows-2" : "grid-rows-1"
+                totalImages === 4
+                  ? "grid-rows-3"
+                  : totalImages === 3
+                    ? "grid-rows-2"
+                    : "grid-rows-1"
               }`}
             >
               {sortedImages.slice(1, totalImages).map((img, idx) => (

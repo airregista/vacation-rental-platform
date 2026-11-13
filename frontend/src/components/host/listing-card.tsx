@@ -29,7 +29,7 @@ function ListingStatusBadge({ isActive }: { isActive: boolean }) {
         "gap-1.5 px-2.5 py-1 text-[10px] font-bold shadow-soft backdrop-blur",
         isActive
           ? "border-trust/40 bg-trust/10 text-trust"
-          : "border-gold/40 bg-gold-soft/90 text-ink"
+          : "border-gold/40 bg-gold-soft/90 text-ink",
       )}
     >
       <span
@@ -186,7 +186,7 @@ export function HostListingCard({
                 onClick={() => onToggleActive?.(listing)}
                 className={cn(
                   "gap-1.5 border-line bg-paper hover:bg-paper-deep",
-                  listing.is_active ? "text-ink" : "text-trust"
+                  listing.is_active ? "text-ink" : "text-trust",
                 )}
               >
                 {listing.is_active ? (

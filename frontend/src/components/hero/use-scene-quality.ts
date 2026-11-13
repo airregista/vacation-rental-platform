@@ -11,8 +11,7 @@ function supportsWebGL(): boolean {
   try {
     const canvas = document.createElement("canvas")
     webglSupport = Boolean(
-      window.WebGLRenderingContext &&
-        (canvas.getContext("webgl2") || canvas.getContext("webgl"))
+      window.WebGLRenderingContext && (canvas.getContext("webgl2") || canvas.getContext("webgl")),
     )
   } catch {
     webglSupport = false
@@ -54,9 +53,5 @@ function subscribe(onChange: () => void) {
  * and avoids a state-in-effect hydration flash.
  */
 export function useSceneQuality(): SceneQuality {
-  return React.useSyncExternalStore(
-    subscribe,
-    detectSceneQuality,
-    () => "poster" as const
-  )
+  return React.useSyncExternalStore(subscribe, detectSceneQuality, () => "poster" as const)
 }

@@ -68,9 +68,7 @@ function StarPicker({
           {current > 0 ? `${toPersianDigits(current)} از ۵` : "امتیاز دهید"}
         </span>
       </div>
-      {description && (
-        <p className="text-[11px] leading-6 text-ink-soft">{description}</p>
-      )}
+      {description && <p className="text-[11px] leading-6 text-ink-soft">{description}</p>}
 
       {/* 5-Star Row with 44px Accessible Touch Targets */}
       <div
@@ -89,17 +87,14 @@ function StarPicker({
                 "flex size-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brick/40 active:scale-95 disabled:pointer-events-none",
                 isFilled
                   ? "text-gold hover:bg-gold/10"
-                  : "text-ink-soft/30 hover:bg-paper-deep hover:text-gold/70"
+                  : "text-ink-soft/30 hover:bg-paper-deep hover:text-gold/70",
               )}
               onMouseEnter={() => setHoverVal(star)}
               onClick={() => onChange(star === value ? null : star)}
               aria-label={`${label}: ${star} از ۵`}
             >
               <Star
-                className={cn(
-                  "size-6 transition-transform",
-                  isFilled && "scale-110 fill-gold"
-                )}
+                className={cn("size-6 transition-transform", isFilled && "scale-110 fill-gold")}
               />
             </button>
           )
@@ -109,12 +104,7 @@ function StarPicker({
   )
 }
 
-export function ReviewDialog({
-  trip,
-  isOpen,
-  onClose,
-  onReviewSubmitted,
-}: ReviewDialogProps) {
+export function ReviewDialog({ trip, isOpen, onClose, onReviewSubmitted }: ReviewDialogProps) {
   const [rating, setRating] = useState<number | null>(null)
   const [cleanliness, setCleanliness] = useState<number | null>(null)
   const [accuracy, setAccuracy] = useState<number | null>(null)
@@ -164,7 +154,12 @@ export function ReviewDialog({
     onClose()
   }
 
-  const isValid = rating !== null && rating >= 1 && rating <= 5 && comment.trim().length >= 5 && comment.trim().length <= 1000
+  const isValid =
+    rating !== null &&
+    rating >= 1 &&
+    rating <= 5 &&
+    comment.trim().length >= 5 &&
+    comment.trim().length <= 1000
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -182,10 +177,7 @@ export function ReviewDialog({
         comment: comment.trim(),
       }
 
-      await apiClient.post(
-        `/accommodations/${trip.accommodation_id}/reviews`,
-        payload
-      )
+      await apiClient.post(`/accommodations/${trip.accommodation_id}/reviews`, payload)
 
       // Closed while the request was in flight: no timer, no success
       // message — refresh the parent list right away instead (R3).
@@ -243,9 +235,7 @@ export function ReviewDialog({
           <Alert className="border-trust/30 bg-trust/10 text-trust">
             <CheckCircle2 className="size-4 text-trust" />
             <AlertTitle>ثبت موفق نظر</AlertTitle>
-            <AlertDescription className="text-xs text-trust/90">
-              {successMessage}
-            </AlertDescription>
+            <AlertDescription className="text-xs text-trust/90">{successMessage}</AlertDescription>
           </Alert>
         )}
 
@@ -297,10 +287,7 @@ export function ReviewDialog({
             {/* Comment Section */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <label
-                  htmlFor="review-comment"
-                  className="text-sm font-semibold text-ink"
-                >
+                <label htmlFor="review-comment" className="text-sm font-semibold text-ink">
                   متن تجربه و دیدگاه شما:
                 </label>
                 <span className="text-[11px] tabular-nums text-ink-soft">
@@ -318,9 +305,7 @@ export function ReviewDialog({
                 className="border-line bg-paper-card"
               />
               {comment.trim().length > 0 && comment.trim().length < 5 && (
-                <p className="text-xs text-destructive">
-                  حداقل ۵ کاراکتر لازم است.
-                </p>
+                <p className="text-xs text-destructive">حداقل ۵ کاراکتر لازم است.</p>
               )}
             </div>
 
@@ -334,11 +319,7 @@ export function ReviewDialog({
               >
                 انصراف
               </Button>
-              <Button
-                type="submit"
-                disabled={!isValid || isSubmitting}
-                className="gap-2"
-              >
+              <Button type="submit" disabled={!isValid || isSubmitting} className="gap-2">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />

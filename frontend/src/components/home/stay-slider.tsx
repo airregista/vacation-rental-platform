@@ -45,12 +45,8 @@ function toStay(item: AccommodationListItem, index: number): Stay {
 
   const meta = [
     `${new Intl.NumberFormat("fa-IR").format(item.max_capacity || item.capacity || 1)} مهمان`,
-    item.rooms_count > 0
-      ? `${new Intl.NumberFormat("fa-IR").format(item.rooms_count)} خواب`
-      : null,
-    item.beds_count > 0
-      ? `${new Intl.NumberFormat("fa-IR").format(item.beds_count)} تخت`
-      : null,
+    item.rooms_count > 0 ? `${new Intl.NumberFormat("fa-IR").format(item.rooms_count)} خواب` : null,
+    item.beds_count > 0 ? `${new Intl.NumberFormat("fa-IR").format(item.beds_count)} تخت` : null,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -149,7 +145,8 @@ function FeaturedStay({ stay }: { stay: Stay }) {
 
         <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-night-foreground/20 pt-4">
           <p className="text-xs text-night-foreground/70">
-            <span className="text-xl font-black text-night-foreground">{stay.price}</span> تومان / شب
+            <span className="text-xl font-black text-night-foreground">{stay.price}</span> تومان /
+            شب
           </p>
           <span className="inline-flex items-center gap-1.5 text-xs font-bold text-night-foreground">
             مشاهدهٔ اقامتگاه

@@ -2,14 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  AlertCircle,
-  Building2,
-  CalendarDays,
-  Plus,
-  Power,
-  Wallet,
-} from "lucide-react"
+import { AlertCircle, Building2, CalendarDays, Plus, Power, Wallet } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import type { HostPayoutItem } from "@/types/host"
 import type { HostListingRecord, HostReservationRecord } from "@/components/host/types"
@@ -78,9 +71,7 @@ function HostDashboardContent() {
         setFetchError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setFetchError(
-          getApiErrorMessage(error, "بارگذاری داشبورد میزبان با خطا مواجه شد.")
-        )
+        setFetchError(getApiErrorMessage(error, "بارگذاری داشبورد میزبان با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -94,12 +85,12 @@ function HostDashboardContent() {
 
   const activeListings = React.useMemo(
     () => listings.filter((listing) => listing.is_active).length,
-    [listings]
+    [listings],
   )
 
   const pendingReservations = React.useMemo(
     () => reservations.filter((reservation) => reservation.status === "pending").length,
-    [reservations]
+    [reservations],
   )
 
   const pendingPayoutAmount = React.useMemo(
@@ -107,7 +98,7 @@ function HostDashboardContent() {
       payouts
         .filter((payout) => payout.status === "pending")
         .reduce((sum, payout) => sum + payout.payout_amount, 0),
-    [payouts]
+    [payouts],
   )
 
   const handleRetry = () => {

@@ -35,9 +35,8 @@ export function HostCta() {
               خانه‌تان را به یک تجربه تبدیل کنید.
             </h2>
             <p className="mt-4 max-w-xl text-[15px] leading-8 text-on-brick/80">
-              اگر خانه، باغ یا اتاقی دارید که قصه‌ای برای گفتن دارد، ما در
-              عکاسی، معرفی و پذیرش مهمان کنارتان هستیم. شما میزبان باشید؛ بقیه
-              کارها با آشیانک.
+              اگر خانه، باغ یا اتاقی دارید که قصه‌ای برای گفتن دارد، ما در عکاسی، معرفی و پذیرش
+              مهمان کنارتان هستیم. شما میزبان باشید؛ بقیه کارها با آشیانک.
             </p>
 
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2">
@@ -51,11 +50,7 @@ export function HostCta() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:col-span-5 lg:mx-auto lg:w-full lg:max-w-xs lg:flex-col">
-            <Button
-              asChild
-              size="lg"
-              className="bg-paper text-ink shadow-none hover:bg-paper/90"
-            >
+            <Button asChild size="lg" className="bg-paper text-ink shadow-none hover:bg-paper/90">
               <Link href="/host/new">
                 شروع میزبانی
                 <ArrowLeft className="size-4" />
@@ -73,8 +68,7 @@ export function HostCta() {
               </a>
             </Button>
             <p className="text-pretty text-center text-[11px] leading-5 text-on-brick/60 lg:text-right">
-              ثبت اقامتگاه رایگان است؛ کمیسیون فقط پس از رزرو موفق محاسبه
-              می‌شود.
+              ثبت اقامتگاه رایگان است؛ کمیسیون فقط پس از رزرو موفق محاسبه می‌شود.
             </p>
           </div>
         </div>

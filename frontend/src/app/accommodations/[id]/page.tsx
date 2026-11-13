@@ -58,8 +58,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   // state owned by this page itself so dates/wishlist never carry over).
   // Adjusting state during render is the documented pattern for "reset
   // state when a prop changes" — an effect would cascade re-renders.
-  const [prevAccommodationId, setPrevAccommodationId] =
-    React.useState(accommodationId)
+  const [prevAccommodationId, setPrevAccommodationId] = React.useState(accommodationId)
   if (prevAccommodationId !== accommodationId) {
     setPrevAccommodationId(accommodationId)
     setCheckIn(null)
@@ -79,7 +78,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
     const fetchData = async () => {
       try {
         const res = await apiClient.get<AccommodationDetailData>(
-          `/accommodations/${accommodationId}`
+          `/accommodations/${accommodationId}`,
         )
         if (isCurrent) {
           setData(res)
@@ -133,7 +132,9 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
             <AlertCircle className="size-8" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl font-black tracking-tight text-ink">اقامتگاه مورد نظر یافت نشد</h1>
+            <h1 className="text-xl font-black tracking-tight text-ink">
+              اقامتگاه مورد نظر یافت نشد
+            </h1>
             <p className="text-xs leading-6 text-ink-soft">
               این اقامتگاه ممکن است حذف شده باشد یا شناسه وارد شده صحیح نباشد.
             </p>
@@ -211,10 +212,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   }
 
   return (
-    <main
-      key={accommodationId}
-      className="min-h-screen bg-paper pb-28 text-ink lg:pb-16"
-    >
+    <main key={accommodationId} className="min-h-screen bg-paper pb-28 text-ink lg:pb-16">
       <div className="mx-auto w-full max-w-[1360px] space-y-6 px-4 py-5 sm:px-6 lg:space-y-8 lg:px-8 lg:py-8">
         {/* Breadcrumb Navigation */}
         <nav
@@ -311,9 +309,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
               className="h-9 gap-1.5 border-line bg-paper-card text-xs text-ink shadow-none hover:bg-paper"
             >
               <Heart
-                className={`size-4 ${
-                  isWishlisted ? "fill-brick text-brick" : "text-ink-soft"
-                }`}
+                className={`size-4 ${isWishlisted ? "fill-brick text-brick" : "text-ink-soft"}`}
               />
               <span>{isWishlisted ? "نشان شده" : "نشان کردن"}</span>
             </Button>
@@ -411,11 +407,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
 
           {/* Left Sticky Sidebar for Desktop (lg:col-span-5) */}
           <div className="lg:col-span-5">
-            <BookingWidget
-              accommodation={data}
-              checkIn={checkIn}
-              checkOut={checkOut}
-            />
+            <BookingWidget accommodation={data} checkIn={checkIn} checkOut={checkOut} />
           </div>
         </div>
       </div>

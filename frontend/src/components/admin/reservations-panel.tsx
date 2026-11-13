@@ -19,19 +19,12 @@ function locationLabel(reservation: AdminReservation): string | null {
   return [reservation.city, reservation.province].filter(Boolean).join("، ") || null
 }
 
-export function ReservationsPanel({
-  reservations,
-}: {
-  reservations: AdminReservation[]
-}) {
+export function ReservationsPanel({ reservations }: { reservations: AdminReservation[] }) {
   return (
     <section aria-labelledby="admin-reservations-title">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2
-            id="admin-reservations-title"
-            className="text-lg font-black tracking-tight text-ink"
-          >
+          <h2 id="admin-reservations-title" className="text-lg font-black tracking-tight text-ink">
             رزروها
           </h2>
           <p className="mt-1 text-xs leading-6 text-ink-soft">
@@ -84,9 +77,7 @@ export function ReservationsPanel({
                       className="border-t border-line/60 transition-colors hover:bg-paper-deep/25"
                     >
                       <td className="px-4 py-3.5">
-                        <p className="font-bold text-ink">
-                          {accommodationLabel(reservation)}
-                        </p>
+                        <p className="font-bold text-ink">{accommodationLabel(reservation)}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-soft">
                           <span>رزرو {formatCount(reservation.id)}</span>
                           {location ? (
@@ -128,11 +119,8 @@ export function ReservationsPanel({
                         </p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <AdminStatusBadge
-                          tone={reservationStatusTone(reservation.status)}
-                        >
-                          {RESERVATION_STATUS_LABELS[reservation.status] ??
-                            reservation.status}
+                        <AdminStatusBadge tone={reservationStatusTone(reservation.status)}>
+                          {RESERVATION_STATUS_LABELS[reservation.status] ?? reservation.status}
                         </AdminStatusBadge>
                       </td>
                     </tr>
@@ -160,11 +148,8 @@ export function ReservationsPanel({
                         {location ? ` · ${location}` : ""}
                       </p>
                     </div>
-                    <AdminStatusBadge
-                      tone={reservationStatusTone(reservation.status)}
-                    >
-                      {RESERVATION_STATUS_LABELS[reservation.status] ??
-                        reservation.status}
+                    <AdminStatusBadge tone={reservationStatusTone(reservation.status)}>
+                      {RESERVATION_STATUS_LABELS[reservation.status] ?? reservation.status}
                     </AdminStatusBadge>
                   </div>
 

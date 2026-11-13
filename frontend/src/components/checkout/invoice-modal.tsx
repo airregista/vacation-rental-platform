@@ -27,7 +27,9 @@ function formatPersianLongDate(dateStr?: string): string {
   if (!dateStr) return "-"
   try {
     const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
+      ? dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr)
+        ? dateStr
+        : `${dateStr}Z`
       : `${dateStr}T00:00:00Z`
     const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
@@ -49,16 +51,17 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
   const payment = data.payment
   const guest = data.guest
 
-  const { totalPayable, cleaningFee, baseTotal, discountAmount } =
-    computeCheckoutBreakdown(reservation, accommodation, payment.amount)
+  const { totalPayable, cleaningFee, baseTotal, discountAmount } = computeCheckoutBreakdown(
+    reservation,
+    accommodation,
+    payment.amount,
+  )
 
   const solarYear = getPersianYear(data.issuance_date || payment.paid_at)
   const invoiceNumber = toPersianDigits(
-    data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
+    data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`,
   )
-  const reservationCode = toPersianDigits(
-    `MHM-${reservation.id.toString().padStart(5, "0")}`
-  )
+  const reservationCode = toPersianDigits(`MHM-${reservation.id.toString().padStart(5, "0")}`)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -67,8 +70,9 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
           <DialogTitle>فاکتور رسمی الکترونیک آشیانک</DialogTitle>
           <DialogDescription>صورت‌حساب رسمی خدمات اقامتی و گردشگری</DialogDescription>
         </DialogHeader>
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             @media print {
               @page {
                 size: A4 portrait;
@@ -122,8 +126,9 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                 box-shadow: none !important;
               }
             }
-          `
-        }} />
+          `,
+          }}
+        />
 
         {/* Top Action Bar (hidden in print) */}
         <div className="print-hide flex items-center justify-between gap-2 border-b border-line pb-3">
@@ -146,7 +151,10 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
             </Button>
           </div>
 
-          <Badge variant="outline" className="border-line bg-paper-card px-2.5 py-1 text-xs text-ink-soft">
+          <Badge
+            variant="outline"
+            className="border-line bg-paper-card px-2.5 py-1 text-xs text-ink-soft"
+          >
             فاکتور رسمی الکترونیک
           </Badge>
         </div>
@@ -172,15 +180,23 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
             <div className="space-y-1 text-left text-xs font-medium text-ink-soft sm:self-end">
               <div>
                 <span>شماره صورت‌حساب: </span>
-                <span className="font-mono text-sm font-bold tabular-nums text-ink">{invoiceNumber}</span>
+                <span className="font-mono text-sm font-bold tabular-nums text-ink">
+                  {invoiceNumber}
+                </span>
               </div>
               <div>
                 <span>تاریخ صدور: </span>
-                <span className="tabular-nums text-ink">{formatPersianLongDate(data.issuance_date || payment.paid_at || new Date().toISOString())}</span>
+                <span className="tabular-nums text-ink">
+                  {formatPersianLongDate(
+                    data.issuance_date || payment.paid_at || new Date().toISOString(),
+                  )}
+                </span>
               </div>
               <div>
                 <span>کد پیگیری شاپرک: </span>
-                <span dir="ltr" className="font-mono font-bold tabular-nums text-ink">{toPersianDigits(payment.tracking_code || "-")}</span>
+                <span dir="ltr" className="font-mono font-bold tabular-nums text-ink">
+                  {toPersianDigits(payment.tracking_code || "-")}
+                </span>
               </div>
             </div>
           </div>
@@ -193,7 +209,9 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
             </div>
             <div className="space-y-0.5">
               <span className="block text-[11px] text-ink-soft">شماره تراکنش پرداخت:</span>
-              <span className="font-mono font-medium tabular-nums text-ink">{toPersianDigits(payment.id)}</span>
+              <span className="font-mono font-medium tabular-nums text-ink">
+                {toPersianDigits(payment.id)}
+              </span>
             </div>
             <div className="space-y-0.5">
               <span className="block text-[11px] text-ink-soft">وضعیت پرداخت:</span>
@@ -286,10 +304,12 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
                   <td className="p-3 text-center font-mono">۱</td>
                   <td className="p-3">
                     <span className="font-bold text-foreground">
-                      اقامت در {accommodation?.title || reservation.accommodation_title || "اقامتگاه"}
+                      اقامت در{" "}
+                      {accommodation?.title || reservation.accommodation_title || "اقامتگاه"}
                     </span>
                     <span className="block text-[11px] text-muted-foreground mt-0.5">
-                      از تاریخ {formatPersianDate(reservation.check_in)} لغایت {formatPersianDate(reservation.check_out)}
+                      از تاریخ {formatPersianDate(reservation.check_in)} لغایت{" "}
+                      {formatPersianDate(reservation.check_out)}
                     </span>
                   </td>
                   <td className="p-3 text-center font-mono font-medium">
@@ -375,9 +395,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
             </div>
 
             <div className="border border-border/70 rounded-xl p-3 text-center space-y-2 bg-card">
-              <span className="font-bold block text-foreground">
-                رسید تحویل خدمات به مهمان
-              </span>
+              <span className="font-bold block text-foreground">رسید تحویل خدمات به مهمان</span>
               <div className="h-14 flex items-center justify-center text-muted-foreground/80 text-[11px]">
                 تاییدیه الکترونیکی با ثبت ورود به اقامتگاه
               </div>

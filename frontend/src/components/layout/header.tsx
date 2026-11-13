@@ -89,9 +89,7 @@ export function Header() {
       await becomeHost()
       router.push("/host/dashboard")
     } catch (err: unknown) {
-      setHostError(
-        err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد."
-      )
+      setHostError(err instanceof ApiError ? err.detail : "خطایی در ارتقای نقش کاربری رخ داد.")
     } finally {
       setIsPromoting(false)
     }
@@ -107,9 +105,7 @@ export function Header() {
         ? user.first_name[0]
         : "آ"
 
-  const iconTone = overHero
-    ? "text-hero-ink hover:bg-hero-ink/10"
-    : "text-ink hover:bg-ink/5"
+  const iconTone = overHero ? "text-hero-ink hover:bg-hero-ink/10" : "text-ink hover:bg-ink/5"
 
   return (
     <header
@@ -118,7 +114,7 @@ export function Header() {
         isHome ? "fixed inset-x-0" : "sticky",
         isHome && !scrolled
           ? "border-transparent bg-transparent"
-          : "border-line/80 bg-paper/90 shadow-soft backdrop-blur-xl"
+          : "border-line/80 bg-paper/90 shadow-soft backdrop-blur-xl",
       )}
     >
       {hostError ? (
@@ -126,9 +122,7 @@ export function Header() {
           <Alert variant="destructive" className="flex items-center justify-between py-2">
             <div className="flex items-center gap-2">
               <AlertCircle className="size-4 shrink-0" />
-              <AlertDescription className="text-xs font-semibold">
-                {hostError}
-              </AlertDescription>
+              <AlertDescription className="text-xs font-semibold">{hostError}</AlertDescription>
             </div>
             <Button
               type="button"
@@ -160,9 +154,7 @@ export function Header() {
               href={link.href}
               className={cn(
                 "rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                overHero
-                  ? "text-hero-ink/75 hover:text-hero-clay"
-                  : "text-ink/75 hover:text-brick"
+                overHero ? "text-hero-ink/75 hover:text-hero-clay" : "text-ink/75 hover:text-brick",
               )}
             >
               {link.label}
@@ -175,9 +167,7 @@ export function Header() {
             href="tel:+982191000000"
             className={cn(
               "hidden items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors lg:inline-flex",
-              overHero
-                ? "text-hero-ink/70 hover:text-hero-clay"
-                : "text-ink-soft hover:text-brick"
+              overHero ? "text-hero-ink/70 hover:text-hero-clay" : "text-ink-soft hover:text-brick",
             )}
           >
             <Phone className="size-3.5" />
@@ -221,7 +211,7 @@ export function Header() {
                 "px-3 text-xs shadow-none sm:px-5 sm:text-sm",
                 overHero
                   ? "border-hero-ink/20 bg-hero-cream/70 text-hero-ink hover:bg-hero-cream"
-                  : "border-line bg-paper-card/70 text-ink hover:bg-paper-card"
+                  : "border-line bg-paper-card/70 text-ink hover:bg-paper-card",
               )}
             >
               ورود / ثبت‌نام
@@ -237,7 +227,7 @@ export function Header() {
                     "size-9 rounded-full p-0 shadow-none",
                     overHero
                       ? "border-hero-ink/20 bg-hero-cream/70 hover:bg-hero-cream"
-                      : "border-line bg-paper-card/70 hover:bg-paper-card"
+                      : "border-line bg-paper-card/70 hover:bg-paper-card",
                   )}
                 >
                   <Avatar className="size-8">

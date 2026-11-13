@@ -26,7 +26,7 @@ export function AdminStatusBadge({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none",
         TONE_CLASSES[tone],
-        className
+        className,
       )}
     >
       {children}

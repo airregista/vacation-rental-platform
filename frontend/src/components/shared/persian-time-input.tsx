@@ -23,11 +23,10 @@ function formatTime(value: string): string {
   return toPersianDigits(`${match[1].padStart(2, "0")}:${match[2]}`)
 }
 
-export interface PersianTimeInputProps
-  extends Omit<
-    React.ComponentProps<typeof Input>,
-    "type" | "value" | "defaultValue" | "onChange"
-  > {
+export interface PersianTimeInputProps extends Omit<
+  React.ComponentProps<typeof Input>,
+  "type" | "value" | "defaultValue" | "onChange"
+> {
   /** 24-hour `HH:MM` value. */
   value: string
   onValueChange: (value: string) => void

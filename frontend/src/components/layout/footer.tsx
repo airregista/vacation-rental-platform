@@ -48,8 +48,8 @@ export function Footer() {
               <AshianakLogo size="lg" tone="night" />
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-7 text-night-foreground/60">
-              اقامتگاه‌های بومی ایران؛ خانه‌هایی که میزبانشان مهمان را خانواده
-              می‌داند و هر سفر را به یک خاطرهٔ ماندگار تبدیل می‌کند.
+              اقامتگاه‌های بومی ایران؛ خانه‌هایی که میزبانشان مهمان را خانواده می‌داند و هر سفر را
+              به یک خاطرهٔ ماندگار تبدیل می‌کند.
             </p>
 
             <div className="mt-6 space-y-3 text-xs">

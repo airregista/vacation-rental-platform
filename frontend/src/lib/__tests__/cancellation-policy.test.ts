@@ -47,13 +47,13 @@ describe("getCancellationPolicyLabel", () => {
 describe("describeCancellationPolicy", () => {
   it("describes the fixed policies", () => {
     expect(describeCancellationPolicy("flexible")).toBe(
-      "لغو رایگان تا ۲۴ ساعت پیش از تحویل؛ پس از آن معادل یک شب اقامت به‌همراه هزینه نظافت جریمه می‌شود."
+      "لغو رایگان تا ۲۴ ساعت پیش از تحویل؛ پس از آن معادل یک شب اقامت به‌همراه هزینه نظافت جریمه می‌شود.",
     )
     expect(describeCancellationPolicy("moderate")).toBe(
-      "لغو رایگان تا ۵ روز پیش از تحویل؛ پس از آن ۵۰٪ مبلغ اقامت جریمه می‌شود."
+      "لغو رایگان تا ۵ روز پیش از تحویل؛ پس از آن ۵۰٪ مبلغ اقامت جریمه می‌شود.",
     )
     expect(describeCancellationPolicy("strict")).toBe(
-      "لغو رایگان تا ۱۴ روز پیش از تحویل؛ بین ۷ تا ۱۴ روز ۵۰٪ و کمتر از ۷ روز کل مبلغ جریمه می‌شود."
+      "لغو رایگان تا ۱۴ روز پیش از تحویل؛ بین ۷ تا ۱۴ روز ۵۰٪ و کمتر از ۷ روز کل مبلغ جریمه می‌شود.",
     )
   })
 
@@ -80,10 +80,10 @@ describe("describeCancellationPolicy", () => {
 
   it("returns the default sentence for unknown policies", () => {
     expect(describeCancellationPolicy("bogus")).toBe(
-      "شرایط لغو این اقامتگاه توسط میزبان تعیین شده است."
+      "شرایط لغو این اقامتگاه توسط میزبان تعیین شده است.",
     )
     expect(describeCancellationPolicy(undefined)).toBe(
-      "شرایط لغو این اقامتگاه توسط میزبان تعیین شده است."
+      "شرایط لغو این اقامتگاه توسط میزبان تعیین شده است.",
     )
   })
 })

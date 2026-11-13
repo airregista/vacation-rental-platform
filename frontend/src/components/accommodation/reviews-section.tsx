@@ -1,23 +1,13 @@
 "use client"
 
 import * as React from "react"
-import {
-  Star,
-  MessageSquare,
-  Sparkles,
-  CheckCircle,
-  Clock,
-  LogIn,
-} from "lucide-react"
+import { Star, MessageSquare, Sparkles, CheckCircle, Clock, LogIn } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/context/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import {
-  ReviewDialog,
-  type ReviewDialogTarget,
-} from "@/components/trips/review-dialog"
+import { ReviewDialog, type ReviewDialogTarget } from "@/components/trips/review-dialog"
 import type { ReviewItem } from "@/types/detail"
 
 interface ReviewEligibility {
@@ -40,12 +30,7 @@ export function ReviewsSection({
   reviewsCount,
   accommodationTitle,
 }: ReviewsSectionProps) {
-  const {
-    user,
-    isAuthenticated,
-    isLoading: isAuthLoading,
-    openOtpModal,
-  } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, openOtpModal } = useAuth()
 
   const [reviews, setReviews] = React.useState<ReviewItem[]>([])
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
@@ -58,14 +43,11 @@ export function ReviewsSection({
     key: string
     data: ReviewEligibility
   } | null>(null)
-  const [eligibilityRefreshKey, setEligibilityRefreshKey] =
-    React.useState(0)
-  const [reviewTarget, setReviewTarget] =
-    React.useState<ReviewDialogTarget | null>(null)
+  const [eligibilityRefreshKey, setEligibilityRefreshKey] = React.useState(0)
+  const [reviewTarget, setReviewTarget] = React.useState<ReviewDialogTarget | null>(null)
 
   const eligibilityKey = `${accommodationId}:${user?.id ?? "anonymous"}`
-  const activeEligibility =
-    eligibility?.key === eligibilityKey ? eligibility.data : null
+  const activeEligibility = eligibility?.key === eligibilityKey ? eligibility.data : null
 
   React.useEffect(() => {
     let isCurrent = true
@@ -75,7 +57,7 @@ export function ReviewsSection({
       setFetchError(false)
       try {
         const data = await apiClient.get<ReviewItem[]>(
-          `/accommodations/${accommodationId}/reviews?limit=100`
+          `/accommodations/${accommodationId}/reviews?limit=100`,
         )
         if (isCurrent) {
           setReviews(data || [])
@@ -100,11 +82,7 @@ export function ReviewsSection({
   // Review eligibility is a secondary signal: any failure (401, 404, network)
   // simply hides the CTA instead of blocking the public reviews list.
   React.useEffect(() => {
-    if (
-      !isAuthenticated ||
-      !Number.isInteger(accommodationId) ||
-      accommodationId <= 0
-    ) {
+    if (!isAuthenticated || !Number.isInteger(accommodationId) || accommodationId <= 0) {
       return
     }
 
@@ -114,7 +92,7 @@ export function ReviewsSection({
     const fetchEligibility = async () => {
       try {
         const data = await apiClient.get<ReviewEligibility>(
-          `/accommodations/${accommodationId}/reviews/eligibility`
+          `/accommodations/${accommodationId}/reviews/eligibility`,
         )
         if (isCurrent) setEligibility({ key: requestKey, data })
       } catch {
@@ -127,12 +105,7 @@ export function ReviewsSection({
     return () => {
       isCurrent = false
     }
-  }, [
-    accommodationId,
-    isAuthenticated,
-    user?.id,
-    eligibilityRefreshKey,
-  ])
+  }, [accommodationId, isAuthenticated, user?.id, eligibilityRefreshKey])
 
   const handleReviewSubmitted = () => {
     setRetryCount((prev) => prev + 1)
@@ -140,11 +113,7 @@ export function ReviewsSection({
   }
 
   const handleOpenReviewDialog = () => {
-    if (
-      !activeEligibility?.can_review ||
-      activeEligibility.reservation_id === null
-    )
-      return
+    if (!activeEligibility?.can_review || activeEligibility.reservation_id === null) return
     setReviewTarget({
       id: activeEligibility.reservation_id,
       accommodation_id: accommodationId,
@@ -165,8 +134,7 @@ export function ReviewsSection({
 
     const avgAccuracy =
       withAccuracy.length > 0
-        ? withAccuracy.reduce((sum, r) => sum + (r.accuracy_rating ?? 0), 0) /
-          withAccuracy.length
+        ? withAccuracy.reduce((sum, r) => sum + (r.accuracy_rating ?? 0), 0) / withAccuracy.length
         : null
 
     return {
@@ -205,11 +173,7 @@ export function ReviewsSection({
         {[1, 2, 3, 4, 5].map((s) => (
           <Star
             key={s}
-            className={`size-3.5 ${
-              s <= rating
-                ? "fill-gold text-gold"
-                : "text-line-strong"
-            }`}
+            className={`size-3.5 ${s <= rating ? "fill-gold text-gold" : "text-line-strong"}`}
           />
         ))}
       </div>
@@ -291,17 +255,14 @@ export function ReviewsSection({
 
       {/* Review eligibility / CTA — integrated above the list, no extra heading */}
       {isAuthLoading ? null : isAuthenticated ? (
-        activeEligibility?.can_review &&
-        activeEligibility.reservation_id !== null ? (
+        activeEligibility?.can_review && activeEligibility.reservation_id !== null ? (
           <div className="flex flex-col gap-4 rounded-3xl border border-brick/25 bg-brick-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex items-start gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brick/10 text-brick">
                 <Sparkles className="size-5" />
               </span>
               <div className="space-y-1">
-                <p className="text-sm font-black text-ink">
-                  شما در این اقامتگاه اقامت داشته‌اید
-                </p>
+                <p className="text-sm font-black text-ink">شما در این اقامتگاه اقامت داشته‌اید</p>
                 <p className="text-xs leading-6 text-ink-soft">
                   تجربه خود را با مهمان‌های بعدی به اشتراک بگذارید
                 </p>
@@ -321,8 +282,7 @@ export function ReviewsSection({
             <Clock className="size-4 shrink-0" />
             پس از پایان اقامت می‌توانید نظر ثبت کنید
           </p>
-        ) : activeEligibility?.reason === "already_reviewed" ||
-          activeEligibility?.has_review ? (
+        ) : activeEligibility?.reason === "already_reviewed" || activeEligibility?.has_review ? (
           <p className="flex items-center gap-2 rounded-xl border border-trust/20 bg-trust/5 px-3 py-2 text-xs font-semibold text-trust">
             <CheckCircle className="size-4 shrink-0" />
             نظر شما برای این اقامت ثبت شده است
@@ -355,9 +315,7 @@ export function ReviewsSection({
         <div className="space-y-3 rounded-3xl border border-line bg-paper-card p-8 text-center text-ink-soft">
           <MessageSquare className="mx-auto size-8 stroke-1 text-line-strong" />
           <p className="text-sm font-bold text-ink">خطا در بارگذاری نظرات</p>
-          <p className="text-xs">
-            ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.
-          </p>
+          <p className="text-xs">ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.</p>
           <Button
             type="button"
             variant="outline"
@@ -406,9 +364,7 @@ export function ReviewsSection({
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-xs font-bold text-ink">
-                            {authorName}
-                          </div>
+                          <div className="text-xs font-bold text-ink">{authorName}</div>
                           <div className="mt-0.5 text-[11px] text-ink-soft">
                             {formatDate(review.created_at)}
                           </div>
@@ -418,9 +374,7 @@ export function ReviewsSection({
                     </div>
 
                     {/* Review text */}
-                    <p className="text-sm leading-7 text-ink-soft">
-                      {review.comment}
-                    </p>
+                    <p className="text-sm leading-7 text-ink-soft">{review.comment}</p>
                   </div>
                 </div>
               )

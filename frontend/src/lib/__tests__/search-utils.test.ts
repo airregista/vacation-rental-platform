@@ -19,8 +19,8 @@ describe("parseAccommodationQuery", () => {
   it("accepts a full set of valid filters", () => {
     const params = parseAccommodationQuery(
       fromQueryString(
-        "city_id=3&province_id=2&category_id=1&guests_count=4&min_rooms=2&min_beds=3&min_price=100&max_price=900&check_in=2026-08-10&check_out=2026-08-15&sort_by=price_asc&skip=20&limit=50&amenity_ids=1&amenity_ids=2"
-      )
+        "city_id=3&province_id=2&category_id=1&guests_count=4&min_rooms=2&min_beds=3&min_price=100&max_price=900&check_in=2026-08-10&check_out=2026-08-15&sort_by=price_asc&skip=20&limit=50&amenity_ids=1&amenity_ids=2",
+      ),
     )
     expect(params).toEqual({
       city_id: 3,
@@ -52,19 +52,19 @@ describe("parseAccommodationQuery", () => {
 
   it("drops bad dates (wrong pattern and impossible dates)", () => {
     expect(
-      parseAccommodationQuery(fromQueryString("check_in=2026-13-01&check_out=2026-13-05")).check_in
+      parseAccommodationQuery(fromQueryString("check_in=2026-13-01&check_out=2026-13-05")).check_in,
     ).toBeUndefined()
     expect(
-      parseAccommodationQuery(fromQueryString("check_in=2026-02-30&check_out=2026-03-02")).check_in
+      parseAccommodationQuery(fromQueryString("check_in=2026-02-30&check_out=2026-03-02")).check_in,
     ).toBeUndefined()
     expect(
-      parseAccommodationQuery(fromQueryString("check_in=20260810&check_out=20260815")).check_in
+      parseAccommodationQuery(fromQueryString("check_in=20260810&check_out=20260815")).check_in,
     ).toBeUndefined()
   })
 
   it("drops check_out <= check_in", () => {
     const params = parseAccommodationQuery(
-      fromQueryString("check_in=2026-08-10&check_out=2026-08-10")
+      fromQueryString("check_in=2026-08-10&check_out=2026-08-10"),
     )
     expect(params.check_in).toBeUndefined()
     expect(params.check_out).toBeUndefined()
@@ -77,7 +77,9 @@ describe("parseAccommodationQuery", () => {
   })
 
   it("filters invalid amenity_ids but keeps valid ones", () => {
-    const params = parseAccommodationQuery(fromQueryString("amenity_ids=2&amenity_ids=x&amenity_ids=-1"))
+    const params = parseAccommodationQuery(
+      fromQueryString("amenity_ids=2&amenity_ids=x&amenity_ids=-1"),
+    )
     expect(params.amenity_ids).toEqual([2])
   })
 

@@ -2,12 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  CalendarDays,
-  ChevronLeft,
-  Moon,
-  Users,
-} from "lucide-react"
+import { CalendarDays, ChevronLeft, Moon, Users } from "lucide-react"
 import { formatPersianDate } from "@/lib/format-fa"
 import type { HostReservationRecord } from "./types"
 import { formatFaNumber, formatToman } from "./host-utils"
@@ -19,12 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/shared/empty-state"
 import { cn } from "@/lib/utils"
 
-export type ReservationFilter =
-  | "all"
-  | "pending"
-  | "confirmed"
-  | "completed"
-  | "cancelled"
+export type ReservationFilter = "all" | "pending" | "confirmed" | "completed" | "cancelled"
 
 const FILTERS: { value: ReservationFilter; label: string }[] = [
   { value: "all", label: "همه" },
@@ -34,10 +24,7 @@ const FILTERS: { value: ReservationFilter; label: string }[] = [
   { value: "cancelled", label: "لغو شده" },
 ]
 
-const STATUS_META: Record<
-  string,
-  { label: string; className: string }
-> = {
+const STATUS_META: Record<string, { label: string; className: string }> = {
   pending: {
     label: "در انتظار",
     className: "border-gold/40 bg-gold-soft/80 text-ink",
@@ -63,10 +50,7 @@ function ReservationStatusBadge({ status }: { status: string }) {
   }
 
   return (
-    <Badge
-      variant="outline"
-      className={cn("px-2.5 py-1 text-[10px] font-bold", meta.className)}
-    >
+    <Badge variant="outline" className={cn("px-2.5 py-1 text-[10px] font-bold", meta.className)}>
       {meta.label}
     </Badge>
   )
@@ -142,7 +126,7 @@ export function HostReservationsView({
       filter === "all"
         ? reservations
         : reservations.filter((reservation) => reservation.status === filter),
-    [filter, reservations]
+    [filter, reservations],
   )
 
   const isEmpty = visibleReservations.length === 0
@@ -151,10 +135,7 @@ export function HostReservationsView({
   return (
     <div className="space-y-4">
       {enableFilters ? (
-        <Tabs
-          value={filter}
-          onValueChange={(value) => setFilter(value as ReservationFilter)}
-        >
+        <Tabs value={filter} onValueChange={(value) => setFilter(value as ReservationFilter)}>
           <TabsList className="no-scrollbar flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-line/70 bg-paper-card p-1.5">
             {FILTERS.map((item) => (
               <TabsTrigger
@@ -259,9 +240,7 @@ export function HostReservationsView({
                       <td className="px-4 py-3">
                         <p className="font-bold tabular-nums text-ink">
                           {formatToman(reservation.total_price)}
-                          <span className="mr-1 text-[10px] font-medium text-ink-soft">
-                            تومان
-                          </span>
+                          <span className="mr-1 text-[10px] font-medium text-ink-soft">تومان</span>
                         </p>
                       </td>
                       <td className="px-4 py-3">

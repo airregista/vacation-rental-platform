@@ -31,10 +31,7 @@ export function HostStatCard({
         {hint ? <p className="truncate text-[11px] text-ink-soft">{hint}</p> : null}
       </div>
       <span
-        className={cn(
-          "grid size-10 shrink-0 place-items-center rounded-xl",
-          TONE_CLASSES[tone]
-        )}
+        className={cn("grid size-10 shrink-0 place-items-center rounded-xl", TONE_CLASSES[tone])}
       >
         <Icon className="size-5" aria-hidden="true" />
       </span>

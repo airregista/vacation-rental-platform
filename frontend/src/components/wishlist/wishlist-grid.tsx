@@ -4,15 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import {
-  Heart,
-  Star,
-  MapPin,
-  Compass,
-  Sparkles,
-  Check,
-  FolderPlus,
-} from "lucide-react"
+import { Heart, Star, MapPin, Compass, Sparkles, Check, FolderPlus } from "lucide-react"
 import type { WishlistFolder, WishlistItemResponse } from "@/types/wishlist"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
@@ -97,8 +89,7 @@ export function WishlistGrid({
           [acc.city?.province?.name, acc.city?.name].filter(Boolean).join("، ") || "ایران"
 
         const numericPrice = Math.round(Number(acc.base_price) || 0)
-        const formattedPrice =
-          new Intl.NumberFormat("fa-IR").format(numericPrice) + " تومان / شب"
+        const formattedPrice = new Intl.NumberFormat("fa-IR").format(numericPrice) + " تومان / شب"
 
         const averageRating =
           acc.average_rating !== null && acc.average_rating !== undefined
@@ -115,9 +106,7 @@ export function WishlistGrid({
               }).format(averageRating)
             : null
 
-        const formattedReviewsCount = new Intl.NumberFormat("fa-IR").format(
-          acc.reviews_count || 0
-        )
+        const formattedReviewsCount = new Intl.NumberFormat("fa-IR").format(acc.reviews_count || 0)
 
         return (
           <Card
@@ -126,10 +115,7 @@ export function WishlistGrid({
           >
             {/* Cover image container */}
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-paper-deep">
-              <Link
-                href={`/accommodations/${item.accommodation_id}`}
-                className="block size-full"
-              >
+              <Link href={`/accommodations/${item.accommodation_id}`} className="block size-full">
                 {!hasImgError ? (
                   acc.cover_image!.startsWith("/") ? (
                     <Image
@@ -191,14 +177,12 @@ export function WishlistGrid({
                       .filter((folder) => folder.id !== "all")
                       .map((folder) => {
                         const isInFolder = (folder.accommodation_ids || []).includes(
-                          item.accommodation_id
+                          item.accommodation_id,
                         )
                         return (
                           <DropdownMenuItem
                             key={folder.id}
-                            onClick={() =>
-                              onToggleFolder(folder.id, item.accommodation_id)
-                            }
+                            onClick={() => onToggleFolder(folder.id, item.accommodation_id)}
                             className="cursor-pointer gap-2"
                           >
                             {isInFolder ? (
@@ -211,9 +195,7 @@ export function WishlistGrid({
                         )
                       })}
                     {folders.filter((folder) => folder.id !== "all").length === 0 && (
-                      <DropdownMenuItem disabled>
-                        هنوز پوشه‌ای نساخته‌اید
-                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>هنوز پوشه‌ای نساخته‌اید</DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -273,9 +255,7 @@ export function WishlistGrid({
                 <div className="text-[11px] text-ink-soft">
                   <span>شروع از</span>
                 </div>
-                <div className="text-sm font-black tabular-nums text-brick">
-                  {formattedPrice}
-                </div>
+                <div className="text-sm font-black tabular-nums text-brick">{formattedPrice}</div>
               </div>
             </CardContent>
           </Card>

@@ -38,7 +38,7 @@ export function CityCombobox({
 
   const selectedCity = React.useMemo(
     () => cities.find((city) => city.id === value) ?? null,
-    [cities, value]
+    [cities, value],
   )
 
   const filteredCities = React.useMemo(() => {
@@ -96,10 +96,7 @@ export function CityCombobox({
               )}
             </span>
             <ChevronDown
-              className={cn(
-                "size-4 shrink-0 text-ink-soft",
-                selectedCity && !disabled && "me-7"
-              )}
+              className={cn("size-4 shrink-0 text-ink-soft", selectedCity && !disabled && "me-7")}
               aria-hidden="true"
             />
           </Button>
@@ -146,9 +143,7 @@ export function CityCombobox({
                 <span>در حال بارگذاری شهرها…</span>
               </div>
             ) : filteredCities.length === 0 ? (
-              <p className="px-3 py-6 text-center text-xs text-ink-soft">
-                شهری پیدا نشد
-              </p>
+              <p className="px-3 py-6 text-center text-xs text-ink-soft">شهری پیدا نشد</p>
             ) : (
               filteredCities.map((city) => {
                 const isSelected = city.id === value
@@ -163,7 +158,7 @@ export function CityCombobox({
                       "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-right text-sm transition-colors",
                       isSelected
                         ? "bg-brick-soft/60 font-bold text-ink"
-                        : "text-ink hover:bg-paper-deep"
+                        : "text-ink hover:bg-paper-deep",
                     )}
                   >
                     <span className="min-w-0 flex-1">

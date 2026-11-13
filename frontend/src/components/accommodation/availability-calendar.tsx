@@ -1,7 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, AlertCircle, RotateCcw } from "lucide-react"
+import {
+  ChevronRight,
+  ChevronLeft,
+  Calendar as CalendarIcon,
+  AlertCircle,
+  RotateCcw,
+} from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -53,7 +59,7 @@ export function AvailabilityCalendar({
   const isClient = React.useSyncExternalStore(
     emptySubscribe,
     () => true,
-    () => false
+    () => false,
   )
 
   // Fetch 60-day calendar availability
@@ -65,7 +71,7 @@ export function AvailabilityCalendar({
       setFetchError(false)
       try {
         const data = await apiClient.get<CalendarDayInfo[]>(
-          `/accommodations/${accommodationId}/calendar?days=60`
+          `/accommodations/${accommodationId}/calendar?days=60`,
         )
         if (isCurrent) {
           setCalendarDays(data || [])
@@ -198,7 +204,7 @@ export function AvailabilityCalendar({
   const hasBlockedDaysInRange = (
     start: string,
     end: string,
-    lookup: Map<string, CalendarDayInfo>
+    lookup: Map<string, CalendarDayInfo>,
   ): boolean => {
     const cur = new Date(start + "T00:00:00Z")
     const endDate = new Date(end + "T00:00:00Z")
@@ -284,9 +290,7 @@ export function AvailabilityCalendar({
   const renderMonth = (month: CalendarMonthGroup) => {
     return (
       <div key={month.key} className="min-w-0 flex-1 sm:min-w-[280px]">
-        <div className="mb-4 text-center text-sm font-bold text-ink">
-          {month.title}
-        </div>
+        <div className="mb-4 text-center text-sm font-bold text-ink">{month.title}</div>
 
         {/* Day of Week Headers */}
         <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-soft">
@@ -312,9 +316,7 @@ export function AvailabilityCalendar({
                   key={cell.isoDate}
                   className="pointer-events-none flex h-12 select-none flex-col items-center justify-center text-ink-soft opacity-30"
                 >
-                  <span className="text-xs leading-none">
-                    {formatPersian(cell.persianDay)}
-                  </span>
+                  <span className="text-xs leading-none">{formatPersian(cell.persianDay)}</span>
                 </div>
               )
             }
@@ -333,10 +335,8 @@ export function AvailabilityCalendar({
 
             // Blocked if unavailable AND cannot be selected as checkout, and not already selected as isEnd
             const isPastDay = cell.isoDate < todayIso
-            const isBlocked =
-              (!cell.dayInfo.is_available && !canBeCheckout && !isEnd) || isPastDay
-            const effectivePrice =
-              cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
+            const isBlocked = (!cell.dayInfo.is_available && !canBeCheckout && !isEnd) || isPastDay
+            const effectivePrice = cell.dayInfo.price > 0 ? cell.dayInfo.price : basePrice
 
             let dayStyle = "cursor-pointer rounded-lg text-ink hover:bg-paper-deep"
             if (isBlocked) {
@@ -349,8 +349,7 @@ export function AvailabilityCalendar({
                 ? "rounded-r-lg rounded-l-none bg-brick font-bold text-on-brick shadow-soft"
                 : "rounded-lg bg-brick font-bold text-on-brick shadow-soft"
             } else if (isEnd) {
-              dayStyle =
-                "rounded-l-lg rounded-r-none bg-brick font-bold text-on-brick shadow-soft"
+              dayStyle = "rounded-l-lg rounded-r-none bg-brick font-bold text-on-brick shadow-soft"
             } else if (isInRange) {
               dayStyle = "rounded-none bg-brick-soft/60 font-medium text-brick-deep"
             } else if (!cell.dayInfo.is_available && canBeCheckout) {
@@ -373,9 +372,7 @@ export function AvailabilityCalendar({
                 {!isBlocked && effectivePrice > 0 && (
                   <span
                     className={`mt-1 max-w-full truncate px-0.5 text-[9px] leading-none ${
-                      isStart || isEnd
-                        ? "font-light text-on-brick/80"
-                        : "text-ink-soft"
+                      isStart || isEnd ? "font-light text-on-brick/80" : "text-ink-soft"
                     }`}
                   >
                     {formatPersian(Math.round(effectivePrice / 1000))}
@@ -402,9 +399,7 @@ export function AvailabilityCalendar({
             <CalendarIcon className="size-5 text-brick" />
             <span>تقویم و ظرفیت اقامتگاه</span>
           </h3>
-          <p className="text-xs text-ink-soft">
-            قیمت‌ها بر حسب هزار تومان نمایش داده شده‌اند.
-          </p>
+          <p className="text-xs text-ink-soft">قیمت‌ها بر حسب هزار تومان نمایش داده شده‌اند.</p>
         </div>
 
         {(checkIn || checkOut) && (
@@ -447,9 +442,7 @@ export function AvailabilityCalendar({
       ) : fetchError ? (
         <div className="space-y-3 rounded-2xl border border-line bg-paper-card p-8 text-center">
           <p className="text-sm font-bold text-ink">خطا در بارگذاری تقویم</p>
-          <p className="text-xs text-ink-soft">
-            ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.
-          </p>
+          <p className="text-xs text-ink-soft">ارتباط با سرور برقرار نشد. لطفاً مجدداً تلاش کنید.</p>
           <Button
             type="button"
             variant="outline"
@@ -482,14 +475,17 @@ export function AvailabilityCalendar({
                   <span>ماه قبلی</span>
                 </Button>
                 <span className="text-xs text-ink-soft">
-                  نمایش ماه {formatPersian(desktopMonthIndex + 1)} و {formatPersian(desktopMonthIndex + 2)} از {formatPersian(months.length)}
+                  نمایش ماه {formatPersian(desktopMonthIndex + 1)} و{" "}
+                  {formatPersian(desktopMonthIndex + 2)} از {formatPersian(months.length)}
                 </span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   disabled={desktopMonthIndex + 2 >= months.length}
-                  onClick={() => setDesktopMonthIndex((prev) => Math.min(months.length - 2, prev + 1))}
+                  onClick={() =>
+                    setDesktopMonthIndex((prev) => Math.min(months.length - 2, prev + 1))
+                  }
                   className="gap-1 text-xs"
                 >
                   <span>ماه بعدی</span>
@@ -498,7 +494,9 @@ export function AvailabilityCalendar({
               </div>
             )}
             <div className="flex gap-8">
-              {months.slice(desktopMonthIndex, desktopMonthIndex + 2).map((month) => renderMonth(month))}
+              {months
+                .slice(desktopMonthIndex, desktopMonthIndex + 2)
+                .map((month) => renderMonth(month))}
             </div>
           </div>
 
@@ -524,9 +522,7 @@ export function AvailabilityCalendar({
                 size="icon"
                 aria-label="ماه بعد"
                 disabled={mobileMonthIndex >= months.length - 1}
-                onClick={() =>
-                  setMobileMonthIndex((prev) => Math.min(months.length - 1, prev + 1))
-                }
+                onClick={() => setMobileMonthIndex((prev) => Math.min(months.length - 1, prev + 1))}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>

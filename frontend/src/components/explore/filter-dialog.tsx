@@ -90,7 +90,7 @@ function FilterForm({
     setSelectedAmenityIds(
       selectedAmenityIds.includes(id)
         ? selectedAmenityIds.filter((item) => item !== id)
-        : [...selectedAmenityIds, id]
+        : [...selectedAmenityIds, id],
     )
   }
 
@@ -132,7 +132,9 @@ function FilterForm({
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">حداقل تعداد اتاق</span>
               <span className="text-[11px] text-muted-foreground">
-                {minRooms === 0 ? "بدون محدودیت" : `${new Intl.NumberFormat("fa-IR").format(minRooms)} اتاق یا بیشتر`}
+                {minRooms === 0
+                  ? "بدون محدودیت"
+                  : `${new Intl.NumberFormat("fa-IR").format(minRooms)} اتاق یا بیشتر`}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -169,7 +171,9 @@ function FilterForm({
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">حداقل تخت‌خواب</span>
               <span className="text-[11px] text-muted-foreground">
-                {minBeds === 0 ? "بدون محدودیت" : `${new Intl.NumberFormat("fa-IR").format(minBeds)} تخت یا بیشتر`}
+                {minBeds === 0
+                  ? "بدون محدودیت"
+                  : `${new Intl.NumberFormat("fa-IR").format(minBeds)} تخت یا بیشتر`}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -332,10 +336,10 @@ export function FilterDialog({
   const [minRooms, setMinRooms] = React.useState<number>(currentParams.min_rooms || 0)
   const [minBeds, setMinBeds] = React.useState<number>(currentParams.min_beds || 0)
   const [selectedAmenityIds, setSelectedAmenityIds] = React.useState<number[]>(
-    currentParams.amenity_ids || []
+    currentParams.amenity_ids || [],
   )
   const [sortBy, setSortBy] = React.useState<"newest" | "price_asc" | "price_desc">(
-    currentParams.sort_by || "newest"
+    currentParams.sort_by || "newest",
   )
 
   // Re-sync the draft from the committed params each time the dialog opens,
@@ -343,10 +347,7 @@ export function FilterDialog({
   const wasOpenRef = React.useRef(open)
   React.useEffect(() => {
     if (open && !wasOpenRef.current) {
-      setPriceRange([
-        currentParams.min_price || 0,
-        currentParams.max_price || DEFAULT_MAX_PRICE,
-      ])
+      setPriceRange([currentParams.min_price || 0, currentParams.max_price || DEFAULT_MAX_PRICE])
       setMinRooms(currentParams.min_rooms || 0)
       setMinBeds(currentParams.min_beds || 0)
       setSelectedAmenityIds(currentParams.amenity_ids || [])

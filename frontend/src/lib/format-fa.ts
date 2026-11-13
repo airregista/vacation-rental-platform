@@ -8,7 +8,9 @@ export function formatPersianDate(dateStr: string): string {
   if (!dateStr) return ""
   try {
     const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
+      ? dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr)
+        ? dateStr
+        : `${dateStr}Z`
       : `${dateStr}T00:00:00Z`
     const d = new Date(isoStr)
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {

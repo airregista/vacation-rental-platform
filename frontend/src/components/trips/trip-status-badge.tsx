@@ -41,7 +41,7 @@ export function TripStatusBadge({
             isExpired
               ? "border-line bg-paper-deep text-ink-soft"
               : "border-destructive/30 bg-destructive/10 text-destructive",
-            className
+            className,
           )}
         >
           {isExpired ? "منقضی شده" : "لغو شده"}
@@ -53,10 +53,7 @@ export function TripStatusBadge({
       return (
         <Badge
           variant="outline"
-          className={cn(
-            "border-transparent bg-gold text-secondary-foreground",
-            className
-          )}
+          className={cn("border-transparent bg-gold text-secondary-foreground", className)}
         >
           در انتظار پرداخت
         </Badge>

@@ -61,7 +61,7 @@ export function HeroSection({
       pauseForManual()
       selectScene(next)
     },
-    [pauseForManual, selectScene]
+    [pauseForManual, selectScene],
   )
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -91,10 +91,7 @@ export function HeroSection({
   return (
     <section className="hero-tokens relative isolate overflow-x-clip text-foreground">
       {/* Golden-hour backdrop */}
-      <div
-        aria-hidden="true"
-        className="hero-backdrop absolute inset-0 -z-10"
-      />
+      <div aria-hidden="true" className="hero-backdrop absolute inset-0 -z-10" />
       <div
         aria-hidden="true"
         className="hero-bloom-clay absolute -right-24 -top-28 -z-10 size-[30rem] rounded-full blur-2xl"
@@ -107,9 +104,7 @@ export function HeroSection({
       <div
         className={cn(
           "mx-auto grid w-full max-w-[1360px] items-center gap-4 px-4 pb-4 sm:gap-6 sm:px-6 lg:grid-cols-12 lg:gap-8 lg:px-8 lg:pb-8",
-          headerOffset
-            ? "pt-24 sm:pt-28 lg:pt-32"
-            : "pt-6 sm:pt-10 lg:pt-12"
+          headerOffset ? "pt-24 sm:pt-28 lg:pt-32" : "pt-6 sm:pt-10 lg:pt-12",
         )}
       >
         {/* Copy */}
@@ -142,8 +137,7 @@ export function HeroSection({
           </h1>
 
           <p className="hero-rise max-w-md text-[clamp(0.95rem,1.6vw,1.1rem)] leading-8 text-muted-foreground [animation-delay:160ms]">
-            ویلا، سوئیت و کلبه‌های دست‌چین‌شده؛ با میزبان‌هایی که مهمان را خانواده
-            می‌دانند.
+            ویلا، سوئیت و کلبه‌های دست‌چین‌شده؛ با میزبان‌هایی که مهمان را خانواده می‌دانند.
           </p>
 
           <div className="hero-rise flex w-full flex-col gap-3 sm:flex-row [animation-delay:240ms]">
@@ -174,9 +168,7 @@ export function HeroSection({
                   <span className="text-base font-extrabold text-hero-ink sm:text-lg">
                     {stat.value}
                   </span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {stat.label}
-                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
                 </dd>
               </div>
             ))}
@@ -206,7 +198,7 @@ export function HeroSection({
               scene={scene}
               className={cn(
                 "absolute inset-0 h-full w-full transition-opacity duration-700",
-                showScene && sceneReady ? "opacity-0" : "opacity-100"
+                showScene && sceneReady ? "opacity-0" : "opacity-100",
               )}
             />
             {showScene ? (

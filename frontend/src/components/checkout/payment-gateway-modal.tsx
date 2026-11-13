@@ -1,14 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  AlertCircle,
-  Check,
-  CreditCard,
-  Loader2,
-  Lock,
-  ShieldCheck,
-} from "lucide-react"
+import { AlertCircle, Check, CreditCard, Loader2, Lock, ShieldCheck } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -93,11 +86,7 @@ function getInitiateError(err: ApiError): {
   if (err.status === 409) {
     return { message: CONFLICT_REASON, terminalReason: CONFLICT_REASON }
   }
-  if (
-    detail.includes("expire") ||
-    detail.includes("timeout") ||
-    detail.includes("ttl")
-  ) {
+  if (detail.includes("expire") || detail.includes("timeout") || detail.includes("ttl")) {
     return { message: EXPIRED_REASON, terminalReason: EXPIRED_REASON }
   }
   if (detail.includes("only 'pending'") || detail.includes("no longer pending")) {
@@ -122,9 +111,7 @@ function getVerifyError(err: ApiError): {
   }
   if (
     err.status === 400 &&
-    (detail.includes("expire") ||
-      detail.includes("timeout") ||
-      detail.includes("ttl"))
+    (detail.includes("expire") || detail.includes("timeout") || detail.includes("ttl"))
   ) {
     return { message: EXPIRED_REASON, terminalReason: EXPIRED_REASON }
   }
@@ -161,8 +148,7 @@ export function PaymentGatewayModal({
   onStatusChange,
   onFailure,
 }: PaymentGatewayModalProps) {
-  const [paymentData, setPaymentData] =
-    React.useState<PaymentInitiateResponse | null>(null)
+  const [paymentData, setPaymentData] = React.useState<PaymentInitiateResponse | null>(null)
   const [isInitiating, setIsInitiating] = React.useState(false)
   const [initiateError, setInitiateError] = React.useState<string | null>(null)
 
@@ -205,12 +191,9 @@ export function PaymentGatewayModal({
     setIsInitiating(true)
     setInitiateError(null)
     try {
-      const response = await apiClient.post<PaymentInitiateResponse>(
-        "/payments/checkout",
-        {
-          reservation_id: reservation.id,
-        }
-      )
+      const response = await apiClient.post<PaymentInitiateResponse>("/payments/checkout", {
+        reservation_id: reservation.id,
+      })
       setPaymentData(response)
     } catch (err) {
       hasInitiatedRef.current = null
@@ -221,9 +204,7 @@ export function PaymentGatewayModal({
           onStatusChange?.("cancelled", terminalReason)
         }
       } else {
-        setInitiateError(
-          "خطا در برقراری ارتباط با درگاه شاپرک. لطفا مجددا تلاش کنید."
-        )
+        setInitiateError("خطا در برقراری ارتباط با درگاه شاپرک. لطفا مجددا تلاش کنید.")
       }
     } finally {
       setIsInitiating(false)
@@ -317,9 +298,7 @@ export function PaymentGatewayModal({
           onFailure?.(terminalReason)
         }
       } else {
-        setVerifyError(
-          "خطایی در تایید پرداخت رخ داد. در صورت کسر وجه ظرف ۷۲ ساعت مسترد خواهد شد."
-        )
+        setVerifyError("خطایی در تایید پرداخت رخ داد. در صورت کسر وجه ظرف ۷۲ ساعت مسترد خواهد شد.")
       }
     } finally {
       setIsVerifying(false)
@@ -368,9 +347,7 @@ export function PaymentGatewayModal({
           {isInitiating && (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-ink-soft">
               <Loader2 className="size-8 animate-spin text-brick" />
-              <p className="text-sm font-medium">
-                در حال اتصال امن به شبکه پرداخت شاپرک...
-              </p>
+              <p className="text-sm font-medium">در حال اتصال امن به شبکه پرداخت شاپرک...</p>
             </div>
           )}
 
@@ -379,9 +356,7 @@ export function PaymentGatewayModal({
               <Alert variant="destructive">
                 <AlertCircle className="size-4" />
                 <AlertTitle>خطا در اتصال به درگاه پرداخت</AlertTitle>
-                <AlertDescription className="mt-1 text-sm">
-                  {initiateError}
-                </AlertDescription>
+                <AlertDescription className="mt-1 text-sm">{initiateError}</AlertDescription>
               </Alert>
               <div className="flex gap-2">
                 <Button
@@ -410,9 +385,7 @@ export function PaymentGatewayModal({
             <form onSubmit={handleVerify} className="space-y-4">
               {/* Gateway Selection */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-ink">
-                  انتخاب درگاه بانکی
-                </label>
+                <label className="block text-xs font-bold text-ink">انتخاب درگاه بانکی</label>
                 <RadioGroup
                   value={gateway}
                   onValueChange={setGateway}
@@ -429,7 +402,7 @@ export function PaymentGatewayModal({
                           "relative flex cursor-pointer items-center justify-between gap-2 rounded-2xl border p-3 text-xs transition-all",
                           isActive
                             ? "border-brick bg-brick-soft/60 font-bold shadow-soft ring-2 ring-brick/15"
-                            : "border-line bg-paper hover:border-line-strong hover:bg-paper-deep/30"
+                            : "border-line bg-paper hover:border-line-strong hover:bg-paper-deep/30",
                         )}
                       >
                         <div className="flex min-w-0 items-center gap-2">
@@ -446,7 +419,7 @@ export function PaymentGatewayModal({
                               variant={item.badgeVariant}
                               className={cn(
                                 "px-1.5 py-0 text-[10px]",
-                                isActive ? "font-bold" : "font-medium"
+                                isActive ? "font-bold" : "font-medium",
                               )}
                             >
                               {item.badge}
@@ -470,21 +443,14 @@ export function PaymentGatewayModal({
               {/* Amount and Tracking Code Banner */}
               <div className="flex flex-col gap-2 rounded-2xl border border-brick/20 bg-brick-soft/40 p-3 text-xs sm:flex-row sm:items-center sm:justify-between sm:text-sm">
                 <div className="space-y-0.5">
-                  <span className="block text-[11px] text-ink-soft">
-                    مبلغ تراکنش
-                  </span>
+                  <span className="block text-[11px] text-ink-soft">مبلغ تراکنش</span>
                   <span className="text-base font-black tabular-nums text-brick">
                     {formatToman(paymentData.amount)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-brick/15 pt-2 sm:flex-col sm:items-start sm:border-0 sm:pt-0 sm:text-left">
-                  <span className="block text-[11px] text-ink-soft">
-                    شناسه پیگیری
-                  </span>
-                  <span
-                    dir="ltr"
-                    className="text-xs font-semibold tabular-nums text-ink"
-                  >
+                  <span className="block text-[11px] text-ink-soft">شناسه پیگیری</span>
+                  <span dir="ltr" className="text-xs font-semibold tabular-nums text-ink">
                     {toPersianDigits(paymentData.tracking_code)}
                   </span>
                 </div>
@@ -510,9 +476,7 @@ export function PaymentGatewayModal({
                     inputMode="numeric"
                     autoComplete="cc-number"
                     value={formatCardNumberFa(cardNumber)}
-                    onChange={(e) =>
-                      setCardNumber(onlyDigits(e.target.value, 16))
-                    }
+                    onChange={(e) => setCardNumber(onlyDigits(e.target.value, 16))}
                     placeholder="۶۰۳۷ - ۹۹۷۵ - ۰۰۰۰ - ۰۰۰۰"
                     className="h-11 border-line bg-paper text-center text-base font-bold tabular-nums tracking-wider text-ink"
                   />
@@ -521,10 +485,7 @@ export function PaymentGatewayModal({
                 {/* CVV2 and Expiry */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label
-                      htmlFor="pg-cvv2"
-                      className="block text-xs font-semibold text-ink"
-                    >
+                    <label htmlFor="pg-cvv2" className="block text-xs font-semibold text-ink">
                       کد امنیتی CVV
                     </label>
                     <Input
@@ -541,10 +502,7 @@ export function PaymentGatewayModal({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label
-                      htmlFor="pg-exp-month"
-                      className="block text-xs font-semibold text-ink"
-                    >
+                    <label htmlFor="pg-exp-month" className="block text-xs font-semibold text-ink">
                       تاریخ انقضا (ماه / سال)
                     </label>
                     <div className="flex items-center gap-1.5">
@@ -555,9 +513,7 @@ export function PaymentGatewayModal({
                         autoComplete="cc-exp-month"
                         maxLength={2}
                         value={toPersianDigits(expMonth)}
-                        onChange={(e) =>
-                          setExpMonth(onlyDigits(e.target.value, 2))
-                        }
+                        onChange={(e) => setExpMonth(onlyDigits(e.target.value, 2))}
                         placeholder="ماه"
                         className="h-11 border-line bg-paper px-1 text-center text-sm tabular-nums text-ink"
                       />
@@ -568,9 +524,7 @@ export function PaymentGatewayModal({
                         autoComplete="cc-exp-year"
                         maxLength={2}
                         value={toPersianDigits(expYear)}
-                        onChange={(e) =>
-                          setExpYear(onlyDigits(e.target.value, 2))
-                        }
+                        onChange={(e) => setExpYear(onlyDigits(e.target.value, 2))}
                         placeholder="سال"
                         aria-label="سال انقضا"
                         className="h-11 border-line bg-paper px-1 text-center text-sm tabular-nums text-ink"
@@ -581,10 +535,7 @@ export function PaymentGatewayModal({
 
                 {/* Dynamic Password (رمز پویا) */}
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="pg-otp"
-                    className="block text-xs font-semibold text-ink"
-                  >
+                  <label htmlFor="pg-otp" className="block text-xs font-semibold text-ink">
                     رمز پویا / دوم
                   </label>
                   <div className="flex gap-2">
@@ -623,9 +574,7 @@ export function PaymentGatewayModal({
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
                   <AlertTitle>پرداخت ناموفق</AlertTitle>
-                  <AlertDescription className="mt-1 text-xs">
-                    {verifyError}
-                  </AlertDescription>
+                  <AlertDescription className="mt-1 text-xs">{verifyError}</AlertDescription>
                 </Alert>
               )}
 
@@ -636,8 +585,7 @@ export function PaymentGatewayModal({
                   <span>تایید هویت امن شاپرک و بانک مرکزی</span>
                 </div>
                 <span className="tabular-nums">
-                  آی‌پی:{" "}
-                  <bdi dir="ltr">{toPersianDigits("185.143.***.***")}</bdi>
+                  آی‌پی: <bdi dir="ltr">{toPersianDigits("185.143.***.***")}</bdi>
                 </span>
               </div>
 

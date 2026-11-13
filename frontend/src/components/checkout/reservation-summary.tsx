@@ -38,22 +38,19 @@ export function ReservationSummary({
     ? `${accommodation.city.name}${accommodation.city.province ? ` • ${accommodation.city.province.name}` : ""}`
     : null
 
-  const { totalPayable, cleaningFee, baseTotal, discountAmount } =
-    computeCheckoutBreakdown(reservation, accommodation)
+  const { totalPayable, cleaningFee, baseTotal, discountAmount } = computeCheckoutBreakdown(
+    reservation,
+    accommodation,
+  )
 
   return (
     <Card
-      className={cn(
-        "overflow-hidden rounded-3xl border-line bg-paper-card shadow-soft",
-        className
-      )}
+      className={cn("overflow-hidden rounded-3xl border-line bg-paper-card shadow-soft", className)}
     >
       <CardHeader className="p-5 pb-3 sm:p-6">
         <div className="space-y-2">
           <p className="text-[11px] font-bold tracking-[0.18em] text-brick">خلاصه اقامت</p>
-          <CardTitle className="text-lg font-black tracking-tight text-ink">
-            خلاصه رزرو
-          </CardTitle>
+          <CardTitle className="text-lg font-black tracking-tight text-ink">خلاصه رزرو</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 p-5 pt-0 sm:p-6 sm:pt-0">
@@ -61,13 +58,7 @@ export function ReservationSummary({
         <div className="flex items-start gap-3.5">
           <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-t-full rounded-b-xl border border-line bg-paper-deep">
             {coverImage ? (
-              <Image
-                src={coverImage}
-                alt={title}
-                fill
-                unoptimized
-                className="object-cover"
-              />
+              <Image src={coverImage} alt={title} fill unoptimized className="object-cover" />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-paper-deep text-ink-soft/70">
                 <Home className="size-6" />
@@ -115,7 +106,9 @@ export function ReservationSummary({
           </div>
 
           <div className="col-span-2 flex items-center justify-between border-t border-line/60 pt-2 text-xs tabular-nums text-ink-soft">
-            <span>مدت اقامت: {new Intl.NumberFormat("fa-IR").format(reservation.total_nights)} شب</span>
+            <span>
+              مدت اقامت: {new Intl.NumberFormat("fa-IR").format(reservation.total_nights)} شب
+            </span>
             <span className="flex items-center gap-1">
               <Users className="size-3.5" />
               تعداد مهمانان: {new Intl.NumberFormat("fa-IR").format(reservation.guests_count)} نفر
@@ -147,9 +140,7 @@ export function ReservationSummary({
                 <Tag className="size-3.5" />
                 تخفیف کد تخفیف ({reservation.coupon_code})
               </span>
-              <span className="font-medium tabular-nums">
-                - {formatToman(discountAmount)}
-              </span>
+              <span className="font-medium tabular-nums">- {formatToman(discountAmount)}</span>
             </div>
           )}
 

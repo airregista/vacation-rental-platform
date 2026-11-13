@@ -5,15 +5,7 @@ import * as THREE from "three"
 import { useFrame } from "@react-three/fiber"
 import { getScenePalette, type ScenePalette } from "../scene-palette"
 import type { SceneTier } from "../scene-types"
-import {
-  DioramaBase,
-  Dust,
-  FLOOR_TOP,
-  Palm,
-  Shrub,
-  WarmWindow,
-  type Vec3,
-} from "./shared"
+import { DioramaBase, Dust, FLOOR_TOP, Palm, Shrub, WarmWindow, type Vec3 } from "./shared"
 
 function Sea({ palette, quality }: { palette: ScenePalette; quality: SceneTier }) {
   const mesh = React.useRef<THREE.Mesh>(null)
@@ -32,8 +24,7 @@ function Sea({ palette, quality }: { palette: ScenePalette; quality: SceneTier }
       const y = base.current[index * 3 + 1]
       position.setZ(
         index,
-        Math.sin(x * 2.4 + time * 1.1) * 0.01 +
-          Math.cos(y * 3.1 + time * 0.7) * 0.006
+        Math.sin(x * 2.4 + time * 1.1) * 0.01 + Math.cos(y * 3.1 + time * 0.7) * 0.006,
       )
     }
     position.needsUpdate = true
@@ -41,11 +32,7 @@ function Sea({ palette, quality }: { palette: ScenePalette; quality: SceneTier }
   })
 
   return (
-    <mesh
-      ref={mesh}
-      position={[0, FLOOR_TOP + 0.035, 1.55]}
-      rotation={[-Math.PI / 2, 0, 0]}
-    >
+    <mesh ref={mesh} position={[0, FLOOR_TOP + 0.035, 1.55]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[4.2, 1.9, quality === "full" ? 28 : 14, 12]} />
       <meshStandardMaterial
         color={palette.teal}
@@ -127,11 +114,7 @@ function Boat({ palette, quality }: { palette: ScenePalette; quality: SceneTier 
         <meshStandardMaterial color={palette.wood} roughness={0.92} />
       </mesh>
       <mesh geometry={sailGeometry} position={[-0.29, 0.29, 0]}>
-        <meshStandardMaterial
-          color={palette.cream}
-          side={THREE.DoubleSide}
-          roughness={0.88}
-        />
+        <meshStandardMaterial color={palette.cream} side={THREE.DoubleSide} roughness={0.88} />
       </mesh>
       <mesh position={[-0.23, 0.9, 0]} rotation={[0, 0, -0.06]}>
         <boxGeometry args={[0.15, 0.055, 0.012]} />
@@ -308,14 +291,11 @@ export function CoastScene({ quality }: { quality: SceneTier }) {
         </mesh>
         {[-1, 1].flatMap((side) =>
           Array.from({ length: 7 }, (_, index) => (
-            <mesh
-              key={`${side}-${index}`}
-              position={[-0.57 + index * 0.19, 0.014, side * 0.29]}
-            >
+            <mesh key={`${side}-${index}`} position={[-0.57 + index * 0.19, 0.014, side * 0.29]}>
               <boxGeometry args={[0.035, 0.012, 0.075]} />
               <meshStandardMaterial color={palette.cream} roughness={0.96} />
             </mesh>
-          ))
+          )),
         )}
 
         {/* Tea tray with two glasses */}
@@ -345,11 +325,7 @@ export function CoastScene({ quality }: { quality: SceneTier }) {
           { x: -0.38, color: palette.cream },
           { x: 0.38, color: palette.teal },
         ].map((cushion) => (
-          <mesh
-            key={cushion.x}
-            position={[cushion.x, 0.1, 0]}
-            castShadow
-          >
+          <mesh key={cushion.x} position={[cushion.x, 0.1, 0]} castShadow>
             <boxGeometry args={[0.42, 0.16, 0.4]} />
             <meshStandardMaterial color={cushion.color} roughness={0.95} />
           </mesh>

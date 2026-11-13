@@ -5,14 +5,7 @@ import { apiClient } from "@/lib/api-client"
 import type { Category } from "@/types/accommodation"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  TreePine,
-  Waves,
-  Tent,
-  Building,
-  Home,
-  LayoutGrid,
-} from "lucide-react"
+import { TreePine, Waves, Tent, Building, Home, LayoutGrid } from "lucide-react"
 
 export interface CategoryBarProps {
   selectedCategoryId?: number
@@ -21,10 +14,18 @@ export interface CategoryBarProps {
 
 function getCategoryIcon(slug: string) {
   const normalized = slug.toLowerCase()
-  if (normalized.includes("cottage") || normalized.includes("choobi") || normalized.includes("kolbeh")) {
+  if (
+    normalized.includes("cottage") ||
+    normalized.includes("choobi") ||
+    normalized.includes("kolbeh")
+  ) {
     return TreePine
   }
-  if (normalized.includes("villa") || normalized.includes("pool") || normalized.includes("estakhr")) {
+  if (
+    normalized.includes("villa") ||
+    normalized.includes("pool") ||
+    normalized.includes("estakhr")
+  ) {
     return Waves
   }
   if (normalized.includes("eco") || normalized.includes("boom") || normalized.includes("tabiat")) {
@@ -76,11 +77,7 @@ export function CategoryBar({ selectedCategoryId, onSelectCategory }: CategoryBa
     "h-9 shrink-0 snap-start gap-2 px-4 text-xs font-semibold shadow-none transition-colors"
 
   return (
-    <div
-      role="region"
-      aria-label="دسته‌بندی‌های اقامتگاه"
-      className="relative w-full"
-    >
+    <div role="region" aria-label="دسته‌بندی‌های اقامتگاه" className="relative w-full">
       <div className="no-scrollbar flex snap-x touch-pan-x items-center gap-2 overflow-x-auto py-1">
         <Button
           type="button"

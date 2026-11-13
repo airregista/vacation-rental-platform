@@ -21,7 +21,7 @@ export function BrandLoader({
       aria-live="polite"
       className={cn(
         "flex min-h-[70vh] flex-col items-center justify-center gap-5 bg-paper p-4 text-ink",
-        className
+        className,
       )}
     >
       <span className="relative flex items-center justify-center">

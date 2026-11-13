@@ -94,12 +94,7 @@ function Smoke({ palette, quality }: { palette: ScenePalette; quality: SceneTier
           position={[0, 0.68, 0]}
         >
           <sphereGeometry args={[0.09, 8, 8]} />
-          <meshBasicMaterial
-            color={palette.mist}
-            transparent
-            opacity={0.2}
-            depthWrite={false}
-          />
+          <meshBasicMaterial color={palette.mist} transparent opacity={0.2} depthWrite={false} />
         </mesh>
       ))}
     </group>
@@ -110,7 +105,7 @@ export function ZagrosScene({ quality }: { quality: SceneTier }) {
   const palette = React.useMemo(() => getScenePalette(), [])
 
   const tentRoofGeometry = useDisposableGeometry(
-    React.useMemo(() => trianglePrism(3.05, 0.72, 1.95), [])
+    React.useMemo(() => trianglePrism(3.05, 0.72, 1.95), []),
   )
 
   return (
@@ -203,16 +198,8 @@ export function ZagrosScene({ quality }: { quality: SceneTier }) {
           <meshStandardMaterial color={palette.wood} roughness={0.95} />
         </mesh>
       ))}
-      <Rope
-        from={[-1.0, FLOOR_TOP + 0.85, 0.06]}
-        to={[-2.1, FLOOR_TOP, 1.1]}
-        color={palette.ink}
-      />
-      <Rope
-        from={[1.0, FLOOR_TOP + 0.85, 0.06]}
-        to={[2.1, FLOOR_TOP, 1.3]}
-        color={palette.ink}
-      />
+      <Rope from={[-1.0, FLOOR_TOP + 0.85, 0.06]} to={[-2.1, FLOOR_TOP, 1.1]} color={palette.ink} />
+      <Rope from={[1.0, FLOOR_TOP + 0.85, 0.06]} to={[2.1, FLOOR_TOP, 1.3]} color={palette.ink} />
 
       {/* Kilim and cushions at the tent mouth */}
       <group position={[-0.95, FLOOR_TOP, 0.62]}>
@@ -240,7 +227,7 @@ export function ZagrosScene({ quality }: { quality: SceneTier }) {
               <boxGeometry args={[0.03, 0.01, 0.07]} />
               <meshStandardMaterial color={palette.cream} roughness={0.97} />
             </mesh>
-          ))
+          )),
         )}
       </group>
       {[
@@ -323,11 +310,7 @@ export function ZagrosScene({ quality }: { quality: SceneTier }) {
         ))}
         <mesh position={[0, 0.63, 0]} castShadow>
           <sphereGeometry args={[0.09, 12, 10]} />
-          <meshStandardMaterial
-            color={palette.ink}
-            metalness={0.45}
-            roughness={0.38}
-          />
+          <meshStandardMaterial color={palette.ink} metalness={0.45} roughness={0.38} />
         </mesh>
         <mesh position={[0.1, 0.66, 0]} rotation={[0, 0, -1.05]}>
           <cylinderGeometry args={[0.016, 0.026, 0.14, 7]} />

@@ -93,7 +93,7 @@ export function AccommodationCard({
           <Heart
             className={cn(
               "size-4 transition-colors",
-              isWishlisted ? "fill-brick text-brick" : "text-ink/70"
+              isWishlisted ? "fill-brick text-brick" : "text-ink/70",
             )}
           />
         </Button>

@@ -97,8 +97,10 @@ export function OtpForm({ active = true, onSuccess, className }: OtpFormProps) {
     let normalizedPhone = toEnglishDigits(phone.trim()).replace(/[\s\-_]/g, "")
     if (normalizedPhone.startsWith("+98")) normalizedPhone = "0" + normalizedPhone.slice(3)
     else if (normalizedPhone.startsWith("0098")) normalizedPhone = "0" + normalizedPhone.slice(4)
-    else if (normalizedPhone.startsWith("98") && normalizedPhone.length > 10) normalizedPhone = "0" + normalizedPhone.slice(2)
-    else if (normalizedPhone.startsWith("9") && normalizedPhone.length === 10) normalizedPhone = "0" + normalizedPhone
+    else if (normalizedPhone.startsWith("98") && normalizedPhone.length > 10)
+      normalizedPhone = "0" + normalizedPhone.slice(2)
+    else if (normalizedPhone.startsWith("9") && normalizedPhone.length === 10)
+      normalizedPhone = "0" + normalizedPhone
 
     if (!/^09\d{9}$/.test(normalizedPhone)) {
       setError("شماره موبایل وارد شده باید ۱۱ رقمی بوده و با ۰۹ آغاز شود.")
@@ -158,7 +160,7 @@ export function OtpForm({ active = true, onSuccess, className }: OtpFormProps) {
         setIsSubmitting(false)
       }
     },
-    [isSubmitting, otpDigits, phone, verifyOtp, onSuccess]
+    [isSubmitting, otpDigits, phone, verifyOtp, onSuccess],
   )
 
   const handleDigitChange = (index: number, val: string) => {
@@ -332,9 +334,7 @@ export function OtpForm({ active = true, onSuccess, className }: OtpFormProps) {
                 <Sparkles className="size-3" />
                 هدیه ورود کاربران جدید
               </span>
-              <p className="text-xs font-bold text-ink">
-                ۲۰۰،۰۰۰ تومان تخفیف رزرو نخست
-              </p>
+              <p className="text-xs font-bold text-ink">۲۰۰،۰۰۰ تومان تخفیف رزرو نخست</p>
             </div>
             <div className="flex flex-col gap-1 text-[10px] text-ink-soft">
               <span className="flex items-center gap-1">

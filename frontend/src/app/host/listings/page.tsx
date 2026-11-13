@@ -2,14 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  AlertCircle,
-  Building2,
-  CheckCircle2,
-  Plus,
-  Power,
-  PowerOff,
-} from "lucide-react"
+import { AlertCircle, Building2, CheckCircle2, Plus, Power, PowerOff } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import type { HostAccommodationDetail, HostListingRecord } from "@/components/host/types"
 import { HostAccessGate } from "@/components/host/host-access-gate"
@@ -17,11 +10,7 @@ import { HostPageLayout } from "@/components/host/host-page-layout"
 import { HostStatCard } from "@/components/host/host-stat-card"
 import { HostListingCard } from "@/components/host/listing-card"
 import { EmptyState } from "@/components/shared/empty-state"
-import {
-  fetchAllPages,
-  formatFaNumber,
-  getApiErrorMessage,
-} from "@/components/host/host-utils"
+import { fetchAllPages, formatFaNumber, getApiErrorMessage } from "@/components/host/host-utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,9 +62,7 @@ function HostListingsContent() {
         setFetchError(null)
       } catch (error: unknown) {
         if (!isCurrent) return
-        setFetchError(
-          getApiErrorMessage(error, "بارگذاری اقامتگاه‌های شما با خطا مواجه شد.")
-        )
+        setFetchError(getApiErrorMessage(error, "بارگذاری اقامتگاه‌های شما با خطا مواجه شد."))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -89,7 +76,7 @@ function HostListingsContent() {
 
   const activeCount = React.useMemo(
     () => listings.filter((listing) => listing.is_active).length,
-    [listings]
+    [listings],
   )
 
   const handleRetry = () => {
@@ -105,22 +92,20 @@ function HostListingsContent() {
     try {
       const updated = await apiClient.put<HostAccommodationDetail>(
         `/accommodations/${listing.id}`,
-        { is_active: !listing.is_active }
+        { is_active: !listing.is_active },
       )
       setListings((current) =>
         current.map((item) =>
-          item.id === listing.id ? { ...item, is_active: updated.is_active } : item
-        )
+          item.id === listing.id ? { ...item, is_active: updated.is_active } : item,
+        ),
       )
       setNotice(
         updated.is_active
           ? `«${listing.title}» منتشر شد و از این پس قابل رزرو است.`
-          : `«${listing.title}» غیرفعال شد و از نتایج جستجو خارج شد.`
+          : `«${listing.title}» غیرفعال شد و از نتایج جستجو خارج شد.`,
       )
     } catch (error: unknown) {
-      setActionError(
-        getApiErrorMessage(error, "تغییر وضعیت انتشار اقامتگاه با خطا مواجه شد.")
-      )
+      setActionError(getApiErrorMessage(error, "تغییر وضعیت انتشار اقامتگاه با خطا مواجه شد."))
     } finally {
       setBusyId(null)
     }
@@ -134,12 +119,10 @@ function HostListingsContent() {
     try {
       await apiClient.delete(`/accommodations/${deleteTarget.id}`)
       setListings((current) =>
-        current.map((item) =>
-          item.id === deleteTarget.id ? { ...item, is_active: false } : item
-        )
+        current.map((item) => (item.id === deleteTarget.id ? { ...item, is_active: false } : item)),
       )
       setNotice(
-        `«${deleteTarget.title}» از فهرست فعال حذف شد. پرونده اقامتگاه برای سابقه حفظ می‌شود.`
+        `«${deleteTarget.title}» از فهرست فعال حذف شد. پرونده اقامتگاه برای سابقه حفظ می‌شود.`,
       )
       setDeleteTarget(null)
     } catch (error: unknown) {
@@ -250,9 +233,8 @@ function HostListingsContent() {
           <DialogHeader>
             <DialogTitle>حذف اقامتگاه</DialogTitle>
             <DialogDescription>
-              آیا از حذف «{deleteTarget?.title}» مطمئن هستید؟ این اقامتگاه از فهرست
-              فعال و نتایج جستجو خارج می‌شود، اما سابقه رزروها و اطلاعات مالی آن
-              حفظ می‌شود.
+              آیا از حذف «{deleteTarget?.title}» مطمئن هستید؟ این اقامتگاه از فهرست فعال و نتایج
+              جستجو خارج می‌شود، اما سابقه رزروها و اطلاعات مالی آن حفظ می‌شود.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

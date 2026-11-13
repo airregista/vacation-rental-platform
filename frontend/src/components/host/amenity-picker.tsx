@@ -38,10 +38,7 @@ export function AmenityPicker({
 
   const handleAddCustom = () => {
     const name = customName.trim()
-    if (
-      name.length < CUSTOM_NAME_MIN_LENGTH ||
-      name.length > CUSTOM_NAME_MAX_LENGTH
-    ) {
+    if (name.length < CUSTOM_NAME_MIN_LENGTH || name.length > CUSTOM_NAME_MAX_LENGTH) {
       setCustomError("نام امکان باید بین ۲ تا ۵۰ حرف باشد.")
       return
     }
@@ -79,7 +76,7 @@ export function AmenityPicker({
                   "flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-sm font-medium transition-colors",
                   isSelected
                     ? "border-brick/40 bg-brick/5 text-ink"
-                    : "border-line bg-paper-card text-ink-soft hover:border-line-strong hover:text-ink"
+                    : "border-line bg-paper-card text-ink-soft hover:border-line-strong hover:text-ink",
                 )}
               >
                 <Checkbox
@@ -100,8 +97,8 @@ export function AmenityPicker({
             امکانات دیگر (دستی)
           </label>
           <p className="text-[11px] leading-5 text-ink-soft">
-            اگر امکانی در فهرست بالا نیست، نام آن را بنویسید؛ این موارد فقط برای
-            همین اقامتگاه نمایش داده می‌شوند.
+            اگر امکانی در فهرست بالا نیست، نام آن را بنویسید؛ این موارد فقط برای همین اقامتگاه نمایش
+            داده می‌شوند.
           </p>
         </div>
 

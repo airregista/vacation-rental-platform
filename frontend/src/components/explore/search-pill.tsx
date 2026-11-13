@@ -13,15 +13,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
-import {
-  Search,
-  MapPin,
-  Calendar,
-  Users,
-  Plus,
-  Minus,
-  SlidersHorizontal,
-} from "lucide-react"
+import { Search, MapPin, Calendar, Users, Plus, Minus, SlidersHorizontal } from "lucide-react"
 
 export interface SearchPillProps {
   currentParams: AccommodationSearchParams
@@ -30,7 +22,6 @@ export interface SearchPillProps {
   /** `dock` is the editorial homepage capsule; `pill` is the results bar. */
   variant?: "pill" | "dock"
 }
-
 
 export function SearchPill({
   currentParams,
@@ -59,7 +50,12 @@ export function SearchPill({
     setCheckOut(currentParams.check_out || "")
     setGuests(currentParams.guests_count || 1)
     setDateError(null)
-  }, [currentParams.city_id, currentParams.check_in, currentParams.check_out, currentParams.guests_count])
+  }, [
+    currentParams.city_id,
+    currentParams.check_in,
+    currentParams.check_out,
+    currentParams.guests_count,
+  ])
 
   // Fetch cities on mount
   React.useEffect(() => {
@@ -181,7 +177,9 @@ export function SearchPill({
               aria-label="انتخاب شهر مقصد"
               className="bg-transparent text-xs font-medium text-muted-foreground focus:outline-none cursor-pointer w-full truncate border-none p-0"
             >
-              <option value="" className="text-foreground bg-background">همه شهرها (کجا می‌روید؟)</option>
+              <option value="" className="text-foreground bg-background">
+                همه شهرها (کجا می‌روید؟)
+              </option>
               {cities.map((city) => (
                 <option key={city.id} value={city.id} className="text-foreground bg-background">
                   {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
@@ -304,7 +302,8 @@ export function SearchPill({
                 {committedCityName || "کجا می‌روید؟"}
               </span>
               <span className="text-[11px] text-muted-foreground truncate">
-                {currentParams.check_in && currentParams.check_out ? "تاریخ انتخاب شد" : "هر زمان"} • {committedGuestsFa} مسافر
+                {currentParams.check_in && currentParams.check_out ? "تاریخ انتخاب شد" : "هر زمان"}{" "}
+                • {committedGuestsFa} مسافر
               </span>
             </div>
           </div>
@@ -359,7 +358,9 @@ export function SearchPill({
                 aria-label="انتخاب شهر مقصد"
                 className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="" className="text-foreground bg-background">همه شهرها</option>
+                <option value="" className="text-foreground bg-background">
+                  همه شهرها
+                </option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id} className="text-foreground bg-background">
                     {city.province?.name ? `${city.name} (${city.province.name})` : city.name}

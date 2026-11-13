@@ -136,8 +136,7 @@ function isValidStoredPollOption(entry: unknown): entry is DatePollOption {
     opt.votes >= 0 &&
     typeof opt.voted === "boolean" &&
     (opt.voters === undefined ||
-      (Array.isArray(opt.voters) &&
-        opt.voters.every((voter) => typeof voter === "string"))) &&
+      (Array.isArray(opt.voters) && opt.voters.every((voter) => typeof voter === "string"))) &&
     typeof opt.check_in === "string" &&
     opt.check_in.length > 0 &&
     !isNaN(Date.parse(opt.check_in)) &&
@@ -166,10 +165,7 @@ function uniqueId(prefix: string, existingIds: string[]): string {
 
 // Old storage may contain arbitrary/invalid companion entries. Keep only
 // usable names, enforce the limit, dedupe, and drop votes for removed options.
-function sanitizeCompanions(
-  entries: unknown,
-  optionIds: Set<string>
-): PollCompanion[] {
+function sanitizeCompanions(entries: unknown, optionIds: Set<string>): PollCompanion[] {
   if (!Array.isArray(entries)) return []
 
   const companions: PollCompanion[] = []
@@ -179,8 +175,7 @@ function sanitizeCompanions(
     if (companions.length >= MAX_COMPANIONS) return
     if (typeof entry !== "object" || entry === null) return
     const raw = entry as Record<string, unknown>
-    const name =
-      typeof raw.name === "string" ? normalizeCompanionName(raw.name) : ""
+    const name = typeof raw.name === "string" ? normalizeCompanionName(raw.name) : ""
     if (!name) return
 
     const nameKey = name.toLocaleLowerCase()
@@ -188,21 +183,19 @@ function sanitizeCompanions(
     seenNames.add(nameKey)
 
     const optionId =
-      typeof raw.optionId === "string" && optionIds.has(raw.optionId)
-        ? raw.optionId
-        : null
+      typeof raw.optionId === "string" && optionIds.has(raw.optionId) ? raw.optionId : null
 
     const baseId =
       typeof raw.id === "string" && raw.id.length > 0
         ? raw.id
         : uniqueId(
             "comp",
-            companions.map((companion) => companion.id)
+            companions.map((companion) => companion.id),
           )
     const id = companions.some((companion) => companion.id === baseId)
       ? uniqueId(
           "comp",
-          companions.map((companion) => companion.id)
+          companions.map((companion) => companion.id),
         )
       : baseId
 
@@ -215,12 +208,10 @@ function sanitizeCompanions(
 // Persist derived vote totals so the stored shape stays backwards compatible.
 function serializeOptions(
   options: DatePollOption[],
-  companions: PollCompanion[]
+  companions: PollCompanion[],
 ): DatePollOption[] {
   return options.map((option) => {
-    const companionVoters = companions.filter(
-      (companion) => companion.optionId === option.id
-    )
+    const companionVoters = companions.filter((companion) => companion.optionId === option.id)
     return {
       ...option,
       votes: (option.voted ? 1 : 0) + companionVoters.length,
@@ -253,20 +244,12 @@ export function TravelPollModal({
   folderName = "سفرهای تابستانه شمال",
 }: TravelPollModalProps) {
   const router = useRouter()
-  const isMounted = useSyncExternalStore(
-    emptySubscribe,
-    getClientSnapshot,
-    getServerClientSnapshot
-  )
-  const isMobile = useSyncExternalStore(
-    subscribeResize,
-    getMobileSnapshot,
-    getServerMobileSnapshot
-  )
+  const isMounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerClientSnapshot)
+  const isMobile = useSyncExternalStore(subscribeResize, getMobileSnapshot, getServerMobileSnapshot)
 
   // Seeds whose check-in has passed are never offered.
   const [options, setOptions] = useState<DatePollOption[]>(() =>
-    INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in))
+    INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in)),
   )
   const [companions, setCompanions] = useState<PollCompanion[]>([])
   const [newCompanionName, setNewCompanionName] = useState("")
@@ -278,8 +261,8 @@ export function TravelPollModal({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      let loadedOptions: DatePollOption[] = INITIAL_POLL_OPTIONS.filter(
-        (opt) => isFutureCheckIn(opt.check_in)
+      let loadedOptions: DatePollOption[] = INITIAL_POLL_OPTIONS.filter((opt) =>
+        isFutureCheckIn(opt.check_in),
       )
       let migratedFromLegacy = false
 
@@ -328,7 +311,7 @@ export function TravelPollModal({
         if (storedCompanions) {
           loadedCompanions = sanitizeCompanions(
             JSON.parse(storedCompanions),
-            new Set(loadedOptions.map((option) => option.id))
+            new Set(loadedOptions.map((option) => option.id)),
           )
         }
       } catch {
@@ -337,10 +320,7 @@ export function TravelPollModal({
 
       setOptions(loadedOptions)
       setCompanions(loadedCompanions)
-      writeStorage(
-        STORAGE_KEY,
-        serializeOptions(loadedOptions, loadedCompanions)
-      )
+      writeStorage(STORAGE_KEY, serializeOptions(loadedOptions, loadedCompanions))
       writeStorage(COMPANIONS_STORAGE_KEY, loadedCompanions)
     }, 0)
 
@@ -349,7 +329,7 @@ export function TravelPollModal({
 
   const saveOptions = (
     nextOptions: DatePollOption[],
-    nextCompanions: PollCompanion[] = companions
+    nextCompanions: PollCompanion[] = companions,
   ) => {
     setOptions(nextOptions)
     writeStorage(STORAGE_KEY, serializeOptions(nextOptions, nextCompanions))
@@ -357,7 +337,7 @@ export function TravelPollModal({
 
   const saveCompanions = (
     nextCompanions: PollCompanion[],
-    nextOptions: DatePollOption[] = options
+    nextOptions: DatePollOption[] = options,
   ) => {
     setCompanions(nextCompanions)
     writeStorage(COMPANIONS_STORAGE_KEY, nextCompanions)
@@ -371,10 +351,7 @@ export function TravelPollModal({
       counts[option.id] = option.voted ? 1 : 0
     }
     for (const companion of companions) {
-      if (
-        companion.optionId !== null &&
-        counts[companion.optionId] !== undefined
-      ) {
+      if (companion.optionId !== null && counts[companion.optionId] !== undefined) {
         counts[companion.optionId] += 1
       }
     }
@@ -394,13 +371,11 @@ export function TravelPollModal({
 
   const totalVotes = useMemo(
     () => Object.values(voteCounts).reduce((sum, count) => sum + count, 0),
-    [voteCounts]
+    [voteCounts],
   )
 
   const sortedOptions = useMemo(() => {
-    return [...options].sort(
-      (a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0)
-    )
+    return [...options].sort((a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0))
   }, [options, voteCounts])
 
   const topOption = sortedOptions[0]
@@ -435,15 +410,12 @@ export function TravelPollModal({
       return
     }
     if (companions.length >= MAX_COMPANIONS) {
-      setCompanionError(
-        `حداکثر ${formatPersianNumber(MAX_COMPANIONS)} همراه قابل افزودن است.`
-      )
+      setCompanionError(`حداکثر ${formatPersianNumber(MAX_COMPANIONS)} همراه قابل افزودن است.`)
       return
     }
     if (
       companions.some(
-        (companion) =>
-          companion.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+        (companion) => companion.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
       )
     ) {
       setCompanionError("این نام قبلاً در فهرست همراهان وجود دارد.")
@@ -455,7 +427,7 @@ export function TravelPollModal({
       {
         id: uniqueId(
           "comp",
-          companions.map((companion) => companion.id)
+          companions.map((companion) => companion.id),
         ),
         name,
         optionId: null,
@@ -466,28 +438,21 @@ export function TravelPollModal({
   }
 
   const handleRemoveCompanion = (companionId: string) => {
-    saveCompanions(
-      companions.filter((companion) => companion.id !== companionId)
-    )
+    saveCompanions(companions.filter((companion) => companion.id !== companionId))
   }
 
-  const handleAssignCompanionVote = (
-    companionId: string,
-    optionId: string | null
-  ) => {
+  const handleAssignCompanionVote = (companionId: string, optionId: string | null) => {
     saveCompanions(
       companions.map((companion) =>
-        companion.id === companionId ? { ...companion, optionId } : companion
-      )
+        companion.id === companionId ? { ...companion, optionId } : companion,
+      ),
     )
   }
 
   const handleRemoveOption = (optionId: string) => {
     const nextOptions = options.filter((option) => option.id !== optionId)
     const nextCompanions = companions.map((companion) =>
-      companion.optionId === optionId
-        ? { ...companion, optionId: null }
-        : companion
+      companion.optionId === optionId ? { ...companion, optionId: null } : companion,
     )
     setOptions(nextOptions)
     saveCompanions(nextCompanions, nextOptions)
@@ -506,14 +471,13 @@ export function TravelPollModal({
       return
 
     const nights = Math.round(
-      (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) /
-        86400000
+      (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) / 86400000,
     )
 
     const newOption: DatePollOption = {
       id: uniqueId(
         "opt",
-        options.map((option) => option.id)
+        options.map((option) => option.id),
       ),
       title: trimmed,
       date_range: `${newCheckIn} تا ${newCheckOut}`,
@@ -572,17 +536,15 @@ export function TravelPollModal({
         </div>
         <div className="text-xs font-medium text-ink-soft">
           <span>مجموع آرا: </span>
-          <span className="font-bold tabular-nums text-ink">
-            {formatPersianNumber(totalVotes)}
-          </span>
+          <span className="font-bold tabular-nums text-ink">{formatPersianNumber(totalVotes)}</span>
           <span> رای</span>
         </div>
       </div>
 
       <p className="flex items-start gap-1.5 text-[11px] leading-5 text-ink-soft">
         <Users className="mt-0.5 size-3.5 shrink-0 text-brick" />
-        رأی شما و همراهانتان روی این دستگاه ذخیره می‌شود؛ این نظرسنجی بین چند
-        دستگاه همگام‌سازی نمی‌شود.
+        رأی شما و همراهانتان روی این دستگاه ذخیره می‌شود؛ این نظرسنجی بین چند دستگاه همگام‌سازی
+        نمی‌شود.
       </p>
 
       {/* Candidate date cards */}
@@ -619,9 +581,7 @@ export function TravelPollModal({
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div className="flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-black text-ink">
-                      {option.title}
-                    </span>
+                    <span className="text-base font-black text-ink">{option.title}</span>
 
                     {option.holiday_tag && (
                       <Badge
@@ -637,8 +597,7 @@ export function TravelPollModal({
                     )}
 
                     <span className="text-xs font-bold tabular-nums text-brick">
-                      {formatPersianNumber(consensusPercentage)}٪ توافق
-                      همسفران
+                      {formatPersianNumber(consensusPercentage)}٪ توافق همسفران
                     </span>
                   </div>
 
@@ -726,23 +685,19 @@ export function TravelPollModal({
               همراهان روی این دستگاه
             </h4>
             <p className="text-[11px] leading-5 text-ink-soft">
-              با افزودن نام همراهان، می‌توانید رأی آن‌ها را هم به‌صورت نیابتی
-              روی همین دستگاه ثبت کنید.
+              با افزودن نام همراهان، می‌توانید رأی آن‌ها را هم به‌صورت نیابتی روی همین دستگاه ثبت
+              کنید.
             </p>
           </div>
           <Badge
             variant="outline"
             className="border-line bg-paper-deep/50 text-[11px] text-ink-soft"
           >
-            {formatPersianNumber(companions.length)} از{" "}
-            {formatPersianNumber(MAX_COMPANIONS)} همراه
+            {formatPersianNumber(companions.length)} از {formatPersianNumber(MAX_COMPANIONS)} همراه
           </Badge>
         </div>
 
-        <form
-          onSubmit={handleAddCompanion}
-          className="flex flex-col gap-2 sm:flex-row"
-        >
+        <form onSubmit={handleAddCompanion} className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={newCompanionName}
             onChange={(e) => {
@@ -758,10 +713,7 @@ export function TravelPollModal({
           <Button
             type="submit"
             size="sm"
-            disabled={
-              !newCompanionName.trim() ||
-              companions.length >= MAX_COMPANIONS
-            }
+            disabled={!newCompanionName.trim() || companions.length >= MAX_COMPANIONS}
             className="shrink-0 gap-1.5"
           >
             <Plus className="size-4" />
@@ -769,9 +721,7 @@ export function TravelPollModal({
           </Button>
         </form>
 
-        {companionError && (
-          <p className="text-xs text-destructive">{companionError}</p>
-        )}
+        {companionError && <p className="text-xs text-destructive">{companionError}</p>}
 
         {companions.length === 0 ? (
           <p className="rounded-xl border border-dashed border-line bg-paper-deep/30 px-3 py-2 text-xs leading-6 text-ink-soft">
@@ -781,8 +731,7 @@ export function TravelPollModal({
           <ul className="space-y-2">
             {companions.map((companion) => {
               const assignedOption =
-                options.find((option) => option.id === companion.optionId) ??
-                null
+                options.find((option) => option.id === companion.optionId) ?? null
 
               return (
                 <li
@@ -816,9 +765,7 @@ export function TravelPollModal({
                         رأی نیابتی {companion.name}
                       </DropdownMenuLabel>
                       <DropdownMenuItem
-                        onClick={() =>
-                          handleAssignCompanionVote(companion.id, null)
-                        }
+                        onClick={() => handleAssignCompanionVote(companion.id, null)}
                         className="gap-2 text-xs"
                       >
                         {companion.optionId === null ? (
@@ -832,9 +779,7 @@ export function TravelPollModal({
                       {options.map((option) => (
                         <DropdownMenuItem
                           key={option.id}
-                          onClick={() =>
-                            handleAssignCompanionVote(companion.id, option.id)
-                          }
+                          onClick={() => handleAssignCompanionVote(companion.id, option.id)}
                           className="gap-2 text-xs"
                         >
                           {companion.optionId === option.id ? (
@@ -880,12 +825,7 @@ export function TravelPollModal({
             autoFocus
           />
           <div className="grid grid-cols-2 gap-2">
-            <JalaliDateField
-              boxed
-              label="تاریخ ورود"
-              value={newCheckIn}
-              onChange={setNewCheckIn}
-            />
+            <JalaliDateField boxed label="تاریخ ورود" value={newCheckIn} onChange={setNewCheckIn} />
             <JalaliDateField
               boxed
               label="تاریخ خروج"
@@ -965,8 +905,8 @@ export function TravelPollModal({
               نظرسنجی تاریخ سفر و هماهنگی همسفران
             </SheetTitle>
             <SheetDescription className="text-xs leading-6 text-ink-soft">
-              تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای
-              دهید تا بهترین بازه زمانی مشخص شود.
+              تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای دهید تا بهترین
+              بازه زمانی مشخص شود.
             </SheetDescription>
           </SheetHeader>
           {modalBody}
@@ -986,8 +926,8 @@ export function TravelPollModal({
             نظرسنجی تاریخ سفر و هماهنگی همسفران
           </DialogTitle>
           <DialogDescription className="text-xs leading-6 text-ink-soft">
-            تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای
-            دهید تا بهترین بازه زمانی مشخص شود.
+            تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای دهید تا بهترین بازه
+            زمانی مشخص شود.
           </DialogDescription>
         </DialogHeader>
         {modalBody}

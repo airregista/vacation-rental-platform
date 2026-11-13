@@ -54,10 +54,9 @@ export function DioramaScene({
     const node = hostRef.current
     if (!node) return
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { threshold: 0.01 }
-    )
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+      threshold: 0.01,
+    })
     observer.observe(node)
 
     const onVisibility = () => setVisible(document.visibilityState === "visible")
@@ -78,7 +77,7 @@ export function DioramaScene({
       className={cn(
         "pointer-events-none absolute inset-0 transition-opacity duration-700 ease-out",
         ready ? "opacity-100" : "opacity-0",
-        className
+        className,
       )}
     >
       {mounted ? (

@@ -33,7 +33,7 @@ export function AdminSummary({
   const payoutTotals = payoutSummary(payouts)
   const activeCoupons = coupons.filter((coupon) => coupon.is_active).length
   const confirmedReservations = reservations.filter(
-    (reservation) => reservation.status === "confirmed"
+    (reservation) => reservation.status === "confirmed",
   ).length
 
   const items: SummaryItem[] = [
@@ -74,19 +74,14 @@ export function AdminSummary({
         {items.map((item) => {
           const Icon = item.icon
           return (
-            <Card
-              key={item.label}
-              className="rounded-2xl border-line bg-paper-card shadow-soft"
-            >
+            <Card key={item.label} className="rounded-2xl border-line bg-paper-card shadow-soft">
               <CardContent className="flex items-start justify-between gap-3 p-4 sm:p-5">
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-ink-soft">{item.label}</p>
                   <p className="mt-2 flex flex-wrap items-baseline gap-1 text-2xl font-black tracking-tight text-ink">
                     <span className="tabular-nums">{item.value}</span>
                     {item.unit ? (
-                      <span className="text-[11px] font-bold text-ink-soft">
-                        {item.unit}
-                      </span>
+                      <span className="text-[11px] font-bold text-ink-soft">{item.unit}</span>
                     ) : null}
                   </p>
                   <p className="mt-1 text-[11px] leading-5 text-ink-soft">{item.hint}</p>

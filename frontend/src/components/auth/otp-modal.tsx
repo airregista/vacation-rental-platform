@@ -67,12 +67,12 @@ export function OtpModal() {
   const mounted = useSyncExternalStore(
     subscribeMounted,
     getMountedSnapshot,
-    getServerMountedSnapshot
+    getServerMountedSnapshot,
   )
   const isMobile = useSyncExternalStore(
     subscribeMediaQuery,
     getMobileSnapshot,
-    getServerMobileSnapshot
+    getServerMobileSnapshot,
   )
 
   // Bumping the key remounts OtpForm, clearing step/phone/OTP/error state
@@ -87,11 +87,7 @@ export function OtpModal() {
   const body = (
     <div className="flex flex-col gap-5">
       <OtpBrandHeader />
-      <OtpForm
-        key={session}
-        active={isOtpModalOpen}
-        onSuccess={handleClose}
-      />
+      <OtpForm key={session} active={isOtpModalOpen} onSuccess={handleClose} />
     </div>
   )
 

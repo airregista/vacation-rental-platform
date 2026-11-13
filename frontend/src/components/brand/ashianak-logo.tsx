@@ -71,15 +71,9 @@ function LogoMark({ className, night }: { className?: string; night?: boolean })
           style={paint.line}
         />
         {/* Cottage body — bottom edge hides under the nest rim stroke */}
-        <path
-          d="M 200 115 L 237 150 L 237 203.5 L 163 203.5 L 163 150 Z"
-          style={paint.body}
-        />
+        <path d="M 200 115 L 237 150 L 237 203.5 L 163 203.5 L 163 150 Z" style={paint.body} />
         {/* Doorway */}
-        <path
-          d="M 190 203.5 L 190 181 A 10 10 0 0 1 210 181 L 210 203.5 Z"
-          style={paint.accent}
-        />
+        <path d="M 190 203.5 L 190 181 A 10 10 0 0 1 210 181 L 210 203.5 Z" style={paint.accent} />
         {/* Gable roof */}
         <path
           d="M 152 159 L 200 113 L 248 159"
@@ -108,16 +102,8 @@ function LogoMark({ className, night }: { className?: string; night?: boolean })
           strokeWidth={6.5}
           style={paint.accentLine}
         />
-        <path
-          d="M 110 175 C 140 226, 248 222, 284 182"
-          strokeWidth={7}
-          style={paint.accentLine}
-        />
-        <path
-          d="M 110 172 C 134 216, 266 216, 290 172"
-          strokeWidth={7.5}
-          style={paint.line}
-        />
+        <path d="M 110 175 C 140 226, 248 222, 284 182" strokeWidth={7} style={paint.accentLine} />
+        <path d="M 110 172 C 134 216, 266 216, 290 172" strokeWidth={7.5} style={paint.line} />
       </g>
     </svg>
   )
@@ -148,10 +134,7 @@ export function AshianakLogo({
         {withLatin ? (
           <span
             dir="ltr"
-            className={cn(
-              "mt-1 text-[11px] font-semibold tracking-[0.18em]",
-              LATIN_TONE[tone]
-            )}
+            className={cn("mt-1 text-[11px] font-semibold tracking-[0.18em]", LATIN_TONE[tone])}
           >
             Ashianak
           </span>

@@ -114,12 +114,8 @@ function AdminGate({
         <Icon className="size-7" aria-hidden="true" />
       </span>
       <h2 className="text-xl font-black text-ink">{title}</h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-ink-soft">
-        {description}
-      </p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        {action}
-      </div>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-ink-soft">{description}</p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{action}</div>
     </div>
   )
 }
@@ -248,9 +244,7 @@ export default function AdminPage() {
   const handlePayoutSettled = React.useCallback((payout: AdminPayout) => {
     setData((current) => ({
       ...current,
-      payouts: current.payouts.map((item) =>
-        item.id === payout.id ? payout : item
-      ),
+      payouts: current.payouts.map((item) => (item.id === payout.id ? payout : item)),
     }))
   }, [])
 
@@ -340,10 +334,7 @@ export default function AdminPage() {
         <AdminConsoleSkeleton />
       ) : !hasLoaded ? (
         <AdminLoadError
-          message={
-            error ??
-            "اطلاعات کنسول مدیریت در دسترس نیست. لطفاً دوباره تلاش کنید."
-          }
+          message={error ?? "اطلاعات کنسول مدیریت در دسترس نیست. لطفاً دوباره تلاش کنید."}
           onRetry={() => void loadAll()}
           isRetrying={isLoading}
         />
@@ -388,19 +379,13 @@ export default function AdminPage() {
               <UsersPanel users={data.users} />
             </TabsContent>
             <TabsContent value="coupons" className="mt-6">
-              <CouponsPanel
-                coupons={data.coupons}
-                onCreated={handleCouponCreated}
-              />
+              <CouponsPanel coupons={data.coupons} onCreated={handleCouponCreated} />
             </TabsContent>
             <TabsContent value="reservations" className="mt-6">
               <ReservationsPanel reservations={data.reservations} />
             </TabsContent>
             <TabsContent value="payouts" className="mt-6">
-              <PayoutsPanel
-                payouts={data.payouts}
-                onSettled={handlePayoutSettled}
-              />
+              <PayoutsPanel payouts={data.payouts} onSettled={handlePayoutSettled} />
             </TabsContent>
           </Tabs>
         </div>

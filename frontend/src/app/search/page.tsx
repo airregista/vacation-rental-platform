@@ -5,10 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/context/auth-context"
 import { buildAccommodationQuery, parseAccommodationQuery } from "@/lib/search-utils"
-import type {
-  AccommodationListItem,
-  AccommodationSearchParams,
-} from "@/types/accommodation"
+import type { AccommodationListItem, AccommodationSearchParams } from "@/types/accommodation"
 import { SearchPill } from "@/components/explore/search-pill"
 import { CategoryBar } from "@/components/explore/category-bar"
 import { FilterDialog } from "@/components/explore/filter-dialog"
@@ -21,7 +18,7 @@ function SearchContent() {
   const { token, openOtpModal } = useAuth()
 
   const [searchParams, setSearchParams] = React.useState<AccommodationSearchParams>(() =>
-    parseAccommodationQuery(searchParamsHook)
+    parseAccommodationQuery(searchParamsHook),
   )
   const [searchKey, setSearchKey] = React.useState<number>(0)
   const [accommodations, setAccommodations] = React.useState<AccommodationListItem[]>([])
@@ -43,7 +40,7 @@ function SearchContent() {
           window.history.replaceState(
             null,
             "",
-            canonicalQuery ? `/search${canonicalQuery}` : "/search"
+            canonicalQuery ? `/search${canonicalQuery}` : "/search",
           )
         }
       }
@@ -51,17 +48,13 @@ function SearchContent() {
     }
     const queryString = buildAccommodationQuery(searchParams)
     if (typeof window !== "undefined") {
-      window.history.replaceState(
-        null,
-        "",
-        queryString ? `/search${queryString}` : "/search"
-      )
+      window.history.replaceState(null, "", queryString ? `/search${queryString}` : "/search")
     }
   }, [searchParams])
 
   const activeWishlistIds = React.useMemo(
     () => (token ? wishlistIds : new Set<number>()),
-    [token, wishlistIds]
+    [token, wishlistIds],
   )
 
   const wishlistSeqRef = React.useRef(0)
@@ -115,7 +108,7 @@ function SearchContent() {
         console.error("Error fetching accommodations:", err)
         if (isLatest()) {
           setFetchError(
-            "خطا در بارگذاری اقامتگاه‌ها. لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش کنید."
+            "خطا در بارگذاری اقامتگاه‌ها. لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش کنید.",
           )
           setIsLoading(false)
         }
@@ -172,7 +165,7 @@ function SearchContent() {
 
     try {
       const res = await apiClient.post<{ accommodation_id: number; is_favorite: boolean }>(
-        `/wishlists/${id}/toggle`
+        `/wishlists/${id}/toggle`,
       )
       if (res && typeof res.is_favorite === "boolean") {
         setWishlistIds((prev) => {

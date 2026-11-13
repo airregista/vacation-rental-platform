@@ -29,21 +29,12 @@ export interface JalaliCalendarProps {
  * A dependency-free Solar Hijri month grid. Dates stay ISO (Gregorian) for the
  * API and are only converted for display, so search params remain unchanged.
  */
-export function JalaliCalendar({
-  value,
-  min,
-  onSelect,
-  onClear,
-  className,
-}: JalaliCalendarProps) {
+export function JalaliCalendar({ value, min, onSelect, onClear, className }: JalaliCalendarProps) {
   const today = React.useMemo(() => localTodayIso(), [])
-  const [viewStart, setViewStart] = React.useState(() =>
-    persianMonthStart(value || today)
-  )
+  const [viewStart, setViewStart] = React.useState(() => persianMonthStart(value || today))
 
   const month = getPersianParts(viewStart)
-  const leadingBlanks =
-    (new Date(`${viewStart}T00:00:00Z`).getUTCDay() + 1) % 7
+  const leadingBlanks = (new Date(`${viewStart}T00:00:00Z`).getUTCDay() + 1) % 7
 
   const days: { iso: string; day: number }[] = []
   let cursor = viewStart
@@ -115,7 +106,7 @@ export function JalaliCalendar({
                   : isToday
                     ? "border border-primary/40 text-primary hover:bg-paper-deep"
                     : "text-ink hover:bg-paper-deep",
-                disabled && "opacity-30"
+                disabled && "opacity-30",
               )}
             >
               {faNumber.format(day)}

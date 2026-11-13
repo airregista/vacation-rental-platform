@@ -35,7 +35,7 @@ export function HostSectionNav() {
                 "inline-flex min-h-10 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors sm:text-sm",
                 isActive
                   ? "bg-brick text-on-brick shadow-soft"
-                  : "text-ink-soft hover:bg-paper-deep hover:text-ink"
+                  : "text-ink-soft hover:bg-paper-deep hover:text-ink",
               )}
             >
               <Icon className="size-4" aria-hidden="true" />

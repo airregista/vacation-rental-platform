@@ -24,12 +24,7 @@ import {
   MessageScrollerItem,
   MessageScrollerButton,
 } from "@/components/ui/message-scroller"
-import {
-  Message,
-  MessageAvatar,
-  MessageContent,
-  MessageHeader,
-} from "@/components/ui/message"
+import { Message, MessageAvatar, MessageContent, MessageHeader } from "@/components/ui/message"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
@@ -60,7 +55,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       if (trip) return msg.sender_id === trip.user_id
       return false
     },
-    [user, trip]
+    [user, trip],
   )
 
   // Depend on the reservation id, not the trip object: the parent creates
@@ -110,13 +105,11 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             setErrorMessage(null)
             if (isInitial) setHasLoadedInitially(true)
             const hasUnreadIncoming = data.some(
-              (m) => m.sender_id !== viewerId && m.read_at == null
+              (m) => m.sender_id !== viewerId && m.read_at == null,
             )
             if (viewerId !== undefined && hasUnreadIncoming) {
               void apiClient
-                .post<{ marked_read: number }>(
-                  `/reservations/${tripId}/messages/read`
-                )
+                .post<{ marked_read: number }>(`/reservations/${tripId}/messages/read`)
                 .catch(() => {
                   // A failed read receipt must not interrupt the conversation.
                 })
@@ -169,15 +162,12 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
     setErrorMessage(null)
 
     try {
-      const sent = await apiClient.post<ChatMessageItem>(
-        `/reservations/${trip.id}/messages`,
-        { message: trimmed }
-      )
+      const sent = await apiClient.post<ChatMessageItem>(`/reservations/${trip.id}/messages`, {
+        message: trimmed,
+      })
       // Dedupe on append: a poll tick that landed between the persist and
       // this POST resolution already contains the sent message.
-      setMessages((prev) =>
-        prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]
-      )
+      setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
       setInputText("")
       textareaRef.current?.focus()
     } catch (err: unknown) {
@@ -226,8 +216,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             )}
           </div>
           <SheetDescription className="line-clamp-1 pr-12 text-[11px] text-ink-soft">
-            {trip?.accommodation_title ||
-              (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
+            {trip?.accommodation_title || (trip ? `اقامتگاه کد ${trip.accommodation_id}` : "")}
           </SheetDescription>
         </SheetHeader>
 
@@ -259,11 +248,10 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
                     <span className="grid size-14 place-items-center rounded-b-2xl rounded-t-full bg-brick/10 text-brick">
                       <MessageSquare className="size-6" />
                     </span>
-                    <p className="text-sm font-bold text-ink">
-                      هنوز پیامی رد و بدل نشده است.
-                    </p>
+                    <p className="text-sm font-bold text-ink">هنوز پیامی رد و بدل نشده است.</p>
                     <p className="max-w-xs text-xs leading-6">
-                      اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود را انجام دهید.
+                      اولین پیام خود را برای میزبان ارسال کنید تا هماهنگی‌های تحویل کلید و ساعت ورود
+                      را انجام دهید.
                     </p>
                   </div>
                 ) : (

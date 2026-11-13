@@ -24,7 +24,7 @@ export function CountdownTimer({
   const getSecondsLeft = React.useCallback(() => {
     if (!createdAt || !isPending) return 0
     const createdMs = new Date(
-      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`
+      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`,
     ).getTime()
     if (isNaN(createdMs)) return 0
     const expiresAtMs = createdMs + ttlMinutes * 60 * 1000
@@ -41,7 +41,7 @@ export function CountdownTimer({
     if (!isPending) return
 
     const createdMs = new Date(
-      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`
+      createdAt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(createdAt) ? createdAt : `${createdAt}Z`,
     ).getTime()
 
     if (isNaN(createdMs)) return
@@ -95,9 +95,12 @@ export function CountdownTimer({
         className={cn("border-destructive/30 bg-destructive/5 text-destructive", className)}
       >
         <AlertCircle className="size-5" />
-        <AlertTitle className="text-base font-bold">مهلت پرداخت این رزرو به پایان رسیده است</AlertTitle>
+        <AlertTitle className="text-base font-bold">
+          مهلت پرداخت این رزرو به پایان رسیده است
+        </AlertTitle>
         <AlertDescription className="mt-1 text-sm">
-          این رزرو موقت به دلیل اتمام زمان ۳۰ دقیقه‌ای منقضی شد و تاریخ‌های انتخابی آزاد شدند. لطفا در صورت تمایل مجددا رزرو فرمایید.
+          این رزرو موقت به دلیل اتمام زمان ۳۰ دقیقه‌ای منقضی شد و تاریخ‌های انتخابی آزاد شدند. لطفا
+          در صورت تمایل مجددا رزرو فرمایید.
         </AlertDescription>
       </Alert>
     )
@@ -106,13 +109,7 @@ export function CountdownTimer({
   // Urgent state (<= 5 minutes)
   if (currentSeconds <= 300) {
     return (
-      <Alert
-        variant="warning"
-        className={cn(
-          "border-gold/40 bg-gold-soft/70 text-ink",
-          className
-        )}
-      >
+      <Alert variant="warning" className={cn("border-gold/40 bg-gold-soft/70 text-ink", className)}>
         <Clock className="size-5 animate-pulse text-brick" />
         <AlertTitle className="flex items-center justify-between text-base font-bold">
           <span className="flex items-center gap-2">
@@ -126,7 +123,8 @@ export function CountdownTimer({
           </span>
         </AlertTitle>
         <AlertDescription className="mt-1 text-sm">
-          کمتر از ۵ دقیقه تا آزادسازی تاریخ‌ها باقی مانده است. لطفا پیش از انقضای زمان، پرداخت خود را نهایی کنید.
+          کمتر از ۵ دقیقه تا آزادسازی تاریخ‌ها باقی مانده است. لطفا پیش از انقضای زمان، پرداخت خود
+          را نهایی کنید.
         </AlertDescription>
       </Alert>
     )
@@ -137,7 +135,7 @@ export function CountdownTimer({
     <div
       className={cn(
         "flex flex-col justify-between gap-3 rounded-2xl border border-line bg-paper-card p-4 text-ink shadow-soft sm:flex-row sm:items-center",
-        className
+        className,
       )}
     >
       <div className="flex items-center gap-3">

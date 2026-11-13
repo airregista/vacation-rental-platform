@@ -1,9 +1,4 @@
-import type {
-  AdminCoupon,
-  AdminPayout,
-  AdminUser,
-  PayoutStatus,
-} from "@/components/admin/types"
+import type { AdminCoupon, AdminPayout, AdminUser, PayoutStatus } from "@/components/admin/types"
 
 export function toAmount(value: number | string | null | undefined): number {
   const numeric = Number(value ?? 0)
@@ -53,9 +48,7 @@ export const PAYOUT_STATUS_LABELS: Record<PayoutStatus | string, string> = {
 
 export function couponDiscountLabel(coupon: AdminCoupon): string {
   const value = formatToman(coupon.discount_value)
-  return coupon.discount_type === "percentage"
-    ? `${value}٪ تخفیف`
-    : `${value} تومان تخفیف`
+  return coupon.discount_type === "percentage" ? `${value}٪ تخفیف` : `${value} تومان تخفیف`
 }
 
 export function couponValidityLabel(coupon: AdminCoupon): string {
@@ -92,6 +85,6 @@ export function payoutSummary(payouts: AdminPayout[]) {
       }
       return acc
     },
-    { pendingCount: 0, pendingAmount: 0, completedAmount: 0 }
+    { pendingCount: 0, pendingAmount: 0, completedAmount: 0 },
   )
 }

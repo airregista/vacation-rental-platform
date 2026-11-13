@@ -5,14 +5,7 @@ import { useFrame } from "@react-three/fiber"
 import type { Mesh } from "three"
 import { getScenePalette, type ScenePalette } from "../scene-palette"
 import type { SceneTier } from "../scene-types"
-import {
-  DioramaBase,
-  Dust,
-  FLOOR_TOP,
-  Shrub,
-  WarmWindow,
-  type Vec3,
-} from "./shared"
+import { DioramaBase, Dust, FLOOR_TOP, Shrub, WarmWindow, type Vec3 } from "./shared"
 
 const PATH_STONES: Vec3[] = [
   [0.34, FLOOR_TOP + 0.02, 0.4],
@@ -24,11 +17,7 @@ const SPRING_RING = Array.from({ length: 9 }, (_, index) => {
   const angle = (index / 9) * Math.PI * 2
   const radius = index % 2 === 0 ? 0.64 : 0.6
   return {
-    position: [
-      Math.cos(angle) * radius,
-      0.05,
-      Math.sin(angle) * radius,
-    ] as Vec3,
+    position: [Math.cos(angle) * radius, 0.05, Math.sin(angle) * radius] as Vec3,
     scale: 0.09 + (index % 3) * 0.015,
   }
 })
@@ -72,13 +61,7 @@ function Peak({
 }
 
 /** A three-summit massif reads as Sabalan rather than a lone witch hat. */
-function Massif({
-  palette,
-  segments,
-}: {
-  palette: ScenePalette
-  segments: number
-}) {
+function Massif({ palette, segments }: { palette: ScenePalette; segments: number }) {
   return (
     <group position={[0.35, FLOOR_TOP, -1.88]} scale={[1, 1, 0.5]}>
       <Peak
@@ -95,25 +78,13 @@ function Massif({
         segments={segments}
         palette={palette}
       />
-      <Peak
-        position={[0, 0, 0]}
-        radius={1.55}
-        height={2.1}
-        segments={segments}
-        palette={palette}
-      />
+      <Peak position={[0, 0, 0]} radius={1.55} height={2.1} segments={segments} palette={palette} />
     </group>
   )
 }
 
 /** Sarein hot spring: a stone basin with slowly drifting steam. */
-function HotSpring({
-  palette,
-  quality,
-}: {
-  palette: ScenePalette
-  quality: SceneTier
-}) {
+function HotSpring({ palette, quality }: { palette: ScenePalette; quality: SceneTier }) {
   const count = quality === "full" ? 5 : 3
   const puffs = React.useRef<Array<Mesh | null>>([])
 
@@ -139,11 +110,7 @@ function HotSpring({
         </mesh>
       ))}
 
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.012, 0]}
-        receiveShadow
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
         <circleGeometry args={[0.54, 24]} />
         <meshStandardMaterial
           color={palette.tealDeep}
@@ -153,29 +120,13 @@ function HotSpring({
           roughness={0.12}
         />
       </mesh>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.016, 0]}
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]}>
         <circleGeometry args={[0.4, 24]} />
-        <meshStandardMaterial
-          color={palette.teal}
-          transparent
-          opacity={0.55}
-          roughness={0.15}
-        />
+        <meshStandardMaterial color={palette.teal} transparent opacity={0.55} roughness={0.15} />
       </mesh>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.02, 0]}
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <circleGeometry args={[0.14, 16]} />
-        <meshStandardMaterial
-          color={palette.cream}
-          transparent
-          opacity={0.35}
-          roughness={0.3}
-        />
+        <meshStandardMaterial color={palette.cream} transparent opacity={0.35} roughness={0.3} />
       </mesh>
 
       {/* Expanding rings on the water surface */}
@@ -222,12 +173,7 @@ function HotSpring({
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.17, 0.028, 0.06]}>
           <circleGeometry args={[0.09, 12]} />
-          <meshBasicMaterial
-            color={palette.cream}
-            transparent
-            opacity={0.3}
-            depthWrite={false}
-          />
+          <meshBasicMaterial color={palette.cream} transparent opacity={0.3} depthWrite={false} />
         </mesh>
       </group>
 
@@ -240,12 +186,7 @@ function HotSpring({
           position={[0, 0.2, 0]}
         >
           <sphereGeometry args={[0.2, 8, 8]} />
-          <meshBasicMaterial
-            color={palette.mist}
-            transparent
-            opacity={0.55}
-            depthWrite={false}
-          />
+          <meshBasicMaterial color={palette.mist} transparent opacity={0.55} depthWrite={false} />
         </mesh>
       ))}
 
@@ -290,12 +231,7 @@ function ChimneySmoke({ palette, quality }: { palette: ScenePalette; quality: Sc
           scale={0.7 + index * 0.18}
         >
           <sphereGeometry args={[0.1, 8, 8]} />
-          <meshBasicMaterial
-            color={palette.mist}
-            transparent
-            opacity={0.22}
-            depthWrite={false}
-          />
+          <meshBasicMaterial color={palette.mist} transparent opacity={0.22} depthWrite={false} />
         </mesh>
       ))}
     </group>
@@ -314,10 +250,7 @@ export function MountainScene({ quality }: { quality: SceneTier }) {
       <Massif palette={palette} segments={segments} />
 
       {/* Cleared path through the snow */}
-      <mesh
-        position={[0.22, FLOOR_TOP + 0.004, 1.2]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <mesh position={[0.22, FLOOR_TOP + 0.004, 1.2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.7, 2.2]} />
         <meshStandardMaterial color={palette.plasterShade} roughness={0.98} />
       </mesh>
@@ -354,11 +287,7 @@ export function MountainScene({ quality }: { quality: SceneTier }) {
           <boxGeometry args={[0.5, 0.08, 0.24]} />
           <meshStandardMaterial color={palette.stone} roughness={0.98} flatShading />
         </mesh>
-        <WarmWindow
-          position={[-0.45, 0.52, 0.681]}
-          size={[0.34, 0.28]}
-          palette={palette}
-        />
+        <WarmWindow position={[-0.45, 0.52, 0.681]} size={[0.34, 0.28]} palette={palette} />
 
         {/* Side window facing the woodpile */}
         <group position={[0.985, 0.5, -0.1]} rotation={[0, Math.PI / 2, 0]}>
@@ -394,12 +323,7 @@ export function MountainScene({ quality }: { quality: SceneTier }) {
           [0, 0.15, 0.22],
           [0, 0.15, 0.34],
         ].map(([x, y, z], index) => (
-          <mesh
-            key={index}
-            position={[x, y, z]}
-            rotation={[0, 0, Math.PI / 2]}
-            castShadow
-          >
+          <mesh key={index} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
             <cylinderGeometry args={[0.052, 0.052, 0.46, 7]} />
             <meshStandardMaterial color={palette.wood} roughness={0.96} flatShading />
           </mesh>
@@ -460,12 +384,7 @@ export function MountainScene({ quality }: { quality: SceneTier }) {
 
       {/* Boulders */}
       {BOULDERS.map(({ position, size }, index) => (
-        <mesh
-          key={index}
-          position={position}
-          rotation={[0.2, index, 0.1]}
-          castShadow
-        >
+        <mesh key={index} position={position} rotation={[0.2, index, 0.1]} castShadow>
           <dodecahedronGeometry args={[size, 0]} />
           <meshStandardMaterial color={palette.stone} roughness={0.98} flatShading />
         </mesh>

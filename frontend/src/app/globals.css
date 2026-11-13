@@ -67,7 +67,9 @@
     --input: var(--line);
     --ring: var(--brick);
     --radius: 1rem;
-    --font-vazirmatn: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-vazirmatn:
+      "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif;
     /* Persian digits and Latin card/OTP codes must still render in Vazirmatn;
        the system monospace fallback breaks the site's typography. */
     --font-mono: var(--font-vazirmatn);
@@ -395,11 +397,7 @@ body {
 }
 
 .hero-scene-veil {
-  background: radial-gradient(
-    120% 100% at 50% 42%,
-    var(--hero-sky) 0%,
-    var(--hero-sky-deep) 100%
-  );
+  background: radial-gradient(120% 100% at 50% 42%, var(--hero-sky) 0%, var(--hero-sky-deep) 100%);
   animation: hero-scene-veil 420ms ease-out both;
 }
 
@@ -425,7 +423,12 @@ body {
 }
 
 .stay-thumb-mist {
-  background: linear-gradient(160deg, var(--hero-cream) 0%, var(--hero-sand-deep) 110%, var(--hero-green) 190%);
+  background: linear-gradient(
+    160deg,
+    var(--hero-cream) 0%,
+    var(--hero-sand-deep) 110%,
+    var(--hero-green) 190%
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {

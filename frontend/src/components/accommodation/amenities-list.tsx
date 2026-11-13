@@ -1,17 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  Wifi,
-  Car,
-  Waves,
-  Utensils,
-  Tv,
-  Wind,
-  Flame,
-  Check,
-  Sparkles,
-} from "lucide-react"
+import { Wifi, Car, Waves, Utensils, Tv, Wind, Flame, Check, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -34,13 +24,8 @@ interface DisplayAmenity {
 }
 
 /** Predefined amenities first, then host free-text names that are not duplicates. */
-function buildAmenityItems(
-  amenities: Amenity[],
-  customAmenities: string[]
-): DisplayAmenity[] {
-  const seen = new Set(
-    amenities.map((amenity) => amenity.name.trim().toLowerCase())
-  )
+function buildAmenityItems(amenities: Amenity[], customAmenities: string[]): DisplayAmenity[] {
+  const seen = new Set(amenities.map((amenity) => amenity.name.trim().toLowerCase()))
 
   const items: DisplayAmenity[] = amenities.map((amenity) => ({
     key: `a-${amenity.id}`,
@@ -100,10 +85,7 @@ function getAmenityIcon(name: string, iconSlug?: string | null) {
   return Check
 }
 
-export function AmenitiesList({
-  amenities,
-  customAmenities = [],
-}: AmenitiesListProps) {
+export function AmenitiesList({ amenities, customAmenities = [] }: AmenitiesListProps) {
   const [isOpenAllModal, setIsOpenAllModal] = React.useState(false)
 
   const allAmenities = buildAmenityItems(amenities ?? [], customAmenities)

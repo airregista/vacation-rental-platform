@@ -22,17 +22,14 @@ export interface PersianMonthGroup<T> {
   days: T[]
 }
 
-export function groupByPersianMonth<T extends { date: string }>(
-  days: T[]
-): PersianMonthGroup<T>[] {
+export function groupByPersianMonth<T extends { date: string }>(days: T[]): PersianMonthGroup<T>[] {
   const groups = new Map<string, PersianMonthGroup<T>>()
 
   for (const item of days) {
     const parts = getPersianParts(item.date)
     if (!groups.has(parts.key)) {
       const monthStart = persianMonthStart(item.date)
-      const firstWeekday =
-        (new Date(`${monthStart}T00:00:00Z`).getUTCDay() + 1) % 7
+      const firstWeekday = (new Date(`${monthStart}T00:00:00Z`).getUTCDay() + 1) % 7
       groups.set(parts.key, {
         key: parts.key,
         title: parts.title,
@@ -55,7 +52,7 @@ export interface DateRange {
 export function splitRange(
   start: string,
   end: string,
-  maxDays: number = MAX_CALENDAR_BATCH_DAYS
+  maxDays: number = MAX_CALENDAR_BATCH_DAYS,
 ): DateRange[] {
   const chunks: DateRange[] = []
   let cursor = new Date(`${start}T00:00:00Z`)
@@ -117,17 +114,17 @@ export async function postPricingBatch(
   accommodationId: number,
   startDate: string,
   endDate: string,
-  body: PricingBatchBody
+  body: PricingBatchBody,
 ): Promise<number> {
   const chunks = splitRange(startDate, endDate)
   let applied = 0
 
   try {
     for (const chunk of chunks) {
-      await apiClient.post(
-        `/accommodations/${accommodationId}/pricing-exceptions/batch`,
-        { ...chunk, ...body }
-      )
+      await apiClient.post(`/accommodations/${accommodationId}/pricing-exceptions/batch`, {
+        ...chunk,
+        ...body,
+      })
       applied += 1
     }
   } catch (error) {

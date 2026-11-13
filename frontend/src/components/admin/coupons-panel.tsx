@@ -1,14 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Plus,
-  Tag,
-  TicketPercent,
-} from "lucide-react"
+import { AlertCircle, CheckCircle2, Loader2, Plus, Tag, TicketPercent } from "lucide-react"
 
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate } from "@/lib/format-fa"
@@ -58,7 +51,7 @@ function pad(value: number): string {
 
 function toDateTimeLocal(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
+    date.getHours(),
   )}:${pad(date.getMinutes())}`
 }
 
@@ -168,10 +161,7 @@ function CouponCreateDialog({
       setError("حداقل مبلغ رزرو نمی‌تواند منفی باشد.")
       return
     }
-    if (
-      usageLimit !== null &&
-      (!Number.isInteger(usageLimit) || usageLimit <= 0)
-    ) {
+    if (usageLimit !== null && (!Number.isInteger(usageLimit) || usageLimit <= 0)) {
       setError("سقف استفاده باید یک عدد صحیح بزرگ‌تر از صفر باشد.")
       return
     }
@@ -205,8 +195,7 @@ function CouponCreateDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-black">ساخت کوپن تخفیف</DialogTitle>
           <DialogDescription className="text-xs leading-6 text-ink-soft">
-            کد، نوع تخفیف و بازهٔ اعتبار را مشخص کنید. کد به‌صورت خودکار با حروف
-            بزرگ ذخیره می‌شود.
+            کد، نوع تخفیف و بازهٔ اعتبار را مشخص کنید. کد به‌صورت خودکار با حروف بزرگ ذخیره می‌شود.
           </DialogDescription>
         </DialogHeader>
 
@@ -258,11 +247,7 @@ function CouponCreateDialog({
                 id="discount-value"
                 allowDecimal
                 min={0}
-                value={
-                  form.discountValue.trim() === ""
-                    ? null
-                    : Number(form.discountValue)
-                }
+                value={form.discountValue.trim() === "" ? null : Number(form.discountValue)}
                 emptyValue={null}
                 onValueChange={(value) =>
                   update("discountValue", value === null ? "" : String(value))
@@ -285,9 +270,7 @@ function CouponCreateDialog({
               <PersianNumberInput
                 id="max-discount"
                 min={0}
-                value={
-                  form.maxDiscount.trim() === "" ? null : Number(form.maxDiscount)
-                }
+                value={form.maxDiscount.trim() === "" ? null : Number(form.maxDiscount)}
                 emptyValue={null}
                 onValueChange={(value) =>
                   update("maxDiscount", value === null ? "" : String(value))
@@ -307,13 +290,9 @@ function CouponCreateDialog({
               <PersianNumberInput
                 id="min-booking"
                 min={0}
-                value={
-                  form.minBooking.trim() === "" ? null : Number(form.minBooking)
-                }
+                value={form.minBooking.trim() === "" ? null : Number(form.minBooking)}
                 emptyValue={null}
-                onValueChange={(value) =>
-                  update("minBooking", value === null ? "" : String(value))
-                }
+                onValueChange={(value) => update("minBooking", value === null ? "" : String(value))}
                 placeholder="۰"
                 className="mt-2 text-left tabular-nums"
               />
@@ -326,13 +305,9 @@ function CouponCreateDialog({
               <PersianNumberInput
                 id="usage-limit"
                 min={1}
-                value={
-                  form.usageLimit.trim() === "" ? null : Number(form.usageLimit)
-                }
+                value={form.usageLimit.trim() === "" ? null : Number(form.usageLimit)}
                 emptyValue={null}
-                onValueChange={(value) =>
-                  update("usageLimit", value === null ? "" : String(value))
-                }
+                onValueChange={(value) => update("usageLimit", value === null ? "" : String(value))}
                 placeholder="بدون سقف"
                 className="mt-2 text-left tabular-nums"
               />
@@ -344,9 +319,7 @@ function CouponCreateDialog({
                 ariaLabel="تاریخ شروع اعتبار"
                 boxed
                 value={datePart(form.validFrom)}
-                onChange={(isoDate) =>
-                  update("validFrom", withDatePart(form.validFrom, isoDate))
-                }
+                onChange={(isoDate) => update("validFrom", withDatePart(form.validFrom, isoDate))}
               />
               <label
                 htmlFor="valid-from-time"
@@ -357,9 +330,7 @@ function CouponCreateDialog({
                   id="valid-from-time"
                   aria-label="ساعت شروع اعتبار"
                   value={timePart(form.validFrom)}
-                  onValueChange={(time) =>
-                    update("validFrom", withTimePart(form.validFrom, time))
-                  }
+                  onValueChange={(time) => update("validFrom", withTimePart(form.validFrom, time))}
                   className="h-9 w-24 text-center tabular-nums"
                 />
               </label>
@@ -372,9 +343,7 @@ function CouponCreateDialog({
                 boxed
                 value={datePart(form.validUntil)}
                 min={datePart(form.validFrom)}
-                onChange={(isoDate) =>
-                  update("validUntil", withDatePart(form.validUntil, isoDate))
-                }
+                onChange={(isoDate) => update("validUntil", withDatePart(form.validUntil, isoDate))}
               />
               <label
                 htmlFor="valid-until-time"
@@ -463,10 +432,7 @@ export function CouponsPanel({
     <section aria-labelledby="admin-coupons-title">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2
-            id="admin-coupons-title"
-            className="text-lg font-black tracking-tight text-ink"
-          >
+          <h2 id="admin-coupons-title" className="text-lg font-black tracking-tight text-ink">
             کوپن‌ها
           </h2>
           <p className="mt-1 text-xs leading-6 text-ink-soft">
@@ -506,11 +472,7 @@ export function CouponsPanel({
             title="هنوز کوپنی ساخته نشده"
             description="اولین کد تخفیف را بسازید تا مهمانان بتوانند در پرداخت از آن استفاده کنند."
             action={
-              <Button
-                type="button"
-                onClick={() => setIsCreateOpen(true)}
-                className="gap-2"
-              >
+              <Button type="button" onClick={() => setIsCreateOpen(true)} className="gap-2">
                 <Plus className="size-4" />
                 ساخت کوپن
               </Button>
@@ -552,7 +514,10 @@ export function CouponsPanel({
                       className="border-t border-line/60 transition-colors hover:bg-paper-deep/25"
                     >
                       <td className="px-4 py-3.5">
-                        <p dir="ltr" className="w-fit font-mono text-xs font-bold tracking-wider text-ink">
+                        <p
+                          dir="ltr"
+                          className="w-fit font-mono text-xs font-bold tracking-wider text-ink"
+                        >
                           {coupon.code}
                         </p>
                         <p className="mt-1 text-[11px] text-ink-soft">
@@ -560,9 +525,7 @@ export function CouponsPanel({
                         </p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-xs font-bold text-ink">
-                          {couponDiscountLabel(coupon)}
-                        </p>
+                        <p className="text-xs font-bold text-ink">{couponDiscountLabel(coupon)}</p>
                         {toAmount(coupon.max_discount_amount) > 0 ? (
                           <p className="mt-1 text-[11px] text-ink-soft">
                             سقف {formatToman(coupon.max_discount_amount)} تومان
@@ -585,9 +548,7 @@ export function CouponsPanel({
                       <td className="px-4 py-3.5 text-xs tabular-nums text-ink-soft">
                         {formatCount(coupon.used_count)}
                         {" / "}
-                        {coupon.usage_limit
-                          ? formatCount(coupon.usage_limit)
-                          : "بدون سقف"}
+                        {coupon.usage_limit ? formatCount(coupon.usage_limit) : "بدون سقف"}
                       </td>
                       <td className="px-4 py-3.5">
                         <AdminStatusBadge
@@ -624,9 +585,7 @@ export function CouponsPanel({
                       {!coupon.is_active ? "غیرفعال" : expired ? "منقضی" : "فعال"}
                     </AdminStatusBadge>
                   </div>
-                  <p className="mt-2 text-xs font-bold text-brick">
-                    {couponDiscountLabel(coupon)}
-                  </p>
+                  <p className="mt-2 text-xs font-bold text-brick">{couponDiscountLabel(coupon)}</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line/60 pt-3 text-[11px]">
                     <div>
                       <p className="text-ink-soft">حداقل رزرو</p>
@@ -641,9 +600,7 @@ export function CouponsPanel({
                       <p className="mt-0.5 font-semibold tabular-nums text-ink">
                         {formatCount(coupon.used_count)}
                         {" / "}
-                        {coupon.usage_limit
-                          ? formatCount(coupon.usage_limit)
-                          : "بدون سقف"}
+                        {coupon.usage_limit ? formatCount(coupon.usage_limit) : "بدون سقف"}
                       </p>
                     </div>
                     <div className="col-span-2">

@@ -7,13 +7,7 @@ import { getScene } from "./scene-registry"
 import { getScenePalette } from "./scene-palette"
 import type { SceneId, SceneTier } from "./scene-types"
 
-function Rig({
-  quality,
-  children,
-}: {
-  quality: SceneTier
-  children: React.ReactNode
-}) {
+function Rig({ quality, children }: { quality: SceneTier; children: React.ReactNode }) {
   const group = React.useRef<THREE.Group>(null)
   const { camera, size } = useThree()
   const pointer = React.useRef({ x: 0, y: 0 })
@@ -104,7 +98,11 @@ export default function DioramaCanvas({
       }}
     >
       <ambientLight intensity={0.55} color={palette.lightWarm} />
-      <hemisphereLight intensity={0.55} color={palette.lightSky} groundColor={palette.lightGround} />
+      <hemisphereLight
+        intensity={0.55}
+        color={palette.lightSky}
+        groundColor={palette.lightGround}
+      />
       <directionalLight
         position={[5.5, 8, 4.5]}
         intensity={2.3}

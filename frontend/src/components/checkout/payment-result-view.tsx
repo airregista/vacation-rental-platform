@@ -1,11 +1,6 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import {
-  CheckCircle2,
-  Info,
-  XCircle,
-  type LucideIcon,
-} from "lucide-react"
+import { CheckCircle2, Info, XCircle, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Card } from "@/components/ui/card"
@@ -92,27 +87,27 @@ export function PaymentResultView({
         <Card
           className={cn(
             "overflow-hidden rounded-3xl border bg-paper-card shadow-soft",
-            styles.card
+            styles.card,
           )}
         >
           <div
             className={cn(
               "relative overflow-hidden px-5 py-8 text-center sm:px-8 sm:py-10",
-              styles.hero
+              styles.hero,
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
                 "pointer-events-none absolute -top-20 left-1/2 size-48 -translate-x-1/2 rounded-full border",
-                styles.decor
+                styles.decor,
               )}
             />
             <span
               aria-hidden="true"
               className={cn(
                 "pointer-events-none absolute -left-10 top-1/3 size-24 rounded-full border",
-                styles.decor
+                styles.decor,
               )}
             />
 
@@ -120,19 +115,14 @@ export function PaymentResultView({
               <span
                 className={cn(
                   "flex size-16 items-center justify-center rounded-3xl ring-8",
-                  styles.icon
+                  styles.icon,
                 )}
               >
                 <Icon className="size-8" strokeWidth={2.2} />
               </span>
 
               {eyebrow ? (
-                <p
-                  className={cn(
-                    "text-[11px] font-bold tracking-[0.18em]",
-                    styles.eyebrow
-                  )}
-                >
+                <p className={cn("text-[11px] font-bold tracking-[0.18em]", styles.eyebrow)}>
                   {eyebrow}
                 </p>
               ) : null}
@@ -142,9 +132,7 @@ export function PaymentResultView({
               </h1>
 
               {description ? (
-                <p className="max-w-lg text-sm leading-7 text-ink-soft">
-                  {description}
-                </p>
+                <p className="max-w-lg text-sm leading-7 text-ink-soft">{description}</p>
               ) : null}
 
               {code ? (
@@ -157,10 +145,7 @@ export function PaymentResultView({
               ) : null}
 
               {brandMark ? (
-                <AshianakLogo
-                  variant="mark"
-                  className="mt-2 size-12 opacity-90"
-                />
+                <AshianakLogo variant="mark" className="mt-2 size-12 opacity-90" />
               ) : null}
             </div>
           </div>
@@ -176,9 +161,7 @@ export function PaymentResultView({
         </Card>
 
         {footer ? (
-          <div className="mt-5 text-center text-xs leading-6 text-ink-soft">
-            {footer}
-          </div>
+          <div className="mt-5 text-center text-xs leading-6 text-ink-soft">{footer}</div>
         ) : null}
       </div>
     </main>
@@ -201,10 +184,7 @@ export function PaymentResultFooterLinks() {
 
 export function PaymentResultSkeleton() {
   return (
-    <main
-      aria-busy="true"
-      className="min-h-screen bg-paper pb-16 pt-6 text-ink sm:pb-20 sm:pt-10"
-    >
+    <main aria-busy="true" className="min-h-screen bg-paper pb-16 pt-6 text-ink sm:pb-20 sm:pt-10">
       <span className="sr-only">در حال بارگذاری نتیجه پرداخت...</span>
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
         <div className="rounded-3xl border border-line/80 bg-paper-card p-5 shadow-soft sm:p-7">

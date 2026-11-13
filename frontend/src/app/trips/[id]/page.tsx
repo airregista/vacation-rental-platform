@@ -58,8 +58,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
   const { token, isLoading: isAuthLoading, openOtpModal } = useAuth()
 
   const [reservation, setReservation] = React.useState<TripReservationItem | null>(null)
-  const [accommodation, setAccommodation] =
-    React.useState<AccommodationDetailData | null>(null)
+  const [accommodation, setAccommodation] = React.useState<AccommodationDetailData | null>(null)
   const [isLoading, setIsLoading] = React.useState<boolean>(!isInvalidId)
   const [errorStatus, setErrorStatus] = React.useState<number | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -76,9 +75,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
       setErrorMessage(null)
 
       try {
-        const data = await apiClient.get<TripReservationItem>(
-          `/reservations/${reservationId}`
-        )
+        const data = await apiClient.get<TripReservationItem>(`/reservations/${reservationId}`)
         if (!isCurrent) return
         setReservation(data)
         setAccommodation(null)
@@ -88,7 +85,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
         // so a failure here never blocks the reservation itself.
         try {
           const stay = await apiClient.get<AccommodationDetailData>(
-            `/accommodations/${data.accommodation_id}`
+            `/accommodations/${data.accommodation_id}`,
           )
           if (isCurrent) setAccommodation(stay)
         } catch {
@@ -119,7 +116,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
   const handleCancelled = (
     id: number,
     refundAmount?: number | string,
-    penaltyAmount?: number | string
+    penaltyAmount?: number | string,
   ) => {
     setReservation((prev) =>
       prev && prev.id === id
@@ -130,7 +127,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
             penalty_amount: penaltyAmount ?? prev.penalty_amount,
             cancelled_at: new Date().toISOString(),
           }
-        : prev
+        : prev,
     )
   }
 
@@ -227,7 +224,7 @@ function TripDetailView({
   onCancelled: (
     reservationId: number,
     refundAmount?: number | string,
-    penaltyAmount?: number | string
+    penaltyAmount?: number | string,
   ) => void
   onReviewSubmitted: () => void
 }) {
@@ -240,11 +237,15 @@ function TripDetailView({
   const title =
     reservation.accommodation_title ||
     `اقامتگاه کد ${toPersianDigits(reservation.accommodation_id)}`
-  const locationText =
-    [accommodation?.city?.province?.name, accommodation?.city?.name, reservation.province, reservation.city]
-      .filter(Boolean)
-      .filter((value, index, list) => list.indexOf(value) === index)
-      .join("، ")
+  const locationText = [
+    accommodation?.city?.province?.name,
+    accommodation?.city?.name,
+    reservation.province,
+    reservation.city,
+  ]
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .join("، ")
   const coverImage =
     reservation.accommodation_image ||
     accommodation?.images?.find((image) => image.is_cover)?.image_url ||
@@ -267,9 +268,9 @@ function TripDetailView({
               cleaning_fee: accommodation.cleaning_fee,
               base_price: accommodation.base_price,
             }
-          : null
+          : null,
       ),
-    [reservation, accommodation]
+    [reservation, accommodation],
   )
 
   const nightlyRate =
@@ -292,8 +293,7 @@ function TripDetailView({
         actions={
           <>
             <TripStatusBadge trip={reservation} className="px-3 py-1 text-xs" />
-            {(reservation.status === "confirmed" ||
-              reservation.status === "completed") && (
+            {(reservation.status === "confirmed" || reservation.status === "completed") && (
               <Button asChild variant="outline" className="gap-2 border-line bg-transparent">
                 <Link href={`/invoice/${reservation.id}`}>
                   <FileText className="size-4" />
@@ -355,9 +355,7 @@ function TripDetailView({
             <CardContent className="space-y-5 p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-bold tracking-[0.18em] text-brick">
-                    اقامتگاه شما
-                  </p>
+                  <p className="text-[11px] font-bold tracking-[0.18em] text-brick">اقامتگاه شما</p>
                   <Link
                     href={`/accommodations/${reservation.accommodation_id}`}
                     className="mt-2 block text-xl font-black leading-8 text-ink transition-colors hover:text-brick"
@@ -483,8 +481,8 @@ function TripDetailView({
 
               {!accommodation && (
                 <p className="rounded-xl border border-gold/25 bg-gold/10 p-3 text-[11px] leading-6 text-ink-soft">
-                  جزئیات هزینه نظافت و نرخ شبانه این اقامتگاه در دسترس نبود؛ مبلغ کل از
-                  اطلاعات ثبت‌شده رزرو نمایش داده می‌شود.
+                  جزئیات هزینه نظافت و نرخ شبانه این اقامتگاه در دسترس نبود؛ مبلغ کل از اطلاعات
+                  ثبت‌شده رزرو نمایش داده می‌شود.
                 </p>
               )}
             </CardContent>
@@ -592,8 +590,7 @@ function TripDetailView({
                   </Button>
                 )}
 
-                {(reservation.status === "confirmed" ||
-                  reservation.status === "completed") && (
+                {(reservation.status === "confirmed" || reservation.status === "completed") && (
                   <Button asChild className="w-full gap-2">
                     <Link href={`/invoice/${reservation.id}`}>
                       <FileText className="size-4" />
@@ -641,9 +638,7 @@ function TripDetailView({
                     <AlertCircle className="size-3.5" />
                     این رزرو لغو شده است
                   </p>
-                  {reservation.cancellation_reason && (
-                    <p>علت: {reservation.cancellation_reason}</p>
-                  )}
+                  {reservation.cancellation_reason && <p>علت: {reservation.cancellation_reason}</p>}
                   {reservation.refund_amount !== null &&
                     reservation.refund_amount !== undefined && (
                       <p className="tabular-nums">
@@ -668,19 +663,15 @@ function TripDetailView({
 
               <p className="flex items-start gap-1.5 border-t border-line/70 pt-3 text-[10px] leading-5 text-ink-soft">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" />
-                پشتیبانی آشیانک در تمام مدت اقامت همراه شماست. برای هماهنگی ورود، از گفتگوی
-                مستقیم با میزبان استفاده کنید.
+                پشتیبانی آشیانک در تمام مدت اقامت همراه شماست. برای هماهنگی ورود، از گفتگوی مستقیم
+                با میزبان استفاده کنید.
               </p>
             </CardContent>
           </Card>
         </aside>
       </div>
 
-      <ChatDrawer
-        trip={reservation}
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
+      <ChatDrawer trip={reservation} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
       <ReviewDialog
         trip={reservation}
@@ -743,11 +734,7 @@ function StatusScreen({
                 </Link>
               </Button>
               {onRetry && (
-                <Button
-                  variant="outline"
-                  onClick={onRetry}
-                  className="border-line bg-transparent"
-                >
+                <Button variant="outline" onClick={onRetry} className="border-line bg-transparent">
                   تلاش مجدد
                 </Button>
               )}

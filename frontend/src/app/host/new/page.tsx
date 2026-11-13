@@ -4,10 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
-import {
-  describeCancellationPolicy,
-  getCancellationPolicyLabel,
-} from "@/lib/cancellation-policy"
+import { describeCancellationPolicy, getCancellationPolicyLabel } from "@/lib/cancellation-policy"
 import type { AccommodationCreateForm } from "@/types/host"
 import type { Category, City, Amenity } from "@/types/accommodation"
 import { HostAccessGate } from "@/components/host/host-access-gate"
@@ -108,7 +105,7 @@ function NewAccommodationContent() {
       } catch (error: unknown) {
         if (!isMounted) return
         setLoadError(
-          getApiErrorMessage(error, "بارگذاری گزینه‌های دسته‌بندی و شهر با خطا مواجه شد.")
+          getApiErrorMessage(error, "بارگذاری گزینه‌های دسته‌بندی و شهر با خطا مواجه شد."),
         )
       } finally {
         if (isMounted) setIsLoadingOptions(false)
@@ -121,10 +118,7 @@ function NewAccommodationContent() {
     }
   }, [])
 
-  const set = <K extends keyof CreateFormState>(
-    key: K,
-    value: CreateFormState[K]
-  ) => {
+  const set = <K extends keyof CreateFormState>(key: K, value: CreateFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -180,19 +174,14 @@ function NewAccommodationContent() {
     setForm((prev) => ({
       ...prev,
       images: image.is_cover
-        ? [
-            ...prev.images.map((item) => ({ ...item, is_cover: false })),
-            image,
-          ]
+        ? [...prev.images.map((item) => ({ ...item, is_cover: false })), image]
         : [...prev.images, image],
     }))
   }
 
   const removeImage = (target: AccommodationCreateForm["images"][number]) => {
     setForm((prev) => {
-      const rest = prev.images.filter(
-        (image) => image.sort_order !== target.sort_order
-      )
+      const rest = prev.images.filter((image) => image.sort_order !== target.sort_order)
       const reindexed = rest.map((image, imageIndex) => ({
         ...image,
         sort_order: imageIndex,
@@ -284,9 +273,7 @@ function NewAccommodationContent() {
 
   const selectedCategory = categories.find((item) => item.id === form.category_id)
   const selectedCity = cities.find((item) => item.id === form.city_id)
-  const selectedAmenities = amenities.filter((item) =>
-    form.amenity_ids.includes(item.id)
-  )
+  const selectedAmenities = amenities.filter((item) => form.amenity_ids.includes(item.id))
   const policyLabel = getCancellationPolicyLabel(form.cancellation_policy)
   const policySummary = describeCancellationPolicy(form.cancellation_policy, {
     freeHours: form.cancellation_free_hours ?? 24,
@@ -592,8 +579,8 @@ function NewAccommodationContent() {
                 </div>
               </div>
               <p className="text-[11px] leading-6 text-ink-soft">
-                ساعت ورود و خروج پیش‌فرض سامانه است و در این مرحله قابل تغییر نیست؛
-                پس از ثبت می‌توانید از صفحه ویرایش آن را تنظیم کنید.
+                ساعت ورود و خروج پیش‌فرض سامانه است و در این مرحله قابل تغییر نیست؛ پس از ثبت
+                می‌توانید از صفحه ویرایش آن را تنظیم کنید.
               </p>
 
               <div className="space-y-2">
@@ -603,12 +590,8 @@ function NewAccommodationContent() {
                   onChange={setPolicy}
                   freeHours={form.cancellation_free_hours ?? 24}
                   penaltyPercent={form.cancellation_penalty_percent ?? 50}
-                  onFreeHoursChange={(value) =>
-                    set("cancellation_free_hours", value)
-                  }
-                  onPenaltyPercentChange={(value) =>
-                    set("cancellation_penalty_percent", value)
-                  }
+                  onFreeHoursChange={(value) => set("cancellation_free_hours", value)}
+                  onPenaltyPercentChange={(value) => set("cancellation_penalty_percent", value)}
                 />
               </div>
 
@@ -666,10 +649,7 @@ function NewAccommodationContent() {
       </div>
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent
-          dir="rtl"
-          className="max-h-[85vh] overflow-y-auto text-right sm:max-w-lg"
-        >
+        <DialogContent dir="rtl" className="max-h-[85vh] overflow-y-auto text-right sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>پیش‌نمایش اقامتگاه</DialogTitle>
             <DialogDescription>
@@ -749,9 +729,7 @@ function NewAccommodationContent() {
               <dt className="shrink-0 text-ink-soft">سیاست لغو</dt>
               <dd className="space-y-1 text-right font-medium text-ink">
                 <span className="block">{policyLabel}</span>
-                <span className="block text-[11px] leading-6 text-ink-soft">
-                  {policySummary}
-                </span>
+                <span className="block text-[11px] leading-6 text-ink-soft">{policySummary}</span>
               </dd>
             </div>
             {form.rules.trim() !== "" ? (
@@ -807,8 +785,8 @@ function NewAccommodationContent() {
             </span>
             <DialogTitle className="text-lg">اقامتگاه شما ثبت شد!</DialogTitle>
             <DialogDescription className="leading-7">
-              تبریک! اقامتگاه شما با موفقیت ثبت و منتشر شد. مهمانان از همین حالا
-              می‌توانند آن را ببینند و رزرو کنند.
+              تبریک! اقامتگاه شما با موفقیت ثبت و منتشر شد. مهمانان از همین حالا می‌توانند آن را
+              ببینند و رزرو کنند.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
