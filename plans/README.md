@@ -81,6 +81,75 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **072** | `072-messaging-unread-state.md` | P2 | S | — | **DONE (reviewed)** | `advisor/072-messaging-unread-state` | `2b65288` |
 | **073** | `073-docs-and-env-truth.md` | P3 | S | 059, 066, 070, 071, 072 | **DONE (reviewed; integrated branch)** | `advisor/073-docs-and-env-truth` | `a07ec3b` on merges `eac1cef`+`318b3e5` |
 | **074** | `074-ci-type-and-format-gates.md` | P1 | M | 057, 058, 068; runs last | **DONE (reviewed, merged)** | `advisor/074-ci-type-and-format-gates` | `4df2204`+`f34730e` |
+| **075** | `075-shared-pagination-helpers.md` | P2 | S | — | **DONE (reviewed)** | `advisor/075-shared-pagination-helpers` | `1f4d428` |
+| **076** | `076-persian-format-consolidation.md` | P2 | M | — | **DONE (reviewed)** | `advisor/076-persian-format-consolidation` | `82ba2c6`..`434deb3` |
+| **077** | `077-shared-responsive-hooks.md` | P3 | S | — | **DONE (reviewed)** | `advisor/077-shared-responsive-hooks` | `ef6e5cd` |
+| **078** | `078-detail-wishlist-persistence.md` | P1 | S | — | **DONE (reviewed)** | `advisor/078-detail-wishlist-persistence` | `cf5d76b` |
+| **079** | `079-demo-gateway-no-card-data.md` | P1 | S | — | **DONE (reviewed)** | `advisor/079-demo-gateway-no-card-data` | `1df2726` |
+| **080** | `080-invoice-no-fake-seals.md` | P1 | S | — | **DONE (reviewed)** | `advisor/080-invoice-no-fake-seals` | `d20a004` |
+| **081** | `081-persian-date-timezone.md` | P1 | M | 076 recommended | **DONE (reviewed)** | `advisor/081-persian-date-timezone` | `9d48003` |
+| **082** | `082-search-hearts-pagination.md` | P2 | S | 075 | **DONE (reviewed)** | `advisor/082-search-hearts-pagination` | `185529a` |
+| **083** | `083-invoice-payment-lookup.md` | P2 | S | 075 | **DONE (reviewed)** | `advisor/083-invoice-payment-lookup` | `5e70ef7` |
+| **084** | `084-reservation-code-helper.md` | P2 | S | — | **DONE (reviewed)** | `advisor/084-reservation-code-helper` | `a0f4033` |
+| **085** | `085-checkout-param-reset.md` | P2 | S | — | **DONE (reviewed)** | `advisor/085-checkout-param-reset` | `e8ed683` |
+| **086** | `086-poll-finalize-search.md` | P2 | S | — | **DONE (reviewed)** | `advisor/086-poll-finalize-search` | `6faf215` |
+| **087** | `087-cancellation-reason-mapping.md` | P3 | S | — | **DONE (reviewed)** | `advisor/087-cancellation-reason-mapping` | `a797da5` |
+| **088** | `088-search-pagination.md` | P1 | M | — | **DONE (reviewed)** | `advisor/088-search-pagination` | `89a7dd8` |
+| **089** | `089-lazy-hero-scenes.md` | P1 | M | — | **DONE (reviewed)** | `advisor/089-lazy-hero-scenes` | `cb081ca` |
+| **090** | `090-uploads-image-optimization.md` | P2 | M | — | **DONE (reviewed)** | `advisor/090-uploads-image-optimization` | `8f2bcf7` |
+| **091** | `091-chat-visibility-guard.md` | P3 | S | — | **DONE (reviewed)** | `advisor/091-chat-visibility-guard` | `f23e0ae` |
+| **092** | `092-frontend-ci-job.md` | P1 | S | 093 recommended | **DONE (reviewed)** | `advisor/092-frontend-ci-job` | `89a4279` |
+| **093** | `093-typecheck-script.md` | P2 | S | — | **DONE (reviewed)** | `advisor/093-typecheck-script` | `12a1c0d` |
+| **094** | `094-frontend-env-example.md` | P2 | S | — (before 100) | **DONE (reviewed)** | `advisor/094-frontend-env-example` | `e85a4bd` |
+| **095** | `095-eslint-token-rule.md` | P3 | S | — | **DONE (reviewed)** | `advisor/095-eslint-token-rule` | `f1a8ff4` |
+| **096** | `096-prettier-and-editorconfig.md` | P3 | S | runs last of frontend set | **DONE (reviewed; ran last)** | `advisor/096-prettier-and-editorconfig` | `34250d8`+`1f8a614` |
+| **097** | `097-vitest-lib-tests.md` | P2 | M | 092, 075/076 recommended | **DONE (reviewed; 51 tests)** | `advisor/097-vitest-lib-tests` | `fc3febe` |
+| **098** | `098-radix-channel-consolidation.md` | P3 | S-M | — | **DONE (reviewed; vendored @0.3.1)** | `advisor/098-radix-channel-consolidation` | `4854ef6`+`a5f2e6b` |
+| **099** | `099-travel-poll-storage.md` | P3 | M | — | **DONE (reviewed)** | `advisor/099-travel-poll-storage` | `7013776` |
+| **100** | `100-frontend-readme.md` | P3 | S | 094 | **DONE (reviewed)** | `advisor/100-frontend-readme` | `e006341` |
+| **101** | `101-security-headers.md` | P2 | S-M | — | **DONE (reviewed; unsafe-inline fallback documented)** | `advisor/101-security-headers` | `659a94f` |
+| **102** | `102-safe-next-hardening.md` | P2 | S | 097 recommended (tests) | **DONE (reviewed; 13-case table)** | `advisor/102-safe-next-hardening` | `48ab785` |
+| **103** | `103-uploads-rewrite-constraints.md` | P3 | S | — | **DONE (reviewed; echo-stub probes)** | `advisor/103-uploads-rewrite-constraints` | `4eabc8e` |
+| **104** | `104-checkout-runtime-out-of-types.md` | P3 | S | **superseded by 076** | **SUPERSEDED (not executed)** | — | — |
+| **105** | `105-remove-hero-preview.md` | P3 | S | — | **DONE (reviewed; deleted)** | `advisor/105-remove-hero-preview` | `d278cdd` |
+| **106** | `106-companion-roster-split.md` | P3 | M | 099 recommended | **DONE (reviewed; 918→637 lines)** | `advisor/106-companion-roster-split` | `80a474e` |
+| **107** | `107-travel-poll-design.md` | P3 | L (spike) | 099 recommended | **DONE (design doc collected)** | `advisor/107-travel-poll-design` | `1931835` |
+| **108** | `108-thumbnail-pipeline-design.md` | P3 | L (spike) | 090 recommended | **DONE (design doc collected)** | `advisor/108-thumbnail-pipeline-design` | `512944f` |
+| **109** | `109-search-count-design.md` | P3 | M (spike) | 088 recommended | **DONE (design doc collected)** | `advisor/109-search-count-design` | `d78e031` |
+
+> **2026-11-14 frontend audit (planned at `b94e2bd`)**: a read-only audit of
+> `frontend/src` (157 files) — correctness, security, performance,
+> tests/DX/deps/docs — produced plans **075–109**. Vetted: every finding was
+> confirmed against live code by the advisor before planning. The backend
+> (plans 051–074) and the frontend brand work (commits `57b035f`/`9fdc726`)
+> are excluded scope. Settled decisions not re-reported: bearer token in
+> localStorage (plan 049 spike), literal hexes in `app/icon.svg` and
+> `app/opengraph-image.svg` (documented exception), static OTP demo code and
+> `simulate_success` (maintainer-accepted), npm-audit moderates confined to
+> dev-only `typescript-eslint`/`minimatch`.
+> Baseline gates: `npm run lint`, `npx tsc --noEmit`, `npm run build` — all
+> green at `b94e2bd`; **zero frontend tests** (backend had 246).
+> **EXECUTED 2026-11-14**: **all 33 plans done** via three parallel worktree
+> lanes (`lane-a/b/c`), one fresh executor subagent per plan, every commit
+> advisor-reviewed (scope + diff + gates re-run; zero BLOCKs, zero REVISE
+> rounds; all deviations documented and approved). 104 was not executed
+> (superseded by 076's Step 1). Design spikes 107/108/109 delivered docs in
+> `plans/` (gitignored, copied to the main tree). Three independent branch
+> chains ready to merge in advisor order:
+> - **Lane A** `advisor/093-typecheck-script` … `advisor/096-prettier-and-editorconfig` @ `1f8a614` — infra + tests + DX; ends with the global reformat (133 files), so merge A LAST or immediately after the others with a rebase.
+> - **Lane B** `advisor/075-shared-pagination-helpers` … `advisor/108-thumbnail-pipeline-design` @ `512944f` — shared helpers, security fixes (079/080/101/103), search/pagination, code unification; ends with an empty design-spike marker commit (drop `512944f` at merge if unwanted).
+> - **Lane C** `advisor/079-demo-gateway-no-card-data` … `advisor/107-travel-poll-design` @ `1931835` — security/bug fixes + poll refactor chain (086→099→077→106→089); ends with an empty design-spike marker commit (drop `1931835` at merge if unwanted — the design docs themselves were copied into the main tree's gitignored `plans/`).
+> Known cross-lane conflicts to resolve at merge: `travel-poll-modal.tsx` and
+> `next.config.ts` exist on two lanes (different regions/hunks — git should
+> auto-merge; verify); `invoice-modal.tsx` likewise. Post-merge run the full
+> gate set (`npm run typecheck`, `lint`, `test`, `build`) once.
+> Notable execution discoveries (documented in commits): plan 081's probe
+> expectation had an arithmetic slip (۲۰ مرداد correct, not ۲۴); plan 102
+> found `%5C`-encoded backslashes bypass the naive guard and added a test;
+> plan 101 proved hash-based CSP infeasible (Next Flight bootstrap varies
+> per page) and used the plan's pre-authorized unsafe-inline fallback; plan
+> 098 vendored message-scroller from upstream tag `@shadcn/react@0.3.1` (MIT,
+> LICENSE included) after the CLI-registry route proved circular.
 
 > **2026-11-12 backend/PostgreSQL audit (re-anchored 2026-11-13 at `138a410`)**:
 > a read-only audit of `app/`, `tests/`, `migrations/`, `scripts/`, CI, and
@@ -226,6 +295,20 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **061** and **062** both edit `tests/test_accommodations.py` (different tests).
 - **072** is the only backend plan that edits `frontend/src/components/trips/chat-drawer.tsx`. **074** applies a repository-wide format and runs last.
 
+### Frontend set (075–109, planned at `b94e2bd`)
+
+- **093** is self-contained; **092** (CI job) calls its `typecheck` script — land 093 first or adjust 092's step command.
+- **075** creates `lib/pagination.ts`; **082** (search hearts) and **083** (invoice lookup) import from it and cannot run before it.
+- **076** creates `lib/checkout-format.ts` (moving the runtime helpers out of `types/checkout.ts`) and consolidates formatting; **081** (date timezone fix) edits the same `lib/format-fa.ts` — land 076 first so 081 edits one consolidated file. **104** is superseded by 076's Step 1 (kept only as a fallback if 076 is descoped).
+- **077** (shared hooks) and **099** (poll storage) both edit `travel-poll-modal.tsx` in different regions — either order; **106** (roster split) should follow 099.
+- **097** (vitest) tests the consolidated helpers — after 075/076 preferably, and its CI step slots into 092's job. **081** and **102** want 097's harness for their regression/table tests (they include manual fallbacks if 097 hasn't landed).
+- **094** (`.env.example`) before **100** (README references it).
+- **096** (Prettier reformat) runs **last of the entire frontend set** — it touches every file, like backend plan 074.
+- **089** (lazy hero scenes) and **105** (hero-preview removal) both touch `components/hero` / routes; re-run 089's bundle grep after both land.
+- **101** (security headers) and **103** (uploads rewrite) both edit `next.config.ts` — different sections; trivial rebase either order. 103's filename charset interacts with 108's variant-naming design.
+- **088** (search pagination) should land before **109** (count design) — the badge wording fix is 088's; the honest «X از Y» is 109's follow-up.
+- Direction spikes **107–109** write design docs only (`plans/107-…design.md` etc.) and modify no production files.
+
 ---
 
 ## Active Implementation Plans Overview (021–028)
@@ -345,6 +428,7 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **Dynamic Policy Expression Language (DSL) for Cancellations**: Hardcoded tiered cancellation math with `ZoneInfo("Asia/Tehran")` covers 100% of current business requirements with zero maintenance overhead compared to a dynamic rule evaluator.
 - **Static OTP `1234` and `dev_code` in responses (deferred 2026-11-11, re-confirmed 2026-11-12)**: the maintainer confirmed the project is still in testing and the OTP modal intentionally displays the test code; the fix (environment-gated static code + `dev_code` only in dev/test + hiding the frontend banner) is not planned this round. Re-audit when testing ends. Plan 048's limiter module is deliberately generic; plan 056 wires it to `verify_otp` for attempt throttling without changing the demo code.
 - **Simulated payment success `simulate_success=True` (deferred 2026-11-12)**: `app/schemas/payment.py` defaults the flag to `True` and `app/api/v1/endpoints/payments.py` honors it, so a client can mark a payment successful without a gateway. The maintainer confirmed this is intentional demo behavior for showing the site end-to-end; it is excluded from plans 051–056. Revisit when a real PSP/Shaparak integration replaces the simulation, and make the default `False` plus environment-gated at that point.
+- **Frontend audit rejections (2026-11-14, planned at `b94e2bd`)**: npm audit's 7 moderate advisories (all confined to the dev-only `typescript-eslint`/`minimatch` chain — unreachable from runtime); bearer token in `localStorage` (recorded plan-049 decision); OTP-form duplication (already deduped — `components/auth/otp-form.tsx` is the single shared form); auth-context re-render storms (context value properly memoized, `auth-context.tsx:119-137`); fetch-all walks in trips/wishlists (deliberate, commented, user-scoped and bounded); `@tailwindcss/turbopack` unused dep (MED-confidence, folded into 098's manifest work rather than its own plan); plan 104 superseded by 076.
 
 ## Active Implementation Plans Overview (029–034)
 
