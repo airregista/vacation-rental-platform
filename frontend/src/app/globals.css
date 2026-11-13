@@ -40,6 +40,13 @@
     --night: #202a36;
     --night-foreground: #f6efe4;
 
+    /* Ashianak logomark — consumes the brand tokens so the mark follows the
+       theme like every other surface. */
+    --mark-line: var(--brick);
+    --mark-line-soft: var(--brick-deep);
+    --mark-body: color-mix(in oklab, var(--brick) 55%, var(--brick-deep));
+    --mark-accent: var(--gold);
+
     --background: var(--paper);
     --foreground: var(--ink);
     --card: var(--paper-card);
@@ -129,6 +136,10 @@
     --night: #0b0c0e;
     --night-foreground: #f1f0f4;
 
+    /* Dark mode: the cottage interior turns into a warm lit brown against the
+       glowing coral strokes. */
+    --mark-body: color-mix(in oklab, var(--brick) 30%, var(--brick-soft));
+
     --background: var(--paper);
     --foreground: var(--ink);
     --card: var(--paper-card);
@@ -171,6 +182,15 @@
     --border: #d8c9b4;
     --input: #d8c9b4;
     --ring: #a94f2f;
+  }
+
+  /* Re-map of the logomark palette for surfaces that stay dark in both themes
+     (footer). Used by <AshianakLogo tone="night">. */
+  .logo-on-night {
+    --mark-line: var(--night-foreground);
+    --mark-line-soft: var(--night-foreground);
+    --mark-body: color-mix(in oklab, var(--night-foreground) 22%, transparent);
+    --mark-accent: var(--gold);
   }
 }
 

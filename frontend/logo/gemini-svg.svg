@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 420" width="100%" height="100%">
+  <defs>
+    <style>
+      
+
+      :root {
+        --ash-bg: #F6EFE4;
+        --ash-arch: #A94F2F;
+        --ash-house: #964427;
+        --ash-roof: #7F3A22;
+        --ash-window: #B07D34;
+        --ash-door: #B07D34;
+        --ash-bird: #7F3A22;
+        --ash-nest-top: #A94F2F;
+        --ash-nest-weave: #B07D34;
+        --ash-text-fa: #A94F2F;
+        --ash-text-en: #7F3A22;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ash-bg: #121316;
+          --ash-arch: #F6EFE4;
+          --ash-house: #E6C8B7;
+          --ash-roof: #C48468;
+          --ash-window: #B07D34;
+          --ash-door: #121316;
+          --ash-bird: #F6EFE4;
+          --ash-nest-top: #B07D34;
+          --ash-nest-weave: #F6EFE4;
+          --ash-text-fa: #F6EFE4;
+          --ash-text-en: #F6EFE4;
+        }
+      }
+
+      .ash-text-fa {
+        font-family: 'Vazirmatn', system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 58px;
+        fill: var(--ash-text-fa);
+      }
+
+      .ash-text-en {
+        font-family: 'Quicksand', 'Vazirmatn', system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 35px;
+        letter-spacing: 1px;
+        fill: var(--ash-text-en);
+      }
+    </style>
+
+    <!-- برش دقیق پایه‌ کلبه و طاق روی انحنای آشیانه -->
+    <clipPath id="nest-cut">
+      <path d="M 80 40 H 320 V 182 C 266 226, 134 226, 110 182 Z" />
+    </clipPath>
+  </defs>
+
+  <!-- پس‌زمینه (برای شفاف شدن در سایت، این خط را حذف کنید یا fill="none" بگذارید) -->
+  <rect width="400" height="420" rx="24" fill="var(--ash-bg)" />
+
+  <!-- بخش تصویری لوگو (Logomark) -->
+  <g id="logomark">
+    <g clip-path="url(#nest-cut)">
+      <!-- قاب طاق ایرانی -->
+      <path d="M 128 210 L 128 140 C 128 95, 162 72, 200 58 C 238 72, 272 95, 272 140 L 272 210" fill="none" stroke="var(--ash-arch)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+
+      <!-- بدنه کلبه -->
+      <path d="M 200 125 L 237 160 L 237 220 L 163 220 L 163 160 Z" fill="var(--ash-house)" />
+
+      <!-- درگاه ورودی (ایوان) -->
+      <path d="M 190 220 L 190 191 A 10 10 0 0 1 210 191 L 210 220 Z" fill="var(--ash-door)" />
+
+      <!-- بام شیروانی -->
+      <path d="M 152 169 L 200 123 L 248 169" fill="none" stroke="var(--ash-roof)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+
+      <!-- پنجره گرد -->
+      <circle cx="200" cy="153" r="7.5" fill="var(--ash-window)" />
+
+      <!-- پرنده در حال پرواز -->
+      <path d="M 220 105 C 224 103, 229 104, 233 106 C 238 99, 244 95, 250 94 C 248 101, 244 107, 239 110 C 243 112, 247 116, 249 120 C 243 118, 237 116, 231 114 C 226 112, 223 109, 220 105 Z" fill="var(--ash-bird)" />
+    </g>
+
+    <!-- خطوط منحنی آشیانه -->
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- شاخه طلایی زیرین -->
+      <path d="M 114 192 C 146 254, 254 254, 286 192" stroke="#B07D34" stroke-width="7.5" />
+      <path d="M 142 222 C 185 248, 242 238, 276 202" stroke="#B07D34" stroke-width="6.5" />
+      <!-- شاخه میانی بافت آشیانه -->
+      <path d="M 110 185 C 140 236, 248 232, 284 192" stroke="var(--ash-nest-weave)" stroke-width="7" />
+      <!-- لبه اصلی آشیانه -->
+      <path d="M 110 182 C 134 226, 266 226, 290 182" stroke="var(--ash-nest-top)" stroke-width="7.5" />
+    </g>
+  </g>
+
+  <!-- تایپوگرافی فارسی و لاتین -->
+  <text x="200" y="312" text-anchor="middle" class="ash-text-fa">آشیانک</text>
+  <text x="200" y="362" text-anchor="middle" class="ash-text-en">Ashianak</text>
+</svg>

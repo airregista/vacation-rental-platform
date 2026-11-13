@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="100%" height="100%">
+  <defs>
+    <style>
+      :root {
+        --fav-bg: #F6EFE4;
+        --fav-arch: #A94F2F;
+        --fav-house: #964427;
+        --fav-roof: #7F3A22;
+        --fav-door: #B07D34;
+        --fav-bird: #7F3A22;
+        --fav-nest-top: #A94F2F;
+        --fav-nest-mid: #B07D34;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fav-bg: #121316;
+          --fav-arch: #F6EFE4;
+          --fav-house: #E6C8B7;
+          --fav-roof: #C48468;
+          --fav-door: #121316;
+          --fav-bird: #F6EFE4;
+          --fav-nest-top: #B07D34;
+          --fav-nest-mid: #F6EFE4;
+        }
+      }
+    </style>
+    <clipPath id="fav-cut">
+      <path d="M 0 0 H 220 V 144 C 176 188, 44 188, 20 144 Z" />
+    </clipPath>
+  </defs>
+
+  <!-- کاشی پس‌زمینه با گوشه‌های گرد -->
+  <rect width="220" height="220" rx="48" fill="var(--fav-bg)" />
+
+  <g clip-path="url(#fav-cut)">
+    <path d="M 38 172 L 38 102 C 38 57, 72 34, 110 20 C 148 34, 182 57, 182 102 L 182 172" fill="none" stroke="var(--fav-arch)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 110 87 L 147 122 L 147 182 L 73 182 L 73 122 Z" fill="var(--fav-house)" />
+    <path d="M 100 182 L 100 153 A 10 10 0 0 1 120 153 L 120 182 Z" fill="var(--fav-door)" />
+    <path d="M 62 131 L 110 85 L 158 131" fill="none" stroke="var(--fav-roof)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="110" cy="115" r="7.5" fill="#B07D34" />
+    <path d="M 130 67 C 134 65, 139 66, 143 68 C 148 61, 154 57, 160 56 C 158 63, 154 69, 149 72 C 153 74, 157 78, 159 82 C 153 80, 147 78, 141 76 C 136 74, 133 71, 130 67 Z" fill="var(--fav-bird)" />
+  </g>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 24 154 C 56 216, 164 216, 196 154" stroke="#B07D34" stroke-width="7.5" />
+    <path d="M 52 184 C 95 210, 152 200, 186 164" stroke="#B07D34" stroke-width="6.5" />
+    <path d="M 20 147 C 50 198, 158 194, 194 154" stroke="var(--fav-nest-mid)" stroke-width="7" />
+    <path d="M 20 144 C 44 188, 176 188, 200 144" stroke="var(--fav-nest-top)" stroke-width="7.5" />
+  </g>
+</svg>

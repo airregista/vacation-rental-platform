@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { BadgeCheck, HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { OtpForm } from "@/components/auth/otp-form"
-import { ArchMark } from "@/components/brand/arch-mark"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -110,11 +110,7 @@ function LoginContent() {
         >
           <div className="rounded-3xl border border-line/80 bg-paper-card p-6 shadow-lift sm:p-8">
             <div className="mb-6 flex items-center gap-3 border-b border-line/70 pb-5">
-              <ArchMark className="size-10" />
-              <div>
-                <p className="text-sm font-black text-ink">آشیانک</p>
-                <p className="mt-0.5 text-[11px] text-ink-soft">اقامتگاه‌های بومی ایران</p>
-              </div>
+              <AshianakLogo size="lg" withLatin={false} />
             </div>
 
             <OtpForm onSuccess={() => router.replace(next)} />

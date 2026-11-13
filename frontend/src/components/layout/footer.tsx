@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Mail, Phone } from "lucide-react"
-import { ArchMark } from "@/components/brand/arch-mark"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 
 const COLUMNS: {
   title: string
@@ -45,10 +45,7 @@ export function Footer() {
               href="/"
               className="inline-flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-night-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-night"
             >
-              <ArchMark />
-              <span className="text-xl font-black tracking-tight text-night-foreground">
-                آشیانک
-              </span>
+              <AshianakLogo size="lg" tone="night" />
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-7 text-night-foreground/60">
               اقامتگاه‌های بومی ایران؛ خانه‌هایی که میزبانشان مهمان را خانواده

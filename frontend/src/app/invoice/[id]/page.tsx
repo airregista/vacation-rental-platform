@@ -21,7 +21,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
-import { ArchMark } from "@/components/brand/arch-mark"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { EmptyState } from "@/components/shared/empty-state"
 import { TripStatusBadge } from "@/components/trips/trip-status-badge"
 import { Button } from "@/components/ui/button"
@@ -266,11 +266,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           <header className="border-b border-line/70 bg-paper-deep/30 p-6 sm:p-8">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="flex items-center gap-3">
-                <ArchMark className="size-12" />
+                <AshianakLogo size="lg" />
                 <div>
-                  <p className="text-xl font-black tracking-tight text-ink">آشیانک</p>
                   <p className="mt-1 text-[11px] text-ink-soft">اقامتگاه‌های بومی ایران</p>
-                  <p className="mt-1 text-[10px] text-ink-soft">
+                  <p className="text-[10px] text-ink-soft">
                     ashianak.ir · ۰۲۱–۹۱۰۰۰۰۰۰
                   </p>
                 </div>

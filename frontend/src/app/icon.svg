@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220">
+  <!--
+    Ashianak favicon tile, traced from frontend/logo/gemini-svg (4).svg.
+    Favicons render outside the app's CSS cascade, so the brand hexes from
+    the globals.css tokens are quoted directly here (intentional exception).
+  -->
+  <defs>
+    <clipPath id="fav-nest-cut">
+      <path d="M 0 0 H 220 V 144 C 176 188, 44 188, 20 144 Z" />
+    </clipPath>
+  </defs>
+
+  <rect width="220" height="220" rx="48" fill="#F6EFE4" />
+
+  <g clip-path="url(#fav-nest-cut)">
+    <path d="M 38 172 L 38 102 C 38 57, 72 34, 110 20 C 148 34, 182 57, 182 172" fill="none" stroke="#A94F2F" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 110 87 L 147 122 L 147 182 L 73 182 L 73 122 Z" fill="#964427" />
+    <path d="M 100 182 L 100 153 A 10 10 0 0 1 120 153 L 120 182 Z" fill="#B07D34" />
+    <path d="M 62 131 L 110 85 L 158 131" fill="none" stroke="#7F3A22" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="110" cy="115" r="7.5" fill="#B07D34" />
+    <path d="M 130 67 C 134 65, 139 66, 143 68 C 148 61, 154 57, 160 56 C 158 63, 154 69, 149 72 C 153 74, 157 78, 159 82 C 153 80, 147 78, 141 76 C 136 74, 133 71, 130 67 Z" fill="#7F3A22" />
+  </g>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 24 154 C 56 216, 164 216, 196 154" stroke="#B07D34" stroke-width="7.5" />
+    <path d="M 52 184 C 95 210, 152 200, 186 164" stroke="#B07D34" stroke-width="6.5" />
+    <path d="M 20 147 C 50 198, 158 194, 194 154" stroke="#B07D34" stroke-width="7" />
+    <path d="M 20 144 C 44 188, 176 188, 200 144" stroke="#A94F2F" stroke-width="7.5" />
+  </g>
+</svg>

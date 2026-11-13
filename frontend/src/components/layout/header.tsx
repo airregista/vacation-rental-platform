@@ -20,7 +20,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
-import { ArchMark } from "@/components/brand/arch-mark"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -150,25 +150,7 @@ export function Header() {
           aria-label="آشیانک — خانه"
           className="flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <ArchMark />
-          <span className="flex flex-col leading-none">
-            <span
-              className={cn(
-                "text-lg font-black tracking-tight",
-                overHero ? "text-hero-ink" : "text-ink"
-              )}
-            >
-              آشیانک
-            </span>
-            <span
-              className={cn(
-                "mt-1 hidden text-[11px] font-medium tracking-[0.16em] sm:block",
-                overHero ? "text-hero-ink/60" : "text-ink-soft"
-              )}
-            >
-              اقامتگاه‌های بومی ایران
-            </span>
-          </span>
+          <AshianakLogo tone={overHero ? "hero" : "default"} />
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-7 md:flex">
@@ -357,8 +339,7 @@ export function Header() {
             <SheetContent side="right" className="bg-paper text-ink">
               <SheetHeader className="text-right">
                 <SheetTitle className="flex items-center gap-2 text-right text-ink">
-                  <ArchMark className="size-8" />
-                  آشیانک
+                  <AshianakLogo tone="default" />
                 </SheetTitle>
                 <SheetDescription className="text-right text-xs text-ink-soft">
                   اقامتگاه‌های بومی ایران

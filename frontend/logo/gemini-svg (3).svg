@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 140" width="100%" height="100%">
+  <defs>
+    <style>
+      
+      :root {
+        --nav-arch: #A94F2F;
+        --nav-house: #964427;
+        --nav-roof: #7F3A22;
+        --nav-bird: #7F3A22;
+        --nav-nest-top: #A94F2F;
+        --nav-nest-mid: #B07D34;
+        --nav-fa: #A94F2F;
+        --nav-en: #7F3A22;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --nav-arch: #F6EFE4;
+          --nav-house: #E6C8B7;
+          --nav-roof: #C48468;
+          --nav-bird: #F6EFE4;
+          --nav-nest-top: #B07D34;
+          --nav-nest-mid: #F6EFE4;
+          --nav-fa: #F6EFE4;
+          --nav-en: #F6EFE4;
+        }
+      }
+    </style>
+    <clipPath id="nav-nest-cut">
+      <path d="M 80 30 H 320 V 172 C 266 216, 134 216, 110 172 Z" />
+    </clipPath>
+    <mask id="nav-door-mask">
+      <rect x="150" y="100" width="100" height="120" fill="white" />
+      <path d="M 190 210 L 190 181 A 10 10 0 0 1 210 181 L 210 210 Z" fill="black" />
+    </mask>
+  </defs>
+
+  <!-- آیکون در سمت راست هدر -->
+  <g transform="translate(215, -22) scale(0.66)">
+    <g clip-path="url(#nav-nest-cut)">
+      <path d="M 128 200 L 128 130 C 128 85, 162 62, 200 48 C 238 62, 272 85, 272 130 L 272 200" fill="none" stroke="var(--nav-arch)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 200 115 L 237 150 L 237 210 L 163 210 L 163 150 Z" fill="var(--nav-house)" mask="url(#nav-door-mask)" />
+      <path d="M 152 159 L 200 113 L 248 159" fill="none" stroke="var(--nav-roof)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="200" cy="143" r="7.5" fill="#B07D34" />
+      <path d="M 220 95 C 224 93, 229 94, 233 96 C 238 89, 244 85, 250 84 C 248 91, 244 97, 239 100 C 243 102, 247 106, 249 110 C 243 108, 237 106, 231 104 C 226 102, 223 99, 220 95 Z" fill="var(--nav-bird)" />
+    </g>
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 114 182 C 146 244, 254 244, 286 182" stroke="#B07D34" stroke-width="7.5" />
+      <path d="M 110 175 C 140 226, 248 222, 284 182" stroke="var(--nav-nest-mid)" stroke-width="7" />
+      <path d="M 110 172 C 134 216, 266 216, 290 172" stroke="var(--nav-nest-top)" stroke-width="7.5" />
+    </g>
+  </g>
+
+  <!-- نام برند در سمت چپ آیکون -->
+  <text x="260" y="74" text-anchor="end" font-family="&#39;Vazirmatn&#39;, sans-serif" font-weight="800" font-size="52" fill="var(--nav-fa)">آشیانک</text>
+  <text x="258" y="114" text-anchor="end" font-family="&#39;Quicksand&#39;, sans-serif" font-weight="700" font-size="28" letter-spacing="1.5" fill="var(--nav-en)">Ashianak</text>
+</svg>

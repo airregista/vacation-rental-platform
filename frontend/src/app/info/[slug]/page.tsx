@@ -10,7 +10,7 @@ import {
   Phone,
 } from "lucide-react"
 
-import { ArchMark } from "@/components/brand/arch-mark"
+import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -720,7 +720,7 @@ function InfoArticle({ page }: { page: InfoPageContent }) {
       <div className="border-b border-line/70 bg-paper-deep/25 px-5 py-6 sm:px-8 sm:py-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <ArchMark className="size-10" />
+            <AshianakLogo withLatin={false} />
             <div>
               <p className="text-[11px] font-bold tracking-[0.18em] text-brick">
                 پروندهٔ راهنمای آشیانک
