@@ -17,7 +17,8 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/context/auth-context"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api-client"
+import { fetchAllPages } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
 import type {
   AdminCoupon,
@@ -49,23 +50,6 @@ const EMPTY_DATA: AdminData = {
   coupons: [],
   reservations: [],
   payouts: [],
-}
-
-// Admin list endpoints default to limit=20 with a hard cap of 100, so walk
-// pages explicitly instead of showing a silently truncated console.
-async function fetchAllPages<T>(path: string): Promise<T[]> {
-  const all: T[] = []
-  let skip = 0
-
-  for (;;) {
-    const page = await apiClient.get<T[]>(`${path}?skip=${skip}&limit=100`)
-    const batch = Array.isArray(page) ? page : []
-    all.push(...batch)
-    if (batch.length < 100) break
-    skip += 100
-  }
-
-  return all
 }
 
 function loadErrorMessage(error: unknown): string {

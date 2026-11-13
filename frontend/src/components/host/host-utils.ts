@@ -1,4 +1,4 @@
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api-client"
 import type { HostImageRecord } from "./types"
 
 /** Signature image first, then the host-defined order. */
@@ -29,22 +29,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-/**
- * The backend defaults list endpoints to limit=20, so the host views must walk
- * every page to show complete totals and lists.
- */
-export async function fetchAllPages<T>(path: string): Promise<T[]> {
-  const all: T[] = []
-  let skip = 0
-  for (;;) {
-    const page = await apiClient.get<T[]>(`${path}?skip=${skip}&limit=100`)
-    const batch = Array.isArray(page) ? page : []
-    all.push(...batch)
-    if (batch.length < 100) break
-    skip += 100
-  }
-  return all
-}
+export { fetchAllPages } from "@/lib/pagination"
 
 export function toLocalIsoDate(date: Date = new Date()): string {
   const year = date.getFullYear()

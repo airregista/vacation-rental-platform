@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
+import { fetchAllPages } from "@/lib/pagination"
 import type {
   WishlistItemResponse,
   WishlistToggleResponse,
@@ -193,17 +194,7 @@ export default function WishlistsPage() {
     setIsFetching(true)
     setFetchError(null)
     try {
-      const allItems: WishlistItemResponse[] = []
-      let skip = 0
-      for (;;) {
-        const page = await apiClient.get<WishlistItemResponse[]>(
-          `/wishlists/?skip=${skip}&limit=100`
-        )
-        const batch = Array.isArray(page) ? page : []
-        allItems.push(...batch)
-        if (batch.length < 100) break
-        skip += 100
-      }
+      const allItems = await fetchAllPages<WishlistItemResponse>("/wishlists/")
       setItems(allItems)
     } catch (err: unknown) {
       if (err instanceof ApiError) {

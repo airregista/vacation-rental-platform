@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { findLatestSuccessfulPayment } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
 import {
   PaymentResultFooterLinks,
@@ -37,35 +38,11 @@ import type {
   ReservationDetail,
 } from "@/types/checkout"
 
-const PAGE_SIZE = 100
-const MAX_PAYMENT_PAGES = 10
-
 const STATUS_LABELS: Record<ReservationDetail["status"], string> = {
   pending: "در انتظار پرداخت",
   confirmed: "پرداخت‌شده",
   completed: "تکمیل‌شده",
   cancelled: "لغوشده",
-}
-
-async function findLatestSuccessfulPayment(
-  reservationId: number
-): Promise<PaymentResponse | null> {
-  let skip = 0
-
-  for (let page = 0; page < MAX_PAYMENT_PAGES; page += 1) {
-    const payments = await apiClient.get<PaymentResponse[]>(
-      `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`
-    )
-    const found = payments.find(
-      (payment) =>
-        payment.reservation_id === reservationId && payment.status === "success"
-    )
-    if (found) return found
-    if (payments.length < PAGE_SIZE) return null
-    skip += PAGE_SIZE
-  }
-
-  return null
 }
 
 function getReservationCode(id: number): string {
