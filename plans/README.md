@@ -63,29 +63,38 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 | **054** | `054-external-calendar-and-ssrf-hardening.md` | P1 | L | 052, 053 | **DONE** | `advisor/054-external-calendar-and-ssrf-hardening` | `6eee192` (merged into 056) |
 | **055** | `055-production-database-hardening.md` | P1 | M | - | **DONE** | `advisor/055-production-database-hardening` | `f2f3c92` |
 | **056** | `056-runtime-and-edge-hardening.md` | P1 | M | 053, 055 | **DONE** | `advisor/056-runtime-and-edge-hardening` | `71edd11` (integrated 051-055) |
-| **057** | `057-calendar-sync-transaction-and-io.md` | P1 | M | — | **TODO** | `advisor/057-calendar-sync-transaction-and-io` | — |
-| **058** | `058-payment-confirmation-revalidation.md` | P1 | S | — | **TODO** | `advisor/058-payment-confirmation-revalidation` | — |
-| **059** | `059-automatic-pending-reservation-expiry.md` | P1 | M | — | **TODO** | `advisor/059-automatic-pending-reservation-expiry` | — |
-| **060** | `060-refresh-coupon-rows-under-lock.md` | P1 | S | — | **TODO** | `advisor/060-refresh-coupon-rows-under-lock` | — |
-| **061** | `061-reject-host-self-booking-and-review.md` | P1 | S | — | **TODO** | `advisor/061-reject-host-self-booking-and-review` | — |
-| **062** | `062-preserve-admin-deactivation.md` | P1 | S | — | **TODO** | `advisor/062-preserve-admin-deactivation` | — |
-| **063** | `063-schema-database-bound-parity.md` | P1 | M | — | **TODO** | `advisor/063-schema-database-bound-parity` | — |
-| **064** | `064-tehran-today-consistency.md` | P2 | S | — | **TODO** | `advisor/064-tehran-today-consistency` | — |
-| **065** | `065-calendar-horizon-and-export-bounds.md` | P1 | M | 064 | **TODO** | `advisor/065-calendar-horizon-and-export-bounds` | — |
-| **066** | `066-registration-throttle.md` | P2 | S | — | **TODO** | `advisor/066-registration-throttle` | — |
-| **067** | `067-real-concurrency-test-harness.md` | P2 | M | — | **TODO** | `advisor/067-real-concurrency-test-harness` | — |
-| **068** | `068-payment-type-refund.md` | P2 | S | 062 | **TODO** | `advisor/068-payment-type-refund` | — |
-| **069** | `069-exclusion-constraint-in-orm.md` | P2 | S | — | **TODO** | `advisor/069-exclusion-constraint-in-orm` | — |
-| **070** | `070-coupon-lifecycle.md` | P2 | S | 060, 063 | **TODO** | `advisor/070-coupon-lifecycle` | — |
-| **071** | `071-gallery-reorder-and-cover.md` | P2 | M | 063, 068 | **TODO** | `advisor/071-gallery-reorder-and-cover` | — |
-| **072** | `072-messaging-unread-state.md` | P2 | S | — | **TODO** | `advisor/072-messaging-unread-state` | — |
-| **073** | `073-docs-and-env-truth.md` | P3 | S | 059, 066, 070, 071, 072 | **TODO** | `advisor/073-docs-and-env-truth` | — |
+| **057** | `057-calendar-sync-transaction-and-io.md` | P0 | M | — | **DONE (reviewed)** | `advisor/057-calendar-sync-transaction-and-io` | `2e9f623`+`9cc8b24` |
+| **058** | `058-payment-confirmation-revalidation.md` | P0 | S | — | **DONE (reviewed)** | `advisor/058-payment-confirmation-revalidation` | `e12078a` |
+| **059** | `059-automatic-pending-reservation-expiry.md` | P1 | M | — | **DONE (reviewed)** | `advisor/059-automatic-pending-reservation-expiry` | `b9c8ca6` |
+| **060** | `060-refresh-coupon-rows-under-lock.md` | P1 | S | — | **DONE (reviewed)** | `advisor/060-refresh-coupon-rows-under-lock` | `a284d37` |
+| **061** | `061-reject-host-self-booking-and-review.md` | P1 | S | — | **DONE (reviewed)** | `advisor/061-reject-host-self-booking-and-review` | `36a97bd` |
+| **062** | `062-preserve-admin-deactivation.md` | P1 | S | — | **DONE (reviewed)** | `advisor/062-preserve-admin-deactivation` | `5d2dbbc`+`596111d` |
+| **063** | `063-schema-database-bound-parity.md` | P1 | M | — | **DONE (reviewed)** | `advisor/063-schema-database-bound-parity` | `cfe1473` |
+| **064** | `064-tehran-today-consistency.md` | P2 | S | 057 | **DONE (reviewed)** | `advisor/064-tehran-today-consistency` | `8fe004b` |
+| **065** | `065-calendar-horizon-and-export-bounds.md` | P1 | M | 064 | **DONE (reviewed)** | `advisor/065-calendar-horizon-and-export-bounds` | `2138b18` |
+| **066** | `066-registration-throttle.md` | P2 | S | — | **DONE (reviewed)** | `advisor/066-registration-throttle` | `c965b06` |
+| **067** | `067-real-concurrency-test-harness.md` | P2 | M | — | **DONE (reviewed)** | `advisor/067-real-concurrency-test-harness` | `b64f2fa`+`aa15a51` |
+| **068** | `068-payment-type-refund.md` | P2 | S | 062 | **DONE (reviewed)** | `advisor/068-payment-type-refund` | `928251b`+`5497676` |
+| **069** | `069-exclusion-constraint-in-orm.md` | P2 | S | — | **DONE (reviewed)** | `advisor/069-exclusion-constraint-in-orm` | `373d6e7` |
+| **070** | `070-coupon-lifecycle.md` | P2 | S | 060, 063 | **DONE (reviewed)** | `advisor/070-coupon-lifecycle` | `aea50a1` |
+| **071** | `071-gallery-reorder-and-cover.md` | P2 | M | 063, 068 | **DONE (reviewed)** | `advisor/071-gallery-reorder-and-cover` | `ee4abc4`+`dbab28c` |
+| **072** | `072-messaging-unread-state.md` | P2 | S | — | **DONE (reviewed)** | `advisor/072-messaging-unread-state` | `2b65288` |
+| **073** | `073-docs-and-env-truth.md` | P3 | S | 059, 066, 070, 071, 072 | **DONE (reviewed; integrated branch)** | `advisor/073-docs-and-env-truth` | `a07ec3b` on merges `eac1cef`+`318b3e5` |
 | **074** | `074-ci-type-and-format-gates.md` | P1 | M | 057, 058, 068; runs last | **TODO** | `advisor/074-ci-type-and-format-gates` | — |
 
-> **2026-11-12 backend/PostgreSQL audit (planned at `8426aa0`)**: a read-only
-> audit of `app/`, `tests/`, `migrations/`, `scripts/`, CI, and docs/config
-> (frontend excluded) produced plans **057–074**. Sixteen findings were
-> confirmed against the live code plus three product/direction options: calendar
+> **2026-11-12 backend/PostgreSQL audit (re-anchored 2026-11-13 at `138a410`)**:
+> a read-only audit of `app/`, `tests/`, `migrations/`, `scripts/`, CI, and
+> docs/config (frontend excluded) produced plans **057–074**. The plans were
+> written against `8426aa0`; backend commits `4892fcd` and `eebffe0` landed
+> afterwards, so every plan in the 057–073 review set was re-anchored to
+> `138a410`. Plan 074 is outside this round and remains anchored at `8426aa0`
+> until its own review.
+> Baseline on that commit: **206 tests**, **49 OpenAPI paths / 61 operations**,
+> **12 routers**, **17 tables**, Alembic head `b3d7e9f1a2c4`. Line numbers in
+> the plan excerpts are at `138a410`; when an earlier plan edits the same file,
+> locate the block by its quoted text rather than the absolute line number.
+> Sixteen findings were confirmed against the live code plus three
+> product/direction options: calendar
 > I/O inside the booking transaction; payment confirmation not revalidating
 > blocked dates or listing activity; no automatic expiry for abandoned pending
 > reservations; stale coupon identity-map rows under lock; hosts able to book
@@ -104,6 +113,24 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 > order is **062 → 068 → 071** (each created against the live head), and **074
 > must execute last** because it applies a global `ruff format` and fixes the
 > remaining mypy errors.
+>
+> **2026-11-13 parallel execution of 057–073 — COMPLETE (advisor review)**: all
+> seventeen plans were executed by dispatched executor subagents in isolated
+> worktrees and reviewed by the orchestrator (re-ran gates, read every diff,
+> verified scope). Each plan lives on its own `advisor/<NNN>-<slug>` branch off
+> `138a410` (064/065 stack on 057; 068/071 continue the 062 migration chain;
+> 070 carries a cherry-pick of 063). All branches re-ran green at review time:
+> full suite on the 073 integration branch (`eac1cef` + `318b3e5` + `a07ec3b`)
+> shows **231 passed**, single Alembic head `9a2a9af6d7ed`, OpenAPI **52 paths /
+> 64 operations**, `ruff check` clean, and the env-parity test passing. Known
+> review notes: executor `ruff format` runs left minor pre-existing-line churn
+> inside in-scope files (global reformat remains plan 074's job); plan 070's
+> incidental TTL rewrite of `reservation_service.py` was rejected during
+> integration in favor of 059's settings-based TTL; the `chat-drawer` frontend
+> build requires a same-drive `node_modules` in worktrees (cross-drive junction
+> breaks `next build`). Nothing merged to `main`, nothing pushed — merge order
+> suggestion: 057 → 058 → 061 → 059 → 060+063 → 062 → 068 → 064 → 065 → 066 →
+> 067 → 069 → 070 → 071 → 072 → 073, then 074 last.
 
 > **2026-11-12 database/security audit (planned at `c43af4c`)**: a read-only audit of the public schema, data invariants, Alembic chain, test isolation, and runtime/auth surface produced plans **051–056**. The test suite was still running `create_all` + `seed()` against the development database `jabama_db` (now `ashianak_db`); a migration-built database did not match the ORM models; the development data contained two overlapping confirmed bookings and 37 pending rows whose `total_nights` disagreed with their date range; the public accommodation detail exposed full host PII; the outbound iCal guard was IPv4-only and leaked exception text; production accepted the `postgres` superuser with an empty password; and `/health` never touched the database. Plan **052** must land before **053** and **054** because it establishes migration truth and the disposable `jabama_test` database (now `ashianak_test`); **056** follows **053** and **055** because 053 rewrites the login query and 055 edits the same config/test files. The static OTP `1234` / `dev_code` and the `simulate_success` payment shortcut are accepted demo behavior and were **explicitly excluded** by the maintainer — see “Findings Considered and Rejected”.
 
@@ -160,21 +187,27 @@ Generated and reviewed by the `improve` skill on 2026-11-03 against commit `4700
 - **058** is self-contained but edits the payment confirmation path; land it before **059** if both are in flight, because 059's expiry sweep and 058's revalidation both inspect blocked dates.
 - **059** is self-contained (config, startup sweep, tests) and adds `RESERVATION_TTL_MINUTES`, `RESERVATION_SWEEP_INTERVAL_SECONDS`, and `ENABLE_RESERVATION_SWEEP`.
 - **060** is self-contained but edits `coupon_service.py`; **070** depends on it to avoid a lock-helper conflict.
-- **061** is self-contained (authorization guards in reservations/reviews).
+- **061** is self-contained (authorization guards in reservations/reviews). It also edits the two existing host-as-guest tests in `tests/test_accommodations.py`; those tests are already in the `138a410` baseline, so this adds a shared-file note, not a plan dependency.
 - **062** is the first migration in this set. **068** must follow it, and **071** must follow 068, so the chain stays linear.
-- **063** is self-contained (schemas + new `tests/test_input_bounds.py`); **071** reuses the bounded `AccommodationImageCreate`.
-- **064** is self-contained and introduces `app/core/time.py`; **065** depends on it for `today_tehran()`.
-- **065** depends on **064** and edits the same calendar endpoint as **057**. Land 057 first so the merge is clean.
+- **063** is self-contained (schemas + new `tests/test_input_bounds.py`); **071** reuses the bounded `AccommodationImageCreate`, and **070**/**072** reuse the integer bounds. Land **063** before **070**, **071**, and **072** to avoid schema-file merge conflicts.
+- **064** depends on **057** because both edit `sync_external_calendar`; land 057 first. **065** then depends on 064 for `today_tehran()` and shares the calendar endpoint with 057, so the order is **057 → 064 → 065**.
 - **066** is self-contained and adds `REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP`; **073** documents it.
 - **067** is self-contained (test harness + marker); it should land before **074** because 074 reformats the rewritten tests.
 - **068** depends on **062** (migration order) and adds `payments.payment_type`.
 - **069** is metadata-only and self-contained; it does not add a migration.
 - **070** depends on **060** and **063** (it reuses `INTEGER_MAX` from the new `app/schemas/constraints.py`) and adds `PUT /coupons/{id}`.
 - **071** depends on **063** (image schema bounds) and **068** (migration order); it is the third and last migration in this set.
-- **072** is self-contained (message read state; no migration).
+- **072** is self-contained (message read state; no migration). It also updates `frontend/src/components/trips/chat-drawer.tsx` so the new read route has a caller; no other backend plan touches that file.
 - **073** depends on **059**, **066**, **070**, **071**, and **072**: it documents their settings and endpoints, so run it after they land.
 - **074** depends on **057**, **058**, and **068** for the remaining mypy fixes, and on the rest of the set because it applies a repository-wide `ruff format`. Run it last.
-- **058**, **059**, **061**, and **072** all edit `tests/test_reservations.py`; land them sequentially rather than in parallel. **057**, **062**, **064**, **065**, **071**, and **074** all edit `app/api/v1/endpoints/accommodations.py`; the numbered order keeps the merges simple.
+- **058**, **059**, **060**, **061**, **068**, and **072** all edit `app/api/v1/endpoints/reservations.py`; run them in numeric order. **058**, **059**, **061**, and **072** also edit `tests/test_reservations.py`.
+- **058**, **059**, **060**, and **064** edit `app/services/reservation_service.py`. **058**, **060**, **064**, and **068** edit `app/api/v1/endpoints/payments.py`. **061** and **064** edit `app/api/v1/endpoints/reviews.py`. Land overlapping files in numeric order.
+- **057**, **058**, **062**, **064**, **065**, **071**, and **074** edit `app/api/v1/endpoints/accommodations.py`; the numbered order keeps the merges simple. **062** and **071** also edit `app/models/accommodation.py`, and **063** and **071** edit `app/schemas/accommodation.py`.
+- **060** and **070** edit `app/services/coupon_service.py` and `tests/test_coupons.py`; 070 depends on 060. **069** alone edits `app/models/reservation.py` (072 only reads its `read_at` column).
+- **063**, **064**, **068**, **070**, **071**, and **072** edit files under `app/schemas/`; **063** lands first, then the others in numeric order.
+- **059** and **066** edit `app/core/config.py`.
+- **061** and **062** both edit `tests/test_accommodations.py` (different tests).
+- **072** is the only backend plan that edits `frontend/src/components/trips/chat-drawer.tsx`. **074** applies a repository-wide format and runs last.
 
 ---
 
