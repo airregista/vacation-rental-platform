@@ -131,7 +131,9 @@ class AccommodationCreate(BaseModel):
     @field_validator("custom_amenities")
     @classmethod
     def validate_custom_amenities(cls, value: list[str]) -> list[str]:
-        return _normalize_custom_amenities(value)
+        normalized = _normalize_custom_amenities(value)
+        assert normalized is not None
+        return normalized
 
     @model_validator(mode="after")
     def validate_capacity(self) -> Self:

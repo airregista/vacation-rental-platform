@@ -274,6 +274,11 @@ async def verify_payment(
             )
 
         try:
+            if accommodation is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Accommodation is no longer available",
+                )
             await ensure_dates_bookable(
                 db,
                 accommodation,

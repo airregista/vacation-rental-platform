@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -402,7 +403,9 @@ async def mark_reservation_messages_read(
         .values(read_at=datetime.now(timezone.utc))
     )
     await db.commit()
-    return ReservationMessagesReadResponse(marked_read=max(result.rowcount or 0, 0))
+    return ReservationMessagesReadResponse(
+        marked_read=max(cast(CursorResult, result).rowcount or 0, 0)
+    )
 
 
 @router.post(
