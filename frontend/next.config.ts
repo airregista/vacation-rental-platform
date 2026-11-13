@@ -1,5 +1,48 @@
 import type { NextConfig } from "next";
 
+// Origin of the API the browser fetches at runtime. lib/api-client.ts builds
+// every request URL from NEXT_PUBLIC_API_URL (default http://localhost:8000/api/v1),
+// so cross-origin API calls need that origin listed in connect-src.
+const apiOrigin = (() => {
+  try {
+    return new URL(
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+    ).origin
+  } catch {
+    return undefined
+  }
+})()
+
+const securityHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      // 'unsafe-inline' is required by Next's own inline bootstrap scripts
+      // (self.__next_f.push Flight payload, per-page varying content) and the
+      // inline ThemeScript in <head>. A hash-based script-src was tried
+      // (ThemeScript alone hashes to sha256-de3/Q/9pz2eCMxFHziBN86qAu2sSL7ulIcSPQU0qaqU=)
+      // but the Flight scripts are blocked and hydration fails (React #412);
+      // a nonce workflow via middleware/proxy is the follow-up (see
+      // frontend/AGENTS.md). The inline ThemeScript is a compile-time
+      // constant, so it cannot drift into unvetted code.
+      "script-src 'self' 'unsafe-inline'",
+      // Next's inline style bootstrapping and the invoice modal's inline
+      // <style> need 'unsafe-inline' for styles.
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'" + (apiOrigin ? ` ${apiOrigin}` : ""),
+      "font-src 'self' data:",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
+]
+
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
@@ -14,6 +57,9 @@ const nextConfig: NextConfig = {
       ""
     )
     return [{ source: "/uploads/:path*", destination: `${backend}/uploads/:path*` }]
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }]
   },
 };
 
