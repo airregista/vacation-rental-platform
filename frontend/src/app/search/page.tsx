@@ -4,6 +4,7 @@ import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/context/auth-context"
+import { fetchAllPages } from "@/lib/pagination"
 import { buildAccommodationQuery, parseAccommodationQuery } from "@/lib/search-utils"
 import type {
   AccommodationListItem,
@@ -74,19 +75,20 @@ function SearchContent() {
     setWishlistIds(new Set())
     if (!token) return
 
-    apiClient
-      .get<Array<{ accommodation_id: number }>>("/wishlists/?limit=100")
-      .then((data) => {
-        if (isMounted && seq === wishlistSeqRef.current && Array.isArray(data)) {
-          setWishlistIds(new Set(data.map((w) => w.accommodation_id)))
+    const loadWishlist = async () => {
+      try {
+        const items = await fetchAllPages<{ accommodation_id: number }>("/wishlists/")
+        if (isMounted && seq === wishlistSeqRef.current && Array.isArray(items)) {
+          setWishlistIds(new Set(items.map((w) => w.accommodation_id)))
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Failed to load wishlist items:", err)
         if (isMounted && seq === wishlistSeqRef.current) {
           setWishlistIds(new Set())
         }
-      })
+      }
+    }
+    void loadWishlist()
 
     return () => {
       isMounted = false
