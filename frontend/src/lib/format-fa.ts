@@ -4,13 +4,17 @@ export function toPersianDigits(n: number | string): string {
   return String(n).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])
 }
 
+/** Normalise a bare date/timestamp to a UTC-parsable ISO string. */
+function toUtcIso(dateStr: string): string {
+  return dateStr.includes("T")
+    ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
+    : `${dateStr}T00:00:00Z`
+}
+
 export function formatPersianDate(dateStr: string): string {
   if (!dateStr) return ""
   try {
-    const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
-      : `${dateStr}T00:00:00Z`
-    const d = new Date(isoStr)
+    const d = new Date(toUtcIso(dateStr))
     return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
       year: "numeric",
       month: "long",
@@ -19,6 +23,34 @@ export function formatPersianDate(dateStr: string): string {
     }).format(d)
   } catch {
     return dateStr
+  }
+}
+
+/** Long-form Persian date for invoices — own format options, shared ISO normalisation. */
+export function formatPersianLongDate(dateStr?: string): string {
+  if (!dateStr) return "-"
+  try {
+    const d = new Date(toUtcIso(dateStr))
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      dateStyle: "long",
+      timeZone: "UTC",
+    }).format(d)
+  } catch {
+    return dateStr
+  }
+}
+
+/** Numeric "month/day" Persian date for compact date boxes (booking widget). */
+export function formatPersianShortDate(isoStr: string): string {
+  try {
+    const d = new Date(isoStr + "T00:00:00Z")
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      timeZone: "UTC",
+      month: "numeric",
+      day: "numeric",
+    }).format(d)
+  } catch {
+    return isoStr
   }
 }
 

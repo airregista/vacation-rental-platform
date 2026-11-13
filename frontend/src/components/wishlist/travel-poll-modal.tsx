@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { JalaliDateField } from "@/components/shared/date-field"
+import { localTodayIso } from "@/lib/persian-calendar"
 
 const STORAGE_KEY = "ashianak_travel_date_poll"
 const LEGACY_STORAGE_KEY = "jabama_travel_date_poll"
@@ -110,17 +111,9 @@ const emptySubscribe = () => () => {}
 const getClientSnapshot = () => true
 const getServerClientSnapshot = () => false
 
-function todayIsoDate(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, "0")
-  const day = String(now.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
 // An option is offerable only while its check-in is still in the future.
 function isFutureCheckIn(checkIn: string): boolean {
-  return checkIn > todayIsoDate()
+  return checkIn > localTodayIso()
 }
 
 function isValidStoredPollOption(entry: unknown): entry is DatePollOption {

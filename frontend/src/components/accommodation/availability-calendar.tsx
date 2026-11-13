@@ -3,7 +3,7 @@
 import * as React from "react"
 import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, AlertCircle, RotateCcw } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
-import { getPersianParts } from "@/lib/persian-calendar"
+import { getPersianParts, localTodayIso } from "@/lib/persian-calendar"
 import { formatFaNumber } from "@/lib/format-fa"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -102,13 +102,7 @@ export function AvailabilityCalendar({
   // must not be selectable: the backend window starts at the server's
   // date.today(), which can be yesterday in Tehran when the server runs
   // on UTC (00:00–03:30 Tehran time).
-  const todayIso = React.useMemo(() => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, "0")
-    const d = String(now.getDate()).padStart(2, "0")
-    return `${y}-${m}-${d}`
-  }, [])
+  const todayIso = React.useMemo(() => localTodayIso(), [])
 
   // Group days into Persian months with accurate month start & past padding
   const months = React.useMemo<CalendarMonthGroup[]>(() => {
