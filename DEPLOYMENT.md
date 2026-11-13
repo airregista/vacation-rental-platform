@@ -34,6 +34,16 @@ not copy the local `.env` to the server.
 | `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `10` (default) | Failed password or OTP attempts allowed per identifier per window. |
 | `LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP` | `50` (default) | Failed attempts allowed per source IP per window, shared by login, OTP send, and OTP verify. Stops identifier rotation. |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` (default) | Rolling window for the login limiter. |
+| `REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP` | `20` (default) | Registration attempts per source IP per window. |
+| `CALENDAR_FEED_TTL_MINUTES` | `10080` (7 days) | Signed iCal feed link lifetime. Rotating the token invalidates old links. |
+| `CALENDAR_MAX_BLOCK_DAYS` | `90` (default) | Maximum range for a bulk calendar block. |
+| `RESERVATION_MAX_CHECKIN_MONTHS` | `18` (default) | Forward booking and iCal horizon (`18 × 30 = 540` days). |
+| `RESERVATION_TTL_MINUTES` | `30` (default) | Pending-reservation payment window before automatic expiry. |
+| `RESERVATION_SWEEP_INTERVAL_SECONDS` | `60` (default) | How often the in-process sweep expires stale pending rows. |
+| `ENABLE_RESERVATION_SWEEP` | `True` (default) | Disable on extra API workers if only one dedicated process runs the sweep. |
+| `PLATFORM_COMMISSION_RATE` | `0.10` (default) | Decimal fraction deducted from each confirmed booking. |
+| `UPLOAD_DIR` | `uploads` (default) | Local directory for uploaded images. Must be writable by the API user and backed by persistent storage; do not point it inside the release directory if deploys replace it. |
+| `MAX_UPLOAD_SIZE_MB` | `5` (default) | Per-image upload cap (`1`–`20`). Reverse proxies must allow at least this body size. |
 
 Generate the key without committing it:
 
