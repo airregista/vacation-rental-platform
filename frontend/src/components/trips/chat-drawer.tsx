@@ -136,16 +136,27 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
 
     refreshMessages(true)
 
-    // Poll for new messages every 8 seconds
-    const interval = setInterval(() => refreshMessages(false), 8000)
+    // Poll for new messages every 8 seconds. Skip ticks while the tab is
+    // hidden so background tabs don't keep hammering the messages endpoint.
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return
+      refreshMessages(false)
+    }, 8000)
 
     const handleFocus = () => refreshMessages(false)
     window.addEventListener("focus", handleFocus)
+
+    // Catch up immediately when the tab becomes visible again.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshMessages(false)
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
       isMounted = false
       clearInterval(interval)
       window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibility)
     }
   }, [isOpen, tripId, viewerId])
 
