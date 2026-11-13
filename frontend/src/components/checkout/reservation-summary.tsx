@@ -10,9 +10,8 @@ import { formatPersianDate } from "@/lib/format-fa"
 import {
   type ReservationDetail,
   type CheckoutAccommodationInfo,
-  computeCheckoutBreakdown,
-  formatFaPrice,
 } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice } from "@/lib/checkout-format"
 
 export interface ReservationSummaryProps {
   reservation: ReservationDetail

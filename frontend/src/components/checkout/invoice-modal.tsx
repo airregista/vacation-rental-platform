@@ -11,32 +11,15 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { formatPersianDate, formatPersianLongDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import {
   type InvoiceModalProps,
-  computeCheckoutBreakdown,
-  formatFaPrice,
-  getPersianYear,
 } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice, getPersianYear } from "@/lib/checkout-format"
 
 function formatFaNumber(num: number | string | null | undefined): string {
   return formatFaPrice(num)
-}
-
-function formatPersianLongDate(dateStr?: string): string {
-  if (!dateStr) return "-"
-  try {
-    const isoStr = dateStr.includes("T")
-      ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
-      : `${dateStr}T00:00:00Z`
-    const d = new Date(isoStr)
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      dateStyle: "long",
-      timeZone: "UTC",
-    }).format(d)
-  } catch {
-    return dateStr
-  }
 }
 
 export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
@@ -56,9 +39,7 @@ export function InvoiceModal({ isOpen, onClose, data }: InvoiceModalProps) {
   const invoiceNumber = toPersianDigits(
     data.invoice_number || `INV-${solarYear}-${reservation.id.toString().padStart(5, "0")}`
   )
-  const reservationCode = toPersianDigits(
-    `MHM-${reservation.id.toString().padStart(5, "0")}`
-  )
+  const reservationCode = getReservationCode(reservation.id)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

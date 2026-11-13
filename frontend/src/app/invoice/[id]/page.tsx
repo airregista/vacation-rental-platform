@@ -20,14 +20,16 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { findLatestSuccessfulPayment } from "@/lib/pagination"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import { EmptyState } from "@/components/shared/empty-state"
 import { TripStatusBadge } from "@/components/trips/trip-status-badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { computeCheckoutBreakdown, formatFaPrice } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice } from "@/lib/checkout-format"
 import type { TripReservationItem } from "@/types/trips"
 import type { PaymentResponse } from "@/types/checkout"
 import type { AccommodationDetailData } from "@/types/detail"
@@ -68,16 +70,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
 
         const [stayResult, paymentsResult] = await Promise.allSettled([
           apiClient.get<AccommodationDetailData>(`/accommodations/${data.accommodation_id}`),
-          apiClient.get<PaymentResponse[]>("/payments/my"),
+          findLatestSuccessfulPayment(reservationId),
         ])
         if (!isCurrent) return
         if (stayResult.status === "fulfilled") setAccommodation(stayResult.value)
-        if (paymentsResult.status === "fulfilled" && Array.isArray(paymentsResult.value)) {
-          setPayment(
-            paymentsResult.value.find(
-              (item) => item.reservation_id === reservationId && item.status === "success"
-            ) ?? null
-          )
+        if (paymentsResult.status === "fulfilled" && paymentsResult.value) {
+          setPayment(paymentsResult.value)
         }
       } catch (err: unknown) {
         if (!isCurrent) return
@@ -216,7 +214,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         : 0
   const guestName =
     [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "مهمان آشیانک"
-  const invoiceNumber = `ASH-${toPersianDigits(String(reservation.id).padStart(6, "0"))}`
+  const invoiceNumber = getReservationCode(reservation.id)
   const trackingCode =
     payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code)
       ? payment.tracking_code

@@ -20,8 +20,9 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TripStatusBadge } from "@/components/trips/trip-status-badge"
 import { useTripPermissions } from "@/components/trips/trip-permissions"
-import { formatFaPrice } from "@/types/checkout"
+import { formatFaPrice } from "@/lib/checkout-format"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import type { TripReservationItem } from "@/types/trips"
 
 export interface TripCardProps {
@@ -44,7 +45,7 @@ export function TripCard({
     trip.accommodation_title || `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
   const nightsText = `${toPersianDigits(trip.total_nights)} شب`
   const guestsText = `${toPersianDigits(trip.guests_count)} نفر`
-  const trackingCode = `JBM-${toPersianDigits(trip.id)}`
+  const trackingCode = getReservationCode(trip.id)
   const detailHref = `/trips/${trip.id}`
   const locationText = [trip.province, trip.city].filter(Boolean).join("، ")
 

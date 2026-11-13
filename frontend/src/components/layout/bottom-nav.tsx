@@ -19,7 +19,6 @@ export function BottomNav() {
 
   if (
     pathname === "/" ||
-    pathname === "/hero-preview" ||
     pathname === "/login" ||
     pathname.startsWith("/host") ||
     pathname.startsWith("/checkout")

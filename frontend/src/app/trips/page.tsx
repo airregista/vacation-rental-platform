@@ -14,8 +14,9 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/context/auth-context"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
+import { fetchAllPages } from "@/lib/pagination"
 import { PageHeader } from "@/components/layout/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -49,24 +50,7 @@ export default function TripsPage() {
 
     let isMounted = true
 
-    // The backend defaults to limit=20; fetch every page so the list and
-    // the totals include all of the user's reservations.
-    const fetchAllTrips = async (): Promise<TripReservationItem[]> => {
-      const all: TripReservationItem[] = []
-      let skip = 0
-      let hasMore = true
-      while (hasMore) {
-        const page = await apiClient.get<TripReservationItem[]>(
-          `/reservations/my?skip=${skip}&limit=100`
-        )
-        all.push(...page)
-        hasMore = page.length === 100
-        skip += 100
-      }
-      return all
-    }
-
-    fetchAllTrips()
+    fetchAllPages<TripReservationItem>("/reservations/my")
       .then((data) => {
         if (isMounted) {
           setTrips(data)

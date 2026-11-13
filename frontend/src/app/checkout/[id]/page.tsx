@@ -32,15 +32,14 @@ import {
   describeCancellationPolicy,
   getCancellationPolicyLabel,
 } from "@/lib/cancellation-policy"
-import { toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import {
   type ReservationDetail,
   type CheckoutAccommodationInfo,
   type PaymentResponse,
   type InvoiceData,
-  formatFaPrice,
-  getPersianYear,
 } from "@/types/checkout"
+import { formatFaPrice, getPersianYear } from "@/lib/checkout-format"
 
 interface CheckoutPageProps {
   params: Promise<{ id: string }>
@@ -418,7 +417,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           <span className="text-[11px] text-ink-soft">
             شناسه رزرو:{" "}
             <bdi dir="ltr" className="font-semibold tabular-nums text-ink">
-              MHM-{toPersianDigits(reservation.id.toString().padStart(5, "0"))}
+              {getReservationCode(reservation.id)}
             </bdi>
           </span>
         </div>

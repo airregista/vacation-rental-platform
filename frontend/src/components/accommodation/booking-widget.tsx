@@ -18,7 +18,11 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
-import { formatPersianDate as formatFullPersianDate } from "@/lib/format-fa"
+import {
+  formatPersianDate as formatFullPersianDate,
+  formatPersianShortDate,
+  formatFaNumber,
+} from "@/lib/format-fa"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -219,21 +223,10 @@ export function BookingWidget({
     }
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
-  const formatPersianDate = (isoStr: string | null) => {
-    if (!isoStr) return "انتخاب تاریخ"
-    try {
-      const d = new Date(isoStr + "T00:00:00Z")
-      return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-        timeZone: "UTC",
-        month: "numeric",
-        day: "numeric",
-      }).format(d)
-    } catch {
-      return isoStr
-    }
-  }
+  const formatPersianDate = (isoStr: string | null) =>
+    isoStr ? formatPersianShortDate(isoStr) : "انتخاب تاریخ"
 
   const extraGuestsCount = Math.max(0, guestsCount - accommodation.capacity)
 

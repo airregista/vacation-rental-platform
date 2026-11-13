@@ -3,6 +3,8 @@
 import * as React from "react"
 import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, AlertCircle, RotateCcw } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { getPersianParts, localTodayIso } from "@/lib/persian-calendar"
+import { formatFaNumber } from "@/lib/format-fa"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { CalendarDayInfo } from "@/types/detail"
@@ -100,13 +102,7 @@ export function AvailabilityCalendar({
   // must not be selectable: the backend window starts at the server's
   // date.today(), which can be yesterday in Tehran when the server runs
   // on UTC (00:00–03:30 Tehran time).
-  const todayIso = React.useMemo(() => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, "0")
-    const d = String(now.getDate()).padStart(2, "0")
-    return `${y}-${m}-${d}`
-  }, [])
+  const todayIso = React.useMemo(() => localTodayIso(), [])
 
   // Group days into Persian months with accurate month start & past padding
   const months = React.useMemo<CalendarMonthGroup[]>(() => {
@@ -117,35 +113,18 @@ export function AvailabilityCalendar({
     for (const d of calendarDays) {
       const dateObj = new Date(d.date + "T00:00:00Z")
 
-      // Extract Persian parts
-      const parts = new Intl.DateTimeFormat("en-u-ca-persian", {
-        timeZone: "UTC",
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-      }).formatToParts(dateObj)
+      // Extract Persian parts (module-level singleton formatters in lib/)
+      const parts = getPersianParts(d.date)
 
-      let pYear = "1405"
-      let pMonth = "1"
-      let pDay = 1
-
-      for (const part of parts) {
-        if (part.type === "year") pYear = part.value
-        if (part.type === "month") pMonth = part.value
-        if (part.type === "day") pDay = parseInt(part.value, 10)
-      }
+      const pYear = parts.year
+      const pMonth = parts.month
+      const pDay = parts.day
 
       const key = `${pYear}-${pMonth}`
 
       if (!groups.has(key)) {
-        const monthName = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-          timeZone: "UTC",
-          month: "long",
-        }).format(dateObj)
-        const yearPersian = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-          timeZone: "UTC",
-          year: "numeric",
-        }).format(dateObj)
+        const monthName = parts.monthName
+        const yearPersian = parts.yearLabel
 
         // Day 1 of this Persian month
         const firstDayOfMonthDate = new Date(dateObj.getTime() - (pDay - 1) * 86400000)
@@ -275,7 +254,7 @@ export function AvailabilityCalendar({
     onDateRangeChange(null, null)
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   if (!isClient) {
     return <div className="h-64 animate-pulse rounded-2xl bg-paper-deep/50" />

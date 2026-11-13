@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { formatPersianDate, toPersianDigits } from "@/lib/format-fa"
+import { getReservationCode } from "@/lib/reservation-code"
 import { getCancellationPolicyLabel } from "@/lib/cancellation-policy"
 import { PageHeader } from "@/components/layout/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -38,7 +39,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { computeCheckoutBreakdown, formatFaPrice } from "@/types/checkout"
+import { computeCheckoutBreakdown, formatFaPrice } from "@/lib/checkout-format"
 import type { TripReservationItem } from "@/types/trips"
 import type { AccommodationDetailData } from "@/types/detail"
 
@@ -250,7 +251,7 @@ function TripDetailView({
     accommodation?.images?.find((image) => image.is_cover)?.image_url ||
     accommodation?.images?.[0]?.image_url ||
     null
-  const bookingCode = `JBM-${toPersianDigits(reservation.id)}`
+  const bookingCode = getReservationCode(reservation.id)
   const nightsText = `${toPersianDigits(reservation.total_nights)} شب`
   const guestsText = `${toPersianDigits(reservation.guests_count)} نفر`
 

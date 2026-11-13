@@ -30,7 +30,7 @@ import {
   describeCancellationPolicy,
   getCancellationPolicyLabel,
 } from "@/lib/cancellation-policy"
-import { formatFaPrice } from "@/types/checkout"
+import { formatFaPrice } from "@/lib/checkout-format"
 import { toPersianDigits } from "@/lib/format-fa"
 import type {
   CancellationPreviewData,

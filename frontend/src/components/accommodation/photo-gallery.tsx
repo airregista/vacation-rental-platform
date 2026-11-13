@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { formatFaNumber } from "@/lib/format-fa"
 import {
   Dialog,
   DialogContent,
@@ -125,7 +126,7 @@ export function PhotoGallery({
     setTouchStartX(null)
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   // 0 Images Fallback
   if (totalImages === 0) {

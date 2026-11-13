@@ -1,4 +1,6 @@
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api-client"
+import { formatFaNumber } from "@/lib/format-fa"
+import { localTodayIso } from "@/lib/persian-calendar"
 import type { HostImageRecord } from "./types"
 
 /** Signature image first, then the host-defined order. */
@@ -10,10 +12,7 @@ export function sortHostImages(images: HostImageRecord[]): HostImageRecord[] {
 }
 
 /** Persian digits with grouping, used for every price and count in the host area. */
-export function formatFaNumber(value: number | string | null | undefined): string {
-  const parsed = typeof value === "number" ? value : Number(value ?? 0)
-  return new Intl.NumberFormat("fa-IR").format(Number.isFinite(parsed) ? parsed : 0)
-}
+export { formatFaNumber }
 
 export function formatToman(value: number | string | null | undefined): string {
   return formatFaNumber(value)
@@ -29,29 +28,10 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-/**
- * The backend defaults list endpoints to limit=20, so the host views must walk
- * every page to show complete totals and lists.
- */
-export async function fetchAllPages<T>(path: string): Promise<T[]> {
-  const all: T[] = []
-  let skip = 0
-  for (;;) {
-    const page = await apiClient.get<T[]>(`${path}?skip=${skip}&limit=100`)
-    const batch = Array.isArray(page) ? page : []
-    all.push(...batch)
-    if (batch.length < 100) break
-    skip += 100
-  }
-  return all
-}
+export { fetchAllPages } from "@/lib/pagination"
 
-export function toLocalIsoDate(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
+/** Today as a local ISO date — delegates to the shared helper in lib/persian-calendar. */
+export const toLocalIsoDate = localTodayIso
 
 /** Convert API time values ("14:00:00") to the "HH:MM" expected by input[type=time]. */
 export function toTimeInputValue(value: string | null | undefined): string {

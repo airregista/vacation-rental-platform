@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatFaNumber } from "@/lib/format-fa"
 import {
   Dialog,
   DialogContent,
@@ -115,7 +116,7 @@ export function AmenitiesList({
   const displayedAmenities = allAmenities.slice(0, 8)
   const hasMore = allAmenities.length > 8
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   return (
     <div className="w-full space-y-4">

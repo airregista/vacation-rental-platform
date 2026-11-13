@@ -15,6 +15,7 @@ import {
   Check,
 } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { formatFaNumber } from "@/lib/format-fa"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -122,7 +123,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
     }
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   // 1. Defensive ID Guard & 404 / Error State
   if (isInvalidId || errorStatus === 404) {
