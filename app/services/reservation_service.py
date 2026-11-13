@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.accommodation import Accommodation, PricingException
-from app.models.coupon import Coupon
 from app.models.payment import Payment
 from app.models.reservation import Reservation
+from app.services.coupon_service import lock_coupon_by_code
 
 TEHRAN_TZ = ZoneInfo("Asia/Tehran")
 
@@ -114,8 +114,7 @@ async def _cancel_reservation_record(
     )
 
     if reservation.coupon_code:
-        coupon_stmt = select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
-        coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
+        coupon_obj = await lock_coupon_by_code(db, reservation.coupon_code)
         if coupon_obj and coupon_obj.used_count > 0:
             coupon_obj.used_count -= 1
 

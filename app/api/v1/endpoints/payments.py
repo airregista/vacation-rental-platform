@@ -10,7 +10,6 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import CurrentUserDep, SessionDep
 from app.core.config import settings
 from app.models.accommodation import Accommodation
-from app.models.coupon import Coupon
 from app.models.payment import HostPayout, Payment
 from app.models.reservation import Reservation
 from app.schemas.payment import (
@@ -20,6 +19,7 @@ from app.schemas.payment import (
     PaymentResponse,
     PaymentVerifyRequest,
 )
+from app.services.coupon_service import lock_coupon_by_code
 from app.services.reservation_service import (
     _cancel_reservation_record,
     check_and_expire_reservation,
@@ -261,10 +261,7 @@ async def verify_payment(
             reservation.cancellation_reason = "Dates occupied by concurrent confirmed booking"
             reservation.cancelled_at = datetime.now(timezone.utc)
             if reservation.coupon_code:
-                c_stmt = (
-                    select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
-                )
-                c_obj = (await db.execute(c_stmt)).scalars().first()
+                c_obj = await lock_coupon_by_code(db, reservation.coupon_code)
                 if c_obj and c_obj.used_count > 0:
                     c_obj.used_count -= 1
             await (
