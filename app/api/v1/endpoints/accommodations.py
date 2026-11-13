@@ -1244,7 +1244,13 @@ async def upsert_pricing_exception(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> PricingExceptionResponse:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    acc = (
+        await db.execute(
+            select(Accommodation)
+            .where(Accommodation.id == id)
+            .with_for_update(of=Accommodation)
+        )
+    ).scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
@@ -1291,7 +1297,13 @@ async def batch_pricing_exceptions(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> PricingExceptionBatchResponse:
-    acc = (await db.execute(select(Accommodation).where(Accommodation.id == id))).scalars().first()
+    acc = (
+        await db.execute(
+            select(Accommodation)
+            .where(Accommodation.id == id)
+            .with_for_update(of=Accommodation)
+        )
+    ).scalars().first()
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 

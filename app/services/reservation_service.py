@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.accommodation import Accommodation, PricingException
 from app.models.coupon import Coupon
 from app.models.payment import Payment
 from app.models.reservation import Reservation
@@ -60,6 +61,43 @@ async def check_booking_overlap(
     return overlapping is not None
 
 
+async def ensure_dates_bookable(
+    db: AsyncSession,
+    accommodation: Accommodation,
+    check_in: date,
+    check_out: date,
+) -> None:
+    """Reject confirmation when the listing or its calendar changed since checkout.
+
+    Callers must hold the accommodation row lock and pass a freshly refreshed
+    Accommodation instance (``populate_existing=True``).
+    """
+    if not accommodation.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Accommodation is no longer available",
+        )
+
+    blocked = (
+        await db.execute(
+            select(PricingException.id)
+            .where(
+                PricingException.accommodation_id == accommodation.id,
+                PricingException.date >= check_in,
+                PricingException.date < check_out,
+                PricingException.is_blocked.is_(True),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if blocked is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dates are no longer available",
+        )
+
+
 async def _cancel_reservation_record(
     db: AsyncSession,
     reservation: Reservation,
@@ -76,9 +114,7 @@ async def _cancel_reservation_record(
     )
 
     if reservation.coupon_code:
-        coupon_stmt = (
-            select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
-        )
+        coupon_stmt = select(Coupon).where(Coupon.code == reservation.coupon_code).with_for_update()
         coupon_obj = (await db.execute(coupon_stmt)).scalars().first()
         if coupon_obj and coupon_obj.used_count > 0:
             coupon_obj.used_count -= 1
@@ -94,7 +130,9 @@ async def check_and_expire_reservation(
     if res_created.tzinfo is None:
         res_created = res_created.replace(tzinfo=timezone.utc)
 
-    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(minutes=ttl_minutes):
+    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(
+        minutes=ttl_minutes
+    ):
         return False
 
     await _cancel_reservation_record(db, reservation)
