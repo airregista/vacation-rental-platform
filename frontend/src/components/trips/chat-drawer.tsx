@@ -67,6 +67,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
   // new trip objects on every refetch, which would restart the fetch and
   // the polling interval while the drawer is open.
   const tripId = trip?.id
+  const viewerId = user?.id
 
   const handleClose = () => {
     setMessages([])
@@ -108,6 +109,18 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
             })
             setErrorMessage(null)
             if (isInitial) setHasLoadedInitially(true)
+            const hasUnreadIncoming = data.some(
+              (m) => m.sender_id !== viewerId && m.read_at == null
+            )
+            if (viewerId !== undefined && hasUnreadIncoming) {
+              void apiClient
+                .post<{ marked_read: number }>(
+                  `/reservations/${tripId}/messages/read`
+                )
+                .catch(() => {
+                  // A failed read receipt must not interrupt the conversation.
+                })
+            }
           }
         })
         .catch((err: unknown) => {
@@ -134,7 +147,7 @@ export function ChatDrawer({ trip, isOpen, onClose }: ChatDrawerProps) {
       clearInterval(interval)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [isOpen, tripId])
+  }, [isOpen, tripId, viewerId])
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
