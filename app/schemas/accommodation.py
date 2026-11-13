@@ -49,6 +49,10 @@ class AccommodationImageResponse(BaseModel):
     sort_order: int
 
 
+class AccommodationImageOrder(BaseModel):
+    image_ids: list[int] = Field(min_length=1)
+
+
 class PricingExceptionCreate(BaseModel):
     date: date
     price: Decimal | None = None
@@ -116,9 +120,7 @@ class AccommodationCreate(BaseModel):
         default="flexible", pattern="^(flexible|moderate|strict|custom)$"
     )
     cancellation_free_hours: int = Field(default=24, ge=0)
-    cancellation_penalty_percent: Decimal = Field(
-        default=Decimal(50), ge=0, le=100
-    )
+    cancellation_penalty_percent: Decimal = Field(default=Decimal(50), ge=0, le=100)
     is_active: bool = True
     external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] = Field(default_factory=list)
