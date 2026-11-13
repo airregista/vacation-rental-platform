@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,8 +57,6 @@ async def _ensure_test_database() -> None:
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def ensure_database_seeded():
     """Builds the disposable test database from Alembic and seeds it."""
-    from sqlalchemy import text
-
     from app.core.database import engine
     from app.seeds.seed_data import seed
 
@@ -92,8 +91,11 @@ async def ensure_database_seeded():
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def db_isolation() -> AsyncGenerator[None, None]:
+async def db_isolation(request: pytest.FixtureRequest) -> AsyncGenerator[None, None]:
     """Wraps each test in an isolated transaction savepoint that rolls back at test completion."""
+    if request.node.get_closest_marker("real_db"):
+        yield
+        return
     async with engine.connect() as connection:
         trans = await connection.begin()
 
@@ -119,6 +121,41 @@ async def db_isolation() -> AsyncGenerator[None, None]:
             await trans.rollback()
             app.dependency_overrides.clear()
             AsyncSessionLocal.configure(bind=engine)
+
+
+# Child-first. Every table has an integer `id`; the fixture deletes only
+# rows created after the captured high-water mark.
+_REAL_DB_TABLES = (
+    "reservation_messages",
+    "reviews",
+    "payments",
+    "host_payouts",
+    "reservations",
+    "pricing_exceptions",
+    "accommodation_images",
+    "accommodations",
+    "coupons",
+    "users",
+)
+
+
+@pytest_asyncio.fixture
+async def real_db() -> AsyncGenerator[None, None]:
+    baseline: dict[str, int] = {}
+    async with engine.begin() as conn:
+        for table in _REAL_DB_TABLES:
+            baseline[table] = (
+                await conn.execute(text(f"SELECT coalesce(max(id), 0) FROM {table}"))
+            ).scalar_one()
+
+    yield
+
+    async with engine.begin() as conn:
+        for table in _REAL_DB_TABLES:
+            await conn.execute(
+                text(f"DELETE FROM {table} WHERE id > :cutoff"),
+                {"cutoff": baseline[table]},
+            )
 
 
 @pytest.fixture(autouse=True)
