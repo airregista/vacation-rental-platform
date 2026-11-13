@@ -545,9 +545,7 @@ async def test_reservation_response_exposes_cancellation_fields(
 
 
 @pytest.mark.asyncio
-async def test_cancellation_marks_pending_payments_failed(
-    client: AsyncClient, guest_token: str
-):
+async def test_cancellation_marks_pending_payments_failed(client: AsyncClient, guest_token: str):
     acc_res = await client.get(f"{settings.API_V1_STR}/accommodations/")
     acc_id = acc_res.json()[0]["id"]
 
@@ -655,4 +653,3 @@ async def test_cancellation_records_explicit_refund_type(
     assert {p["payment_type"] for p in rows} == {"charge", "refund"}
     refund = next(p for p in rows if p["payment_type"] == "refund")
     assert refund["tracking_code"].startswith("REF-")
-

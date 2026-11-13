@@ -128,7 +128,9 @@ async def check_and_expire_reservation(
     if res_created.tzinfo is None:
         res_created = res_created.replace(tzinfo=timezone.utc)
 
-    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(minutes=ttl):
+    if reservation.status != "pending" or res_created >= datetime.now(timezone.utc) - timedelta(
+        minutes=ttl
+    ):
         return False
 
     await _cancel_reservation_record(db, reservation)
@@ -138,7 +140,9 @@ async def check_and_expire_reservation(
     return True
 
 
-async def expire_stale_pending_reservations(db: AsyncSession, ttl_minutes: int | None = None) -> int:
+async def expire_stale_pending_reservations(
+    db: AsyncSession, ttl_minutes: int | None = None
+) -> int:
     ttl = settings.RESERVATION_TTL_MINUTES if ttl_minutes is None else ttl_minutes
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=ttl)
     stmt = (

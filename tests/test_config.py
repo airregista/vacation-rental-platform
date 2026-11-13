@@ -4,8 +4,7 @@ from pydantic import ValidationError
 from app.core.config import Settings
 
 PRODUCTION_DB_URL = (
-    "postgresql+asyncpg://ashianak_app:test-db-password"
-    "@db.example.com:5432/ashianak?ssl=require"
+    "postgresql+asyncpg://ashianak_app:test-db-password@db.example.com:5432/ashianak?ssl=require"
 )
 
 
@@ -78,8 +77,7 @@ def test_production_rejects_default_superuser_database():
             ENVIRONMENT="production",
             SECRET_KEY="k" * 48,
             DATABASE_URL=(
-                "postgresql+asyncpg://postgres:secret"
-                "@db.example.com:5432/ashianak?ssl=require"
+                "postgresql+asyncpg://postgres:secret@db.example.com:5432/ashianak?ssl=require"
             ),
         )
 
@@ -91,8 +89,7 @@ def test_production_rejects_database_without_password():
             ENVIRONMENT="production",
             SECRET_KEY="k" * 48,
             DATABASE_URL=(
-                "postgresql+asyncpg://ashianak_app"
-                "@db.example.com:5432/ashianak?ssl=require"
+                "postgresql+asyncpg://ashianak_app@db.example.com:5432/ashianak?ssl=require"
             ),
         )
 
@@ -103,9 +100,7 @@ def test_production_requires_tls_for_remote_database():
             _env_file=None,
             ENVIRONMENT="production",
             SECRET_KEY="k" * 48,
-            DATABASE_URL=(
-                "postgresql+asyncpg://ashianak_app:secret@db.example.com:5432/ashianak"
-            ),
+            DATABASE_URL=("postgresql+asyncpg://ashianak_app:secret@db.example.com:5432/ashianak"),
         )
 
 

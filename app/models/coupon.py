@@ -27,9 +27,7 @@ class Coupon(Base):
         CheckConstraint("min_booking_amount >= 0", name="chk_coupon_min_booking_amount"),
         CheckConstraint("valid_until > valid_from", name="chk_coupon_validity_range"),
         CheckConstraint("used_count >= 0", name="chk_coupon_used_count"),
-        CheckConstraint(
-            "usage_limit IS NULL OR usage_limit > 0", name="chk_coupon_usage_limit"
-        ),
+        CheckConstraint("usage_limit IS NULL OR usage_limit > 0", name="chk_coupon_usage_limit"),
         CheckConstraint(
             "discount_type <> 'percentage' OR discount_value <= 100",
             name="chk_coupon_percentage_range",

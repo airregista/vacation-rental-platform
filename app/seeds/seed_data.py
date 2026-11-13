@@ -383,25 +383,15 @@ async def seed_jabama_listings() -> dict:
 
     async with AsyncSessionLocal() as db:
         admin = (
-            (await db.execute(select(User).where(User.phone == SEED_ADMIN_PHONE)))
-            .scalars()
-            .first()
+            (await db.execute(select(User).where(User.phone == SEED_ADMIN_PHONE))).scalars().first()
         )
         if not admin:
             raise RuntimeError(f"Seed admin {SEED_ADMIN_PHONE} not found after seed()")
 
-        cities = {
-            c.name: c
-            for c in (await db.execute(select(City))).scalars().all()
-        }
-        categories = {
-            cat.slug: cat
-            for cat in (await db.execute(select(Category))).scalars().all()
-        }
+        cities = {c.name: c for c in (await db.execute(select(City))).scalars().all()}
+        categories = {cat.slug: cat for cat in (await db.execute(select(Category))).scalars().all()}
         amenities = {
-            am.icon: am
-            for am in (await db.execute(select(Amenity))).scalars().all()
-            if am.icon
+            am.icon: am for am in (await db.execute(select(Amenity))).scalars().all() if am.icon
         }
 
         for p in payloads:
@@ -511,11 +501,7 @@ async def seed_jabama_listings() -> dict:
                     )
                 )
             for amenity_id in validated.amenity_ids:
-                db.add(
-                    AccommodationAmenity(
-                        accommodation_id=acc.id, amenity_id=amenity_id
-                    )
-                )
+                db.add(AccommodationAmenity(accommodation_id=acc.id, amenity_id=amenity_id))
             ingested_now[jabama_id] = acc.id
             inserted += 1
 
@@ -560,9 +546,7 @@ async def cleanup_jabama_listings() -> int:
         print("No Jabama manifest found — nothing to clean up")
         return 0
     manifest = json.loads(JABAMA_MANIFEST_PATH.read_text(encoding="utf-8"))
-    entries = [
-        s for s in manifest.get("stays", []) if s.get("accommodation_id") is not None
-    ]
+    entries = [s for s in manifest.get("stays", []) if s.get("accommodation_id") is not None]
     if not entries:
         print("Manifest has no ingested rows — nothing to clean up")
         return 0

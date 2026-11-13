@@ -23,18 +23,14 @@ def _unique_phone() -> str:
 
 
 async def _admin_id(session) -> int:
-    return (
-        await session.execute(select(User.id).where(User.phone == ADMIN_PHONE))
-    ).scalar_one()
+    return (await session.execute(select(User.id).where(User.phone == ADMIN_PHONE))).scalar_one()
 
 
 async def _accommodation_values(session) -> dict:
     category_id = (
         await session.execute(select(Category.id).order_by(Category.id).limit(1))
     ).scalar_one()
-    city_id = (
-        await session.execute(select(City.id).order_by(City.id).limit(1))
-    ).scalar_one()
+    city_id = (await session.execute(select(City.id).order_by(City.id).limit(1))).scalar_one()
     return {
         "host_id": await _admin_id(session),
         "category_id": category_id,
@@ -208,9 +204,7 @@ async def test_user_phone_format_is_enforced():
 @pytest.mark.asyncio
 async def test_user_shaba_format_is_enforced():
     async with AsyncSessionLocal() as session:
-        user = (
-            await session.execute(select(User).where(User.phone == ADMIN_PHONE))
-        ).scalar_one()
+        user = (await session.execute(select(User).where(User.phone == ADMIN_PHONE))).scalar_one()
 
         user.shaba_number = "IR123"
         with pytest.raises(IntegrityError) as exc_info:
@@ -282,9 +276,7 @@ async def test_accommodation_latitude_range_is_enforced():
 @pytest.mark.asyncio
 async def test_user_email_must_be_lowercase():
     async with AsyncSessionLocal() as session:
-        user = (
-            await session.execute(select(User).where(User.phone == ADMIN_PHONE))
-        ).scalar_one()
+        user = (await session.execute(select(User).where(User.phone == ADMIN_PHONE))).scalar_one()
 
         user.email = "Mixed@Example.com"
         with pytest.raises(IntegrityError) as exc_info:

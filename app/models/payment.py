@@ -52,9 +52,7 @@ class Payment(Base):
     status: Mapped[str] = mapped_column(
         String(20), server_default="pending", index=True, nullable=False
     )
-    payment_type: Mapped[str] = mapped_column(
-        String(10), server_default="charge", nullable=False
-    )
+    payment_type: Mapped[str] = mapped_column(String(10), server_default="charge", nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -68,7 +66,9 @@ class HostPayout(Base):
     __table_args__ = (
         CheckConstraint("payout_amount >= 0", name="chk_payout_amount"),
         CheckConstraint("commission_amount >= 0", name="chk_payout_commission"),
-        CheckConstraint("status IN ('pending', 'completed', 'cancelled')", name="chk_payout_status"),
+        CheckConstraint(
+            "status IN ('pending', 'completed', 'cancelled')", name="chk_payout_status"
+        ),
         CheckConstraint(
             "total_booking_amount = commission_amount + payout_amount",
             name="chk_payout_arithmetic",
@@ -77,7 +77,11 @@ class HostPayout(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     reservation_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("reservations.id", ondelete="RESTRICT"), unique=True, index=True, nullable=False
+        BigInteger,
+        ForeignKey("reservations.id", ondelete="RESTRICT"),
+        unique=True,
+        index=True,
+        nullable=False,
     )
     host_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
@@ -85,7 +89,9 @@ class HostPayout(Base):
     total_booking_amount: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     commission_amount: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     payout_amount: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), server_default="pending", index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="pending", index=True, nullable=False
+    )
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

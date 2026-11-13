@@ -208,9 +208,9 @@ async def create_review(
             detail="Reviews can only be submitted for confirmed or completed bookings",
         )
 
-    checkout_dt = datetime.combine(
-        reservation.check_out, acc.check_out_time
-    ).replace(tzinfo=TEHRAN_TZ)
+    checkout_dt = datetime.combine(reservation.check_out, acc.check_out_time).replace(
+        tzinfo=TEHRAN_TZ
+    )
     now_local = now_tehran()
     if now_local < checkout_dt:
         raise HTTPException(

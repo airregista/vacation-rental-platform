@@ -445,12 +445,15 @@ END:VCALENDAR"""
 
     fake_response = _FakeFeedResponse(ics_text=ics_text)
 
-    with patch(
-        "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
-        _fake_feed_client(fake_response),
-    ), patch(
-        "socket.getaddrinfo",
-        return_value=[("", "", "", "", ("93.184.216.34", 443))],
+    with (
+        patch(
+            "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
+            _fake_feed_client(fake_response),
+        ),
+        patch(
+            "socket.getaddrinfo",
+            return_value=[("", "", "", "", ("93.184.216.34", 443))],
+        ),
     ):
         # Host sends POST /accommodations/{id}/calendar/sync
         sync_res = await client.post(
@@ -472,8 +475,7 @@ END:VCALENDAR"""
     days = cal_res.json()
     blocked_dates = {d["date"] for d in days if not d["is_available"]}
     expected_dates = {
-        (today_tehran() + timedelta(days=d)).isoformat()
-        for d in [10, 11, 12, 20, 21]
+        (today_tehran() + timedelta(days=d)).isoformat() for d in [10, 11, 12, 20, 21]
     }
     assert blocked_dates.issuperset(expected_dates)
 
@@ -657,12 +659,15 @@ async def test_external_calendar_sync_redirect_ssrf_rejection(
         status_code=302, headers={"location": "http://127.0.0.1/admin.ics"}
     )
 
-    with patch(
-        "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
-        _fake_feed_client(redirect_response),
-    ), patch(
-        "socket.getaddrinfo",
-        return_value=[("", "", "", "", ("93.184.216.34", 443))],
+    with (
+        patch(
+            "app.api.v1.endpoints.accommodations.httpx.AsyncClient",
+            _fake_feed_client(redirect_response),
+        ),
+        patch(
+            "socket.getaddrinfo",
+            return_value=[("", "", "", "", ("93.184.216.34", 443))],
+        ),
     ):
         sync_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/calendar/sync",

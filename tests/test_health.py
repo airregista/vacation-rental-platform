@@ -10,9 +10,7 @@ async def test_health_reports_database_connected(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_health_returns_503_when_database_is_down(
-    client: AsyncClient, monkeypatch
-):
+async def test_health_returns_503_when_database_is_down(client: AsyncClient, monkeypatch):
     class BrokenSession:
         async def __aenter__(self):
             raise RuntimeError("database is down")

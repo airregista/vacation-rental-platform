@@ -48,9 +48,7 @@ async def build_accommodation_list_items(
         city_resp = None
         if acc.city:
             prov_resp = (
-                ProvinceResponse.model_validate(acc.city.province)
-                if acc.city.province
-                else None
+                ProvinceResponse.model_validate(acc.city.province) if acc.city.province else None
             )
             city_resp = CityResponse(
                 id=acc.city.id,

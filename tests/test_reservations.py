@@ -520,9 +520,7 @@ async def test_expiry_releases_coupon_quota(
         payment = (
             await session.execute(select(Payment).where(Payment.reservation_id == res_id))
         ).scalar_one()
-        coupon = (
-            await session.execute(select(Coupon).where(Coupon.code == code))
-        ).scalar_one()
+        coupon = (await session.execute(select(Coupon).where(Coupon.code == code))).scalar_one()
         assert reservation.status == "cancelled"
         assert payment.status == "failed"
         assert coupon.used_count == 0

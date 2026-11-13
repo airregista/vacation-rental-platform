@@ -90,9 +90,7 @@ async def list_my_wishlist(
     result = await db.execute(stmt)
     items = result.scalars().all()
 
-    summaries = await build_accommodation_list_items(
-        db, [item.accommodation for item in items]
-    )
+    summaries = await build_accommodation_list_items(db, [item.accommodation for item in items])
     return [
         WishlistItemResponse(
             user_id=item.user_id,

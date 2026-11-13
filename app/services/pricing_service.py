@@ -103,9 +103,7 @@ async def calculate_reservation_price(
         coupon = await get_coupon_by_code(db, coupon_code)
         evaluation = evaluate_coupon(coupon, subtotal)
         if not evaluation.is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=evaluation.message)
         discount_amount = evaluation.discount_amount
         applied_coupon_code = normalize_code(coupon_code)
 

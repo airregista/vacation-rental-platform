@@ -42,14 +42,10 @@ async def test_seed_refuses_production_before_opening_a_connection(monkeypatch) 
 async def test_seed_rebrands_legacy_demo_emails() -> None:
     async with AsyncSessionLocal() as session:
         admin = (
-            (await session.execute(select(User).where(User.phone == "09120000000")))
-            .scalars()
-            .one()
+            (await session.execute(select(User).where(User.phone == "09120000000"))).scalars().one()
         )
         guest = (
-            (await session.execute(select(User).where(User.phone == "09121111111")))
-            .scalars()
-            .one()
+            (await session.execute(select(User).where(User.phone == "09121111111"))).scalars().one()
         )
         admin.email = "admin@jabama.local"
         guest.email = "guest@jabama.local"
@@ -59,14 +55,10 @@ async def test_seed_rebrands_legacy_demo_emails() -> None:
 
     async with AsyncSessionLocal() as session:
         admin = (
-            (await session.execute(select(User).where(User.phone == "09120000000")))
-            .scalars()
-            .one()
+            (await session.execute(select(User).where(User.phone == "09120000000"))).scalars().one()
         )
         guest = (
-            (await session.execute(select(User).where(User.phone == "09121111111")))
-            .scalars()
-            .one()
+            (await session.execute(select(User).where(User.phone == "09121111111"))).scalars().one()
         )
         assert admin.email == "admin@ashianak.local"
         assert guest.email == "guest@ashianak.local"

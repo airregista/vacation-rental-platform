@@ -106,9 +106,7 @@ def calculate_cancellation_refund(
 
     elif policy == "custom":
         free_hours = int(getattr(accommodation, "cancellation_free_hours", 24) or 0)
-        penalty_percent = Decimal(
-            getattr(accommodation, "cancellation_penalty_percent", 50) or 0
-        )
+        penalty_percent = Decimal(getattr(accommodation, "cancellation_penalty_percent", 50) or 0)
         if hours_to_checkin >= free_hours:
             refundable = total
             penalty = Decimal(0)

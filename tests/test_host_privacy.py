@@ -5,9 +5,7 @@ from app.core.config import settings
 
 
 @pytest.mark.asyncio
-async def test_public_accommodation_detail_hides_host_pii(
-    client: AsyncClient, admin_token: str
-):
+async def test_public_accommodation_detail_hides_host_pii(client: AsyncClient, admin_token: str):
     cities_res = await client.get(f"{settings.API_V1_STR}/geo/cities")
     categories_res = await client.get(f"{settings.API_V1_STR}/categories/")
     city_id = cities_res.json()[0]["id"]
