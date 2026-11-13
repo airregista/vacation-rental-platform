@@ -11,29 +11,34 @@ export interface CheckoutPriceBreakdown {
 }
 
 export function computeCheckoutBreakdown(
-  reservation: { total_price?: number | string | null; total_nights: number; coupon_code?: string | null },
+  reservation: {
+    total_price?: number | string | null
+    total_nights: number
+    coupon_code?: string | null
+  },
   accommodation?: { cleaning_fee?: number | null; base_price?: number | null } | null,
-  overrideAmount?: number | string | null
+  overrideAmount?: number | string | null,
 ): CheckoutPriceBreakdown {
-  const rawTotal = overrideAmount !== undefined && overrideAmount !== null
-    ? overrideAmount
-    : reservation.total_price
-  const totalPayable = Math.max(0, typeof rawTotal === "string" ? Number(rawTotal.replace(/,/g, "")) || 0 : Number(rawTotal) || 0)
+  const rawTotal =
+    overrideAmount !== undefined && overrideAmount !== null
+      ? overrideAmount
+      : reservation.total_price
+  const totalPayable = Math.max(
+    0,
+    typeof rawTotal === "string" ? Number(rawTotal.replace(/,/g, "")) || 0 : Number(rawTotal) || 0,
+  )
   // Display-level clamp (T10): fees are read from the live accommodation, not
   // a booking snapshot, so a host edit after booking could otherwise show a
   // cleaning fee larger than the total payable. A reservation fee snapshot is
   // a future schema change, not this round.
-  const cleaningFee = Math.min(
-    totalPayable,
-    Math.max(0, Number(accommodation?.cleaning_fee) || 0)
-  )
+  const cleaningFee = Math.min(totalPayable, Math.max(0, Number(accommodation?.cleaning_fee) || 0))
   const basePrice = Math.max(0, Number(accommodation?.base_price) || 0)
 
   const baseTotal = !reservation.coupon_code
     ? Math.max(0, totalPayable - cleaningFee)
     : Math.max(
         basePrice > 0 ? basePrice * reservation.total_nights : 0,
-        Math.max(0, totalPayable - cleaningFee)
+        Math.max(0, totalPayable - cleaningFee),
       )
 
   const discountAmount = reservation.coupon_code

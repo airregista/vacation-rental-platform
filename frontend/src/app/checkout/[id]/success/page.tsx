@@ -50,19 +50,15 @@ interface CheckoutSuccessPageProps {
   params: Promise<{ id: string }>
 }
 
-export default function CheckoutSuccessPage({
-  params,
-}: CheckoutSuccessPageProps) {
+export default function CheckoutSuccessPage({ params }: CheckoutSuccessPageProps) {
   const resolvedParams = React.use(params)
   const reservationId = Number(resolvedParams.id)
   const isValidId = Number.isInteger(reservationId) && reservationId > 0
 
   const { isAuthenticated, isLoading: isAuthLoading, openOtpModal } = useAuth()
 
-  const [reservation, setReservation] =
-    React.useState<ReservationDetail | null>(null)
-  const [accommodation, setAccommodation] =
-    React.useState<CheckoutAccommodationInfo | null>(null)
+  const [reservation, setReservation] = React.useState<ReservationDetail | null>(null)
+  const [accommodation, setAccommodation] = React.useState<CheckoutAccommodationInfo | null>(null)
   const [payment, setPayment] = React.useState<PaymentResponse | null>(null)
   const [isLoading, setIsLoading] = React.useState(isValidId)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
@@ -81,9 +77,7 @@ export default function CheckoutSuccessPage({
       setPayment(null)
 
       try {
-        const data = await apiClient.get<ReservationDetail>(
-          `/reservations/${reservationId}`
-        )
+        const data = await apiClient.get<ReservationDetail>(`/reservations/${reservationId}`)
         if (isCancelled) return
         setReservation(data)
 
@@ -91,9 +85,7 @@ export default function CheckoutSuccessPage({
         // because /payments/my is newest-first and a frequent guest may have
         // more than one page of newer payments.
         const [stayResult, paymentResult] = await Promise.allSettled([
-          apiClient.get<CheckoutAccommodationInfo>(
-            `/accommodations/${data.accommodation_id}`
-          ),
+          apiClient.get<CheckoutAccommodationInfo>(`/accommodations/${data.accommodation_id}`),
           findLatestSuccessfulPayment(data.id),
         ])
         if (isCancelled) return
@@ -148,11 +140,7 @@ export default function CheckoutSuccessPage({
             <Button asChild className="h-11 gap-2">
               <Link href="/">صفحه اصلی</Link>
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-11 border-line bg-paper-card"
-            >
+            <Button asChild variant="outline" className="h-11 border-line bg-paper-card">
               <Link href="/trips">سفرهای من</Link>
             </Button>
           </div>
@@ -178,11 +166,7 @@ export default function CheckoutSuccessPage({
               <Lock className="size-4" />
               ورود / ثبت‌نام سریع
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-11 border-line bg-paper-card"
-            >
+            <Button asChild variant="outline" className="h-11 border-line bg-paper-card">
               <Link href="/">صفحه اصلی</Link>
             </Button>
           </div>
@@ -208,11 +192,7 @@ export default function CheckoutSuccessPage({
               <RotateCcw className="size-4" />
               تلاش مجدد
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-11 border-line bg-paper-card"
-            >
+            <Button asChild variant="outline" className="h-11 border-line bg-paper-card">
               <Link href="/trips">سفرهای من</Link>
             </Button>
             <Button asChild variant="ghost" className="h-11">
@@ -224,22 +204,16 @@ export default function CheckoutSuccessPage({
     )
   }
 
-  const isPaid =
-    reservation.status === "confirmed" || reservation.status === "completed"
+  const isPaid = reservation.status === "confirmed" || reservation.status === "completed"
   const accommodationTitle =
     accommodation?.title ||
     reservation.accommodation_title ||
     `اقامتگاه کد ${toPersianDigits(reservation.accommodation_id)}`
-  const location = [
-    accommodation?.city?.province?.name,
-    accommodation?.city?.name,
-  ]
+  const location = [accommodation?.city?.province?.name, accommodation?.city?.name]
     .filter(Boolean)
     .join("، ")
   const trackingCode =
-    payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code)
-      ? payment.tracking_code
-      : null
+    payment?.tracking_code && !/^[0۰]+$/.test(payment.tracking_code) ? payment.tracking_code : null
   const paidAmount = payment?.amount ?? reservation.total_price
   const reservationCode = getReservationCode(reservation.id)
   const statusLabel = STATUS_LABELS[reservation.status]
@@ -278,11 +252,7 @@ export default function CheckoutSuccessPage({
               <RotateCcw className="size-4" />
               بررسی مجدد
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-11 gap-2 border-line bg-paper-card"
-            >
+            <Button asChild variant="outline" className="h-11 gap-2 border-line bg-paper-card">
               <Link href={`/trips/${reservation.id}`}>
                 <ArrowLeft className="size-4" />
                 جزئیات سفر
@@ -319,11 +289,7 @@ export default function CheckoutSuccessPage({
             </Link>
           </Button>
           {payment ? (
-            <Button
-              asChild
-              variant="outline"
-              className="h-11 gap-2 border-line bg-paper-card"
-            >
+            <Button asChild variant="outline" className="h-11 gap-2 border-line bg-paper-card">
               <Link href={`/invoice/${reservation.id}`}>
                 <FileText className="size-4" />
                 فاکتور رسمی
@@ -340,11 +306,7 @@ export default function CheckoutSuccessPage({
               فاکتور رسمی
             </Button>
           )}
-          <Button
-            asChild
-            variant="outline"
-            className="h-11 gap-2 border-line bg-paper-card"
-          >
+          <Button asChild variant="outline" className="h-11 gap-2 border-line bg-paper-card">
             <Link href={`/accommodations/${reservation.accommodation_id}`}>
               <Building2 className="size-4" />
               مشاهده اقامتگاه
@@ -369,7 +331,7 @@ export default function CheckoutSuccessPage({
             <p
               className={cn(
                 "mt-1 text-xl font-black tabular-nums",
-                payment ? "text-trust" : "text-ink"
+                payment ? "text-trust" : "text-ink",
               )}
             >
               {formatFaPrice(paidAmount)}
@@ -377,9 +339,7 @@ export default function CheckoutSuccessPage({
             </p>
           </div>
           <div className="p-4">
-            <p className="text-[11px] font-semibold text-ink-soft">
-              کد پیگیری پرداخت
-            </p>
+            <p className="text-[11px] font-semibold text-ink-soft">کد پیگیری پرداخت</p>
             <p className="mt-1 text-sm font-black tabular-nums text-ink">
               {payment ? (
                 trackingCode ? (
@@ -400,9 +360,8 @@ export default function CheckoutSuccessPage({
           <Info className="size-4" />
           <AlertTitle>فاکتور رسمی هنوز آماده نیست</AlertTitle>
           <AlertDescription className="mt-1 leading-6 text-ink-soft">
-            پرداخت موفق این رزرو در سوابق پیدا نشد؛ به همین دلیل فاکتور رسمی
-            غیرفعال است. اگر مبلغی از حساب شما کسر شده، لطفا با پشتیبانی آشیانک
-            تماس بگیرید.
+            پرداخت موفق این رزرو در سوابق پیدا نشد؛ به همین دلیل فاکتور رسمی غیرفعال است. اگر مبلغی
+            از حساب شما کسر شده، لطفا با پشتیبانی آشیانک تماس بگیرید.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -427,9 +386,7 @@ function StayDetails({
         </span>
         <div className="min-w-0 space-y-0.5">
           <p className="text-[11px] font-semibold text-ink-soft">اقامتگاه</p>
-          <p className="truncate text-sm font-black text-ink">
-            {accommodationTitle}
-          </p>
+          <p className="truncate text-sm font-black text-ink">{accommodationTitle}</p>
           {location ? (
             <p className="flex items-center gap-1 text-[11px] text-ink-soft">
               <MapPin className="size-3.5 shrink-0" />
@@ -447,36 +404,28 @@ function StayDetails({
             <CalendarDays className="size-3.5" />
             ورود
           </dt>
-          <dd className="font-bold text-ink">
-            {formatPersianDate(reservation.check_in)}
-          </dd>
+          <dd className="font-bold text-ink">{formatPersianDate(reservation.check_in)}</dd>
         </div>
         <div className="space-y-1">
           <dt className="flex items-center gap-1 text-[11px] text-ink-soft">
             <CalendarDays className="size-3.5" />
             خروج
           </dt>
-          <dd className="font-bold text-ink">
-            {formatPersianDate(reservation.check_out)}
-          </dd>
+          <dd className="font-bold text-ink">{formatPersianDate(reservation.check_out)}</dd>
         </div>
         <div className="space-y-1">
           <dt className="flex items-center gap-1 text-[11px] text-ink-soft">
             <Moon className="size-3.5" />
             مدت اقامت
           </dt>
-          <dd className="font-bold text-ink">
-            {toPersianDigits(reservation.total_nights)} شب
-          </dd>
+          <dd className="font-bold text-ink">{toPersianDigits(reservation.total_nights)} شب</dd>
         </div>
         <div className="space-y-1">
           <dt className="flex items-center gap-1 text-[11px] text-ink-soft">
             <Users className="size-3.5" />
             مهمانان
           </dt>
-          <dd className="font-bold text-ink">
-            {toPersianDigits(reservation.guests_count)} نفر
-          </dd>
+          <dd className="font-bold text-ink">{toPersianDigits(reservation.guests_count)} نفر</dd>
         </div>
       </dl>
     </Card>

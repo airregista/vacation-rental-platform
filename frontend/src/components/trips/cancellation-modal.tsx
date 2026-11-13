@@ -46,7 +46,7 @@ export interface CancellationModalProps {
   onCancelled: (
     reservationId: number,
     refundAmount?: number | string,
-    penaltyAmount?: number | string
+    penaltyAmount?: number | string,
   ) => void
 }
 
@@ -56,8 +56,7 @@ const REFUND_TIMELINE_NOTE =
 const NETWORK_ERROR =
   "خطا در برقراری ارتباط با سامانه. لطفاً اتصال اینترنت خود را بررسی و دوباره تلاش کنید."
 
-const PREVIEW_FALLBACK =
-  "امکان دریافت شرایط لغو این رزرو وجود ندارد. لطفاً دوباره تلاش کنید."
+const PREVIEW_FALLBACK = "امکان دریافت شرایط لغو این رزرو وجود ندارد. لطفاً دوباره تلاش کنید."
 
 const SUBMIT_FALLBACK = "لغو رزرو انجام نشد. لطفاً دوباره تلاش کنید."
 
@@ -71,10 +70,7 @@ function formatHoursToCheckin(value: number | null | undefined): string {
 
 function getAccommodationTitle(trip: TripReservationItem | null): string {
   if (!trip) return ""
-  return (
-    trip.accommodation_title?.trim() ||
-    `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
-  )
+  return trip.accommodation_title?.trim() || `اقامتگاه کد ${toPersianDigits(trip.accommodation_id)}`
 }
 
 /**
@@ -84,20 +80,10 @@ function getAccommodationTitle(trip: TripReservationItem | null): string {
  * refresh until the guest acknowledges it.
  */
 export function CancellationModal(props: CancellationModalProps) {
-  return (
-    <CancellationModalContent
-      key={props.trip?.id ?? "none"}
-      {...props}
-    />
-  )
+  return <CancellationModalContent key={props.trip?.id ?? "none"} {...props} />
 }
 
-function CancellationModalContent({
-  trip,
-  isOpen,
-  onClose,
-  onCancelled,
-}: CancellationModalProps) {
+function CancellationModalContent({ trip, isOpen, onClose, onCancelled }: CancellationModalProps) {
   const [preview, setPreview] = useState<CancellationPreviewData | null>(null)
   const [result, setResult] = useState<CancellationResponseData | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -140,13 +126,9 @@ function CancellationModalContent({
     (reservationId: number, response: CancellationResponseData) => {
       if (notifiedReservationIdRef.current === reservationId) return
       notifiedReservationIdRef.current = reservationId
-      onCancelledRef.current(
-        reservationId,
-        response.refund_amount,
-        response.penalty_amount
-      )
+      onCancelledRef.current(reservationId, response.refund_amount, response.penalty_amount)
     },
-    []
+    [],
   )
 
   const tripId = trip?.id ?? null
@@ -167,9 +149,7 @@ function CancellationModalContent({
       .catch((err: unknown) => {
         if (!isCurrent || requestId !== previewRequestIdRef.current) return
         if (err instanceof ApiError) {
-          setPreviewError(
-            mapCancellationReason(err.detail || err.message, PREVIEW_FALLBACK)
-          )
+          setPreviewError(mapCancellationReason(err.detail || err.message, PREVIEW_FALLBACK))
         } else {
           setPreviewError(NETWORK_ERROR)
         }
@@ -238,16 +218,12 @@ function CancellationModalContent({
     try {
       const response = await apiClient.post<CancellationResponseData>(
         `/reservations/${reservationId}/cancel`,
-        { reason: reason.trim() || undefined }
+        { reason: reason.trim() || undefined },
       )
 
       // Closed (or moved to another reservation) while the request was in
       // flight: deliver the parent update immediately, show no receipt.
-      if (
-        !isMountedRef.current ||
-        !isOpenRef.current ||
-        session !== sessionRef.current
-      ) {
+      if (!isMountedRef.current || !isOpenRef.current || session !== sessionRef.current) {
         notifyCancelled(reservationId, response)
         return
       }
@@ -258,9 +234,7 @@ function CancellationModalContent({
       if (!isOpenRef.current || session !== sessionRef.current) return
 
       if (err instanceof ApiError) {
-        setSubmitError(
-          mapCancellationReason(err.detail || err.message, SUBMIT_FALLBACK)
-        )
+        setSubmitError(mapCancellationReason(err.detail || err.message, SUBMIT_FALLBACK))
       } else {
         setSubmitError(NETWORK_ERROR)
       }
@@ -281,15 +255,12 @@ function CancellationModalContent({
   const previewTotal = Number(preview?.total_price)
   const previewPenalty = Number(preview?.penalty_amount)
   const penaltyShare =
-    Number.isFinite(previewTotal) &&
-    previewTotal > 0 &&
-    Number.isFinite(previewPenalty)
+    Number.isFinite(previewTotal) && previewTotal > 0 && Number.isFinite(previewPenalty)
       ? Math.min(100, Math.max(0, Math.round((previewPenalty / previewTotal) * 100)))
       : null
 
   const accommodationTitle = getAccommodationTitle(trip)
-  const isLoadingPreview =
-    isOpen && !preview && !previewError && !result
+  const isLoadingPreview = isOpen && !preview && !previewError && !result
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -315,9 +286,7 @@ function CancellationModalContent({
             <span>{result ? "نتیجه لغو رزرو" : "درخواست لغو رزرو و استرداد وجه"}</span>
           </DialogTitle>
           <DialogDescription className="text-sm leading-6 text-ink-soft">
-            {result
-              ? "رسید لغو رزرو و جزئیات استرداد وجه"
-              : accommodationTitle}
+            {result ? "رسید لغو رزرو و جزئیات استرداد وجه" : accommodationTitle}
           </DialogDescription>
         </DialogHeader>
 
@@ -326,9 +295,7 @@ function CancellationModalContent({
           <Alert variant="destructive">
             <AlertCircle className="size-4" aria-hidden="true" />
             <AlertTitle>امکان دریافت شرایط لغو</AlertTitle>
-            <AlertDescription className="text-xs leading-6">
-              {previewError}
-            </AlertDescription>
+            <AlertDescription className="text-xs leading-6">{previewError}</AlertDescription>
           </Alert>
         )}
 
@@ -337,9 +304,7 @@ function CancellationModalContent({
           <Alert variant="destructive">
             <AlertCircle className="size-4" aria-hidden="true" />
             <AlertTitle>لغو رزرو انجام نشد</AlertTitle>
-            <AlertDescription className="text-xs leading-6">
-              {submitError}
-            </AlertDescription>
+            <AlertDescription className="text-xs leading-6">{submitError}</AlertDescription>
           </Alert>
         )}
 
@@ -359,9 +324,7 @@ function CancellationModalContent({
                 <CheckCircle2 className="size-8" aria-hidden="true" />
               </span>
               <div className="space-y-1.5">
-                <h3 className="text-xl font-black text-ink">
-                  رزرو شما با موفقیت لغو شد
-                </h3>
+                <h3 className="text-xl font-black text-ink">رزرو شما با موفقیت لغو شد</h3>
                 <p className="text-xs leading-6 text-ink-soft">
                   لغو رزرو ثبت شد و جزئیات استرداد وجه در ادامه آمده است.
                 </p>
@@ -377,9 +340,7 @@ function CancellationModalContent({
               </div>
               <div className="space-y-1">
                 <dt className="text-ink-soft">اقامتگاه</dt>
-                <dd className="font-semibold leading-6 text-ink">
-                  {accommodationTitle}
-                </dd>
+                <dd className="font-semibold leading-6 text-ink">{accommodationTitle}</dd>
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <dt className="text-ink-soft">سیاست لغو</dt>
@@ -392,13 +353,10 @@ function CancellationModalContent({
                       {policyLabel}
                     </Badge>
                     <span className="text-[11px] tabular-nums text-ink-soft">
-                      {formatHoursToCheckin(result.hours_to_checkin)} تا موعد
-                      تحویل در زمان لغو
+                      {formatHoursToCheckin(result.hours_to_checkin)} تا موعد تحویل در زمان لغو
                     </span>
                   </div>
-                  <p className="text-[11px] leading-6 text-ink-soft">
-                    {policyDescription}
-                  </p>
+                  <p className="text-[11px] leading-6 text-ink-soft">{policyDescription}</p>
                 </dd>
               </div>
             </dl>
@@ -442,9 +400,7 @@ function CancellationModalContent({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <HelpCircle className="size-4 shrink-0 text-brick" aria-hidden="true" />
-                  <span className="text-xs font-semibold text-ink">
-                    سیاست لغو اقامتگاه
-                  </span>
+                  <span className="text-xs font-semibold text-ink">سیاست لغو اقامتگاه</span>
                   <Badge
                     variant="outline"
                     className="border-brick/30 bg-brick/5 font-semibold text-brick"
@@ -461,9 +417,7 @@ function CancellationModalContent({
                 </div>
               </div>
 
-              <p className="text-[11px] leading-6 text-ink-soft">
-                {policyDescription}
-              </p>
+              <p className="text-[11px] leading-6 text-ink-soft">{policyDescription}</p>
             </div>
 
             <div className="space-y-3 rounded-xl border border-line/80 bg-paper-card p-4">
@@ -525,11 +479,7 @@ function CancellationModalContent({
 
         <DialogFooter className="gap-2 pt-2 sm:gap-0">
           {result ? (
-            <Button
-              type="button"
-              onClick={handleAcknowledge}
-              className="w-full gap-2"
-            >
+            <Button type="button" onClick={handleAcknowledge} className="w-full gap-2">
               <CheckCircle2 className="size-4" aria-hidden="true" />
               <span>متوجه شدم</span>
             </Button>
@@ -543,11 +493,7 @@ function CancellationModalContent({
               >
                 بستن
               </Button>
-              <Button
-                type="button"
-                onClick={handleRetryPreview}
-                className="gap-2"
-              >
+              <Button type="button" onClick={handleRetryPreview} className="gap-2">
                 <RefreshCw className="size-4" aria-hidden="true" />
                 <span>تلاش مجدد</span>
               </Button>

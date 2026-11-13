@@ -25,5 +25,9 @@ function subscribeMounted() {
 
 /** True on the client after hydration; false during SSR and the first render. */
 export function useIsMounted(): boolean {
-  return React.useSyncExternalStore(subscribeMounted, () => true, () => false)
+  return React.useSyncExternalStore(
+    subscribeMounted,
+    () => true,
+    () => false,
+  )
 }

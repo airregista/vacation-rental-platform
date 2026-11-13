@@ -7,10 +7,7 @@ import { useAuth } from "@/context/auth-context"
 import { fetchAllPages } from "@/lib/pagination"
 import { buildAccommodationQuery, parseAccommodationQuery } from "@/lib/search-utils"
 import { toPersianDigits, formatFaNumber } from "@/lib/format-fa"
-import type {
-  AccommodationListItem,
-  AccommodationSearchParams,
-} from "@/types/accommodation"
+import type { AccommodationListItem, AccommodationSearchParams } from "@/types/accommodation"
 import { SearchPill } from "@/components/explore/search-pill"
 import { CategoryBar } from "@/components/explore/category-bar"
 import { FilterDialog } from "@/components/explore/filter-dialog"
@@ -27,7 +24,7 @@ function SearchContent() {
   const { token, openOtpModal } = useAuth()
 
   const [searchParams, setSearchParams] = React.useState<AccommodationSearchParams>(() =>
-    parseAccommodationQuery(searchParamsHook)
+    parseAccommodationQuery(searchParamsHook),
   )
   const [searchKey, setSearchKey] = React.useState<number>(0)
   const [accommodations, setAccommodations] = React.useState<AccommodationListItem[]>([])
@@ -49,7 +46,7 @@ function SearchContent() {
           window.history.replaceState(
             null,
             "",
-            canonicalQuery ? `/search${canonicalQuery}` : "/search"
+            canonicalQuery ? `/search${canonicalQuery}` : "/search",
           )
         }
       }
@@ -57,17 +54,13 @@ function SearchContent() {
     }
     const queryString = buildAccommodationQuery(searchParams)
     if (typeof window !== "undefined") {
-      window.history.replaceState(
-        null,
-        "",
-        queryString ? `/search${queryString}` : "/search"
-      )
+      window.history.replaceState(null, "", queryString ? `/search${queryString}` : "/search")
     }
   }, [searchParams])
 
   const activeWishlistIds = React.useMemo(
     () => (token ? wishlistIds : new Set<number>()),
-    [token, wishlistIds]
+    [token, wishlistIds],
   )
 
   const wishlistSeqRef = React.useRef(0)
@@ -130,7 +123,7 @@ function SearchContent() {
         console.error("Error fetching accommodations:", err)
         if (isLatest()) {
           setFetchError(
-            "خطا در بارگذاری اقامتگاه‌ها. لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش کنید."
+            "خطا در بارگذاری اقامتگاه‌ها. لطفاً اتصال اینترنت را بررسی کرده و مجدداً تلاش کنید.",
           )
           setIsLoading(false)
         }
@@ -198,7 +191,7 @@ function SearchContent() {
 
     try {
       const res = await apiClient.post<{ accommodation_id: number; is_favorite: boolean }>(
-        `/wishlists/${id}/toggle`
+        `/wishlists/${id}/toggle`,
       )
       if (res && typeof res.is_favorite === "boolean") {
         setWishlistIds((prev) => {
@@ -249,7 +242,11 @@ function SearchContent() {
         onApplyFilters={handleApplyFilters}
       />
 
-      <section aria-label="محتوای اقامتگاه‌ها" id="results" className="flex-1 py-6 sm:py-8 scroll-mt-24">
+      <section
+        aria-label="محتوای اقامتگاه‌ها"
+        id="results"
+        className="flex-1 py-6 sm:py-8 scroll-mt-24"
+      >
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -296,7 +293,10 @@ function SearchContent() {
           )}
 
           {!isLoading && !fetchError && accommodations.length > 0 ? (
-            <nav aria-label="صفحه‌بندی نتایج" className="mt-8 flex items-center justify-center gap-3">
+            <nav
+              aria-label="صفحه‌بندی نتایج"
+              className="mt-8 flex items-center justify-center gap-3"
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -307,7 +307,9 @@ function SearchContent() {
                 قبلی
               </Button>
               {currentPage > 0 ? (
-                <span className="text-xs text-ink-soft">صفحهٔ {toPersianDigits(currentPage + 1)}</span>
+                <span className="text-xs text-ink-soft">
+                  صفحهٔ {toPersianDigits(currentPage + 1)}
+                </span>
               ) : null}
               <Button
                 type="button"

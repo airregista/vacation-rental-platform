@@ -7,7 +7,9 @@ export function toPersianDigits(n: number | string): string {
 /** Normalise a bare date/timestamp to a UTC-parsable ISO string. */
 function toUtcIso(dateStr: string): string {
   return dateStr.includes("T")
-    ? (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr) ? dateStr : `${dateStr}Z`)
+    ? dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr)
+      ? dateStr
+      : `${dateStr}Z`
     : `${dateStr}T00:00:00Z`
 }
 

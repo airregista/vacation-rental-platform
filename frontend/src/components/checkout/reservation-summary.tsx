@@ -7,10 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { formatPersianDate } from "@/lib/format-fa"
-import {
-  type ReservationDetail,
-  type CheckoutAccommodationInfo,
-} from "@/types/checkout"
+import { type ReservationDetail, type CheckoutAccommodationInfo } from "@/types/checkout"
 import { computeCheckoutBreakdown, formatFaPrice } from "@/lib/checkout-format"
 
 export interface ReservationSummaryProps {

@@ -3,15 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import {
-  AlertCircle,
-  Building2,
-  CreditCard,
-  Info,
-  Lock,
-  RotateCcw,
-  XCircle,
-} from "lucide-react"
+import { AlertCircle, Building2, CreditCard, Info, Lock, RotateCcw, XCircle } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
@@ -26,10 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatFaPrice } from "@/lib/checkout-format"
-import type {
-  CheckoutAccommodationInfo,
-  ReservationDetail,
-} from "@/types/checkout"
+import type { CheckoutAccommodationInfo, ReservationDetail } from "@/types/checkout"
 
 const GENERIC_FAILURE_REASON =
   "پرداخت شما انجام نشد. اگر مبلغی از حساب شما کسر شده باشد، حداکثر ظرف ۷۲ ساعت به حساب شما بازگردانده می‌شود."
@@ -58,11 +47,7 @@ function getPersianFailureReason(raw: string | null): string {
 
   const lower = value.toLowerCase()
 
-  if (
-    lower.includes("expire") ||
-    lower.includes("timeout") ||
-    lower.includes("ttl")
-  ) {
+  if (lower.includes("expire") || lower.includes("timeout") || lower.includes("ttl")) {
     return "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است و تاریخ‌های انتخابی آزاد شدند."
   }
   if (
@@ -96,9 +81,7 @@ interface CheckoutFailedPageProps {
   params: Promise<{ id: string }>
 }
 
-export default function CheckoutFailedPage({
-  params,
-}: CheckoutFailedPageProps) {
+export default function CheckoutFailedPage({ params }: CheckoutFailedPageProps) {
   const resolvedParams = React.use(params)
   const reservationId = Number(resolvedParams.id)
 
@@ -116,10 +99,8 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
   const isValidId = Number.isInteger(reservationId) && reservationId > 0
   const { isAuthenticated, isLoading: isAuthLoading, openOtpModal } = useAuth()
 
-  const [reservation, setReservation] =
-    React.useState<ReservationDetail | null>(null)
-  const [accommodation, setAccommodation] =
-    React.useState<CheckoutAccommodationInfo | null>(null)
+  const [reservation, setReservation] = React.useState<ReservationDetail | null>(null)
+  const [accommodation, setAccommodation] = React.useState<CheckoutAccommodationInfo | null>(null)
   const [isLoading, setIsLoading] = React.useState(isValidId)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [reloadTrigger, setReloadTrigger] = React.useState(0)
@@ -136,9 +117,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
       setAccommodation(null)
 
       try {
-        const data = await apiClient.get<ReservationDetail>(
-          `/reservations/${reservationId}`
-        )
+        const data = await apiClient.get<ReservationDetail>(`/reservations/${reservationId}`)
         if (isCancelled) return
         setReservation(data)
 
@@ -146,7 +125,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
         // failure screen itself.
         try {
           const stay = await apiClient.get<CheckoutAccommodationInfo>(
-            `/accommodations/${data.accommodation_id}`
+            `/accommodations/${data.accommodation_id}`,
           )
           if (!isCancelled) setAccommodation(stay)
         } catch {
@@ -161,9 +140,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
           } else if (err.status === 403) {
             setFetchError("شما دسترسی مشاهده این رزرو را ندارید.")
           } else if (err.status === 401) {
-            setFetchError(
-              "نشست شما منقضی شده است. لطفا دوباره وارد شوید."
-            )
+            setFetchError("نشست شما منقضی شده است. لطفا دوباره وارد شوید.")
           } else {
             setFetchError("خطا در دریافت اطلاعات رزرو. لطفا دوباره تلاش کنید.")
           }
@@ -201,9 +178,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
       reservation.accommodation_title ||
       `اقامتگاه کد ${toPersianDigits(reservation.accommodation_id)}`
     : null
-  const reservationCode = reservation
-    ? getReservationCode(reservation.id)
-    : undefined
+  const reservationCode = reservation ? getReservationCode(reservation.id) : undefined
   const statusLabel = reservation ? STATUS_LABELS[reservation.status] : null
 
   let primaryAction: React.ReactNode = null
@@ -252,11 +227,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
       actions={
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
           {primaryAction}
-          <Button
-            asChild
-            variant="outline"
-            className="h-11 border-line bg-paper-card"
-          >
+          <Button asChild variant="outline" className="h-11 border-line bg-paper-card">
             <Link href="/trips">سفرهای من</Link>
           </Button>
           <Button asChild variant="ghost" className="h-11">
@@ -270,9 +241,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertTitle>شناسه رزرو نامعتبر است</AlertTitle>
-          <AlertDescription className="mt-1">
-            شناسه ارسال‌شده برای رزرو صحیح نیست.
-          </AlertDescription>
+          <AlertDescription className="mt-1">شناسه ارسال‌شده برای رزرو صحیح نیست.</AlertDescription>
         </Alert>
       ) : null}
 
@@ -292,9 +261,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
             </span>
             <div className="min-w-0 space-y-0.5">
               <p className="text-[11px] font-semibold text-ink-soft">اقامتگاه</p>
-              <p className="truncate text-sm font-black text-ink">
-                {accommodationTitle}
-              </p>
+              <p className="truncate text-sm font-black text-ink">{accommodationTitle}</p>
             </div>
           </div>
 
@@ -305,9 +272,7 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
               <dt className="text-[11px] text-ink-soft">مبلغ رزرو</dt>
               <dd className="text-base font-black tabular-nums text-brick">
                 {formatFaPrice(reservation.total_price)}
-                <span className="ms-1 text-xs font-bold text-ink-soft">
-                  تومان
-                </span>
+                <span className="ms-1 text-xs font-bold text-ink-soft">تومان</span>
               </dd>
             </div>
             <div className="space-y-1">
@@ -322,9 +287,8 @@ function FailedPaymentResult({ reservationId }: { reservationId: number }) {
         <Info className="size-4" />
         <AlertTitle>بازگشت وجه در صورت کسر</AlertTitle>
         <AlertDescription className="mt-1 leading-6 text-ink-soft">
-          اگر مبلغی از حساب شما کسر شده باشد، حداکثر ظرف ۷۲ ساعت به‌صورت خودکار
-          به حساب شما بازگردانده می‌شود. برای پیگیری بیشتر با پشتیبانی آشیانک
-          تماس بگیرید.
+          اگر مبلغی از حساب شما کسر شده باشد، حداکثر ظرف ۷۲ ساعت به‌صورت خودکار به حساب شما
+          بازگردانده می‌شود. برای پیگیری بیشتر با پشتیبانی آشیانک تماس بگیرید.
         </AlertDescription>
       </Alert>
     </PaymentResultView>

@@ -3,15 +3,7 @@
 import * as React from "react"
 import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
-import {
-  CalendarDays,
-  Compass,
-  History,
-  LogIn,
-  Luggage,
-  RefreshCw,
-  XCircle,
-} from "lucide-react"
+import { CalendarDays, Compass, History, LogIn, Luggage, RefreshCw, XCircle } from "lucide-react"
 
 import { useAuth } from "@/context/auth-context"
 import { ApiError } from "@/lib/api-client"
@@ -62,9 +54,7 @@ export default function TripsPage() {
         if (isMounted) {
           setIsLoadingTrips(false)
           if (err instanceof ApiError) {
-            setFetchError(
-              err.detail || err.message || "خطا در بارگذاری لیست سفرها."
-            )
+            setFetchError(err.detail || err.message || "خطا در بارگذاری لیست سفرها.")
           } else {
             setFetchError("خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش فرمایید.")
           }
@@ -79,23 +69,17 @@ export default function TripsPage() {
   // Category partition
   const upcomingTrips = useMemo(
     () => trips.filter((t) => t.status === "confirmed" || t.status === "pending"),
-    [trips]
+    [trips],
   )
 
-  const completedTrips = useMemo(
-    () => trips.filter((t) => t.status === "completed"),
-    [trips]
-  )
+  const completedTrips = useMemo(() => trips.filter((t) => t.status === "completed"), [trips])
 
-  const cancelledTrips = useMemo(
-    () => trips.filter((t) => t.status === "cancelled"),
-    [trips]
-  )
+  const cancelledTrips = useMemo(() => trips.filter((t) => t.status === "cancelled"), [trips])
 
   const handleCancelled = (
     id: number,
     refundAmount?: number | string,
-    penaltyAmount?: number | string
+    penaltyAmount?: number | string,
   ) => {
     setTrips((prev) =>
       prev.map((t) =>
@@ -107,8 +91,8 @@ export default function TripsPage() {
               penalty_amount: penaltyAmount ?? t.penalty_amount,
               cancelled_at: new Date().toISOString(),
             }
-          : t
-      )
+          : t,
+      ),
     )
   }
 
@@ -409,11 +393,7 @@ export default function TripsPage() {
       />
 
       {/* Chat Drawer */}
-      <ChatDrawer
-        trip={chatTrip}
-        isOpen={!!chatTrip}
-        onClose={() => setChatTrip(null)}
-      />
+      <ChatDrawer trip={chatTrip} isOpen={!!chatTrip} onClose={() => setChatTrip(null)} />
     </div>
   )
 }
@@ -422,10 +402,7 @@ function LoadingCardsSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="space-y-4 rounded-2xl border border-line/80 bg-paper-card p-5"
-        >
+        <div key={i} className="space-y-4 rounded-2xl border border-line/80 bg-paper-card p-5">
           <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-24 rounded-full" />
             <Skeleton className="h-4 w-32" />

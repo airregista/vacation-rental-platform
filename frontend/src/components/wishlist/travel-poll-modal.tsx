@@ -4,15 +4,7 @@ import * as React from "react"
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useIsMobile, useIsMounted } from "@/lib/use-responsive"
-import {
-  Users,
-  CheckCircle2,
-  Calendar,
-  Sparkles,
-  Plus,
-  Zap,
-  Trash2,
-} from "lucide-react"
+import { Users, CheckCircle2, Calendar, Sparkles, Plus, Zap, Trash2 } from "lucide-react"
 import type { DatePollOption } from "@/types/wishlist"
 import {
   COMPANIONS_STORAGE_KEY,
@@ -102,7 +94,7 @@ export function TravelPollModal({
 
   // Seeds whose check-in has passed are never offered.
   const [options, setOptions] = useState<DatePollOption[]>(() =>
-    INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in))
+    INITIAL_POLL_OPTIONS.filter((opt) => isFutureCheckIn(opt.check_in)),
   )
   const [companions, setCompanions] = useState<PollCompanion[]>([])
   const [isProposing, setIsProposing] = useState(false)
@@ -117,10 +109,7 @@ export function TravelPollModal({
 
       setOptions(loadedOptions)
       setCompanions(loadedCompanions)
-      writeStorage(
-        STORAGE_KEY,
-        serializeOptions(loadedOptions, loadedCompanions)
-      )
+      writeStorage(STORAGE_KEY, serializeOptions(loadedOptions, loadedCompanions))
       writeStorage(COMPANIONS_STORAGE_KEY, loadedCompanions)
     }, 0)
 
@@ -129,7 +118,7 @@ export function TravelPollModal({
 
   const saveOptions = (
     nextOptions: DatePollOption[],
-    nextCompanions: PollCompanion[] = companions
+    nextCompanions: PollCompanion[] = companions,
   ) => {
     setOptions(nextOptions)
     writeStorage(STORAGE_KEY, serializeOptions(nextOptions, nextCompanions))
@@ -137,7 +126,7 @@ export function TravelPollModal({
 
   const saveCompanions = (
     nextCompanions: PollCompanion[],
-    nextOptions: DatePollOption[] = options
+    nextOptions: DatePollOption[] = options,
   ) => {
     setCompanions(nextCompanions)
     writeStorage(COMPANIONS_STORAGE_KEY, nextCompanions)
@@ -151,10 +140,7 @@ export function TravelPollModal({
       counts[option.id] = option.voted ? 1 : 0
     }
     for (const companion of companions) {
-      if (
-        companion.optionId !== null &&
-        counts[companion.optionId] !== undefined
-      ) {
+      if (companion.optionId !== null && counts[companion.optionId] !== undefined) {
         counts[companion.optionId] += 1
       }
     }
@@ -174,13 +160,11 @@ export function TravelPollModal({
 
   const totalVotes = useMemo(
     () => Object.values(voteCounts).reduce((sum, count) => sum + count, 0),
-    [voteCounts]
+    [voteCounts],
   )
 
   const sortedOptions = useMemo(() => {
-    return [...options].sort(
-      (a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0)
-    )
+    return [...options].sort((a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0))
   }, [options, voteCounts])
 
   const topOption = sortedOptions[0]
@@ -220,8 +204,7 @@ export function TravelPollModal({
     }
     if (
       companions.some(
-        (companion) =>
-          companion.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+        (companion) => companion.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
       )
     ) {
       return "این نام قبلاً در فهرست همراهان وجود دارد."
@@ -232,7 +215,7 @@ export function TravelPollModal({
       {
         id: uniqueId(
           "comp",
-          companions.map((companion) => companion.id)
+          companions.map((companion) => companion.id),
         ),
         name,
         optionId: null,
@@ -242,28 +225,21 @@ export function TravelPollModal({
   }
 
   const handleRemoveCompanion = (companionId: string) => {
-    saveCompanions(
-      companions.filter((companion) => companion.id !== companionId)
-    )
+    saveCompanions(companions.filter((companion) => companion.id !== companionId))
   }
 
-  const handleAssignCompanionVote = (
-    companionId: string,
-    optionId: string | null
-  ) => {
+  const handleAssignCompanionVote = (companionId: string, optionId: string | null) => {
     saveCompanions(
       companions.map((companion) =>
-        companion.id === companionId ? { ...companion, optionId } : companion
-      )
+        companion.id === companionId ? { ...companion, optionId } : companion,
+      ),
     )
   }
 
   const handleRemoveOption = (optionId: string) => {
     const nextOptions = options.filter((option) => option.id !== optionId)
     const nextCompanions = companions.map((companion) =>
-      companion.optionId === optionId
-        ? { ...companion, optionId: null }
-        : companion
+      companion.optionId === optionId ? { ...companion, optionId: null } : companion,
     )
     setOptions(nextOptions)
     saveCompanions(nextCompanions, nextOptions)
@@ -282,14 +258,13 @@ export function TravelPollModal({
       return
 
     const nights = Math.round(
-      (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) /
-        86400000
+      (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) / 86400000,
     )
 
     const newOption: DatePollOption = {
       id: uniqueId(
         "opt",
-        options.map((option) => option.id)
+        options.map((option) => option.id),
       ),
       title: trimmed,
       date_range: `${newCheckIn} تا ${newCheckOut}`,
@@ -348,17 +323,15 @@ export function TravelPollModal({
         </div>
         <div className="text-xs font-medium text-ink-soft">
           <span>مجموع آرا: </span>
-          <span className="font-bold tabular-nums text-ink">
-            {formatPersianNumber(totalVotes)}
-          </span>
+          <span className="font-bold tabular-nums text-ink">{formatPersianNumber(totalVotes)}</span>
           <span> رای</span>
         </div>
       </div>
 
       <p className="flex items-start gap-1.5 text-[11px] leading-5 text-ink-soft">
         <Users className="mt-0.5 size-3.5 shrink-0 text-brick" />
-        رأی شما و همراهانتان روی این دستگاه ذخیره می‌شود؛ این نظرسنجی بین چند
-        دستگاه همگام‌سازی نمی‌شود.
+        رأی شما و همراهانتان روی این دستگاه ذخیره می‌شود؛ این نظرسنجی بین چند دستگاه همگام‌سازی
+        نمی‌شود.
       </p>
 
       {/* Candidate date cards */}
@@ -395,9 +368,7 @@ export function TravelPollModal({
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div className="flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-black text-ink">
-                      {option.title}
-                    </span>
+                    <span className="text-base font-black text-ink">{option.title}</span>
 
                     {option.holiday_tag && (
                       <Badge
@@ -413,8 +384,7 @@ export function TravelPollModal({
                     )}
 
                     <span className="text-xs font-bold tabular-nums text-brick">
-                      {formatPersianNumber(consensusPercentage)}٪ توافق
-                      همسفران
+                      {formatPersianNumber(consensusPercentage)}٪ توافق همسفران
                     </span>
                   </div>
 
@@ -520,12 +490,7 @@ export function TravelPollModal({
             autoFocus
           />
           <div className="grid grid-cols-2 gap-2">
-            <JalaliDateField
-              boxed
-              label="تاریخ ورود"
-              value={newCheckIn}
-              onChange={setNewCheckIn}
-            />
+            <JalaliDateField boxed label="تاریخ ورود" value={newCheckIn} onChange={setNewCheckIn} />
             <JalaliDateField
               boxed
               label="تاریخ خروج"
@@ -605,8 +570,8 @@ export function TravelPollModal({
               نظرسنجی تاریخ سفر و هماهنگی همسفران
             </SheetTitle>
             <SheetDescription className="text-xs leading-6 text-ink-soft">
-              تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای
-              دهید تا بهترین بازه زمانی مشخص شود.
+              تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای دهید تا بهترین
+              بازه زمانی مشخص شود.
             </SheetDescription>
           </SheetHeader>
           {modalBody}
@@ -626,8 +591,8 @@ export function TravelPollModal({
             نظرسنجی تاریخ سفر و هماهنگی همسفران
           </DialogTitle>
           <DialogDescription className="text-xs leading-6 text-ink-soft">
-            تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای
-            دهید تا بهترین بازه زمانی مشخص شود.
+            تاریخ‌های پیشنهادی خود را انتخاب کرده یا به گزینه‌های دوستانتان رای دهید تا بهترین بازه
+            زمانی مشخص شود.
           </DialogDescription>
         </DialogHeader>
         {modalBody}

@@ -29,19 +29,18 @@ describe("formatPersianDate", () => {
     expect(out).toMatch(/۱۴۰۵/) // 2026-08-10 == 1405-05-19 Persian
   })
 
-  it("formats a UTC instant via the UTC branch (pre-plan-081 behavior)", () => {
-    // FIXME(P081): dateStr ending in Z is formatted in UTC, not Asia/Tehran.
-    // 2026-08-10T21:30:00Z is already 1395-08-19 01:00+03:30 in Tehran, so
-    // the UTC formatting pins the pre-081 behavior on purpose.
+  it("formats an instant in Asia/Tehran (plan-081 behavior)", () => {
+    // 2026-08-10T21:30:00Z is 1405-05-20 01:00+03:30 in Tehran — the Tehran
+    // branch must render the next Tehran day, not the UTC day (19).
     const out = formatPersianDate("2026-08-10T21:30:00Z")
     expect(out).toContain("مرداد")
-    expect(out).toMatch(/۱۹/) // day 19 in UTC
+    expect(out).toMatch(/۲۰/) // day 20 in Asia/Tehran
   })
 
   it("treats an offset-less datetime as UTC (Z suffix appended)", () => {
     const out = formatPersianDate("2026-08-10T21:30:00")
     expect(out).toContain("مرداد")
-    expect(out).toMatch(/۱۹/)
+    expect(out).toMatch(/۲۰/) // normalized to Z, then formatted in Tehran
   })
 
   it("falls back to the raw string on invalid input", () => {

@@ -27,17 +27,16 @@ const MAX_PAYMENT_PAGES = 10
  * The walk is capped at MAX_PAYMENT_PAGES to bound worst-case latency.
  */
 export async function findLatestSuccessfulPayment(
-  reservationId: number
+  reservationId: number,
 ): Promise<PaymentResponse | null> {
   let skip = 0
 
   for (let page = 0; page < MAX_PAYMENT_PAGES; page += 1) {
     const payments = await apiClient.get<PaymentResponse[]>(
-      `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`
+      `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`,
     )
     const found = payments.find(
-      (payment) =>
-        payment.reservation_id === reservationId && payment.status === "success"
+      (payment) => payment.reservation_id === reservationId && payment.status === "success",
     )
     if (found) return found
     if (payments.length < PAGE_SIZE) return null

@@ -50,10 +50,7 @@ export function describeCancellationPolicy(
  * Merges the trip cancellation modal's error table with the checkout
  * expired/cancelled banner's expiry and occupancy phrasings.
  */
-export function mapCancellationReason(
-  detail: string | null | undefined,
-  fallback: string
-): string {
+export function mapCancellationReason(detail: string | null | undefined, fallback: string): string {
   if (!detail) return fallback
   const lower = detail.toLowerCase()
   if (lower.includes("cannot be cancelled from status")) {
@@ -80,11 +77,7 @@ export function mapCancellationReason(
   if (lower.includes("ttl") || lower.includes("expire") || lower.includes("timeout")) {
     return "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است و تاریخ‌های انتخابی آزاد شدند."
   }
-  if (
-    lower.includes("concurrent") ||
-    lower.includes("conflict") ||
-    lower.includes("occupied")
-  ) {
+  if (lower.includes("concurrent") || lower.includes("conflict") || lower.includes("occupied")) {
     return "متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد."
   }
   return /[\u0600-\u06FF]/.test(detail) ? detail : fallback

@@ -105,5 +105,3 @@ export interface InvoiceModalProps {
   onClose: () => void
   data: InvoiceData
 }
-
-

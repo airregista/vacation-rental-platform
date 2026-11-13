@@ -121,13 +121,10 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
         let skip = 0
         for (;;) {
           const page = await apiClient.get<WishlistItemResponse[]>(
-            `/wishlists/?skip=${skip}&limit=${limit}`
+            `/wishlists/?skip=${skip}&limit=${limit}`,
           )
           const batch = Array.isArray(page) ? page : []
-          if (
-            isCurrent &&
-            batch.some((item) => item.accommodation_id === accommodationId)
-          ) {
+          if (isCurrent && batch.some((item) => item.accommodation_id === accommodationId)) {
             setIsWishlisted(true)
           }
           if (batch.length < limit) break
@@ -179,7 +176,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
 
     try {
       const res = await apiClient.post<WishlistToggleResponse>(
-        `/wishlists/${accommodationId}/toggle`
+        `/wishlists/${accommodationId}/toggle`,
       )
       if (res && typeof res.is_favorite === "boolean") {
         setIsWishlisted(res.is_favorite)

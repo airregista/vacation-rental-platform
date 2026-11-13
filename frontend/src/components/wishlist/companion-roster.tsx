@@ -68,23 +68,16 @@ export function CompanionRoster({
             همراهان روی این دستگاه
           </h4>
           <p className="text-[11px] leading-5 text-ink-soft">
-            با افزودن نام همراهان، می‌توانید رأی آن‌ها را هم به‌صورت نیابتی
-            روی همین دستگاه ثبت کنید.
+            با افزودن نام همراهان، می‌توانید رأی آن‌ها را هم به‌صورت نیابتی روی همین دستگاه ثبت
+            کنید.
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className="border-line bg-paper-deep/50 text-[11px] text-ink-soft"
-        >
-          {formatPersianNumber(companions.length)} از{" "}
-          {formatPersianNumber(MAX_COMPANIONS)} همراه
+        <Badge variant="outline" className="border-line bg-paper-deep/50 text-[11px] text-ink-soft">
+          {formatPersianNumber(companions.length)} از {formatPersianNumber(MAX_COMPANIONS)} همراه
         </Badge>
       </div>
 
-      <form
-        onSubmit={handleAddCompanion}
-        className="flex flex-col gap-2 sm:flex-row"
-      >
+      <form onSubmit={handleAddCompanion} className="flex flex-col gap-2 sm:flex-row">
         <Input
           value={newCompanionName}
           onChange={(e) => {
@@ -100,10 +93,7 @@ export function CompanionRoster({
         <Button
           type="submit"
           size="sm"
-          disabled={
-            !newCompanionName.trim() ||
-            companions.length >= MAX_COMPANIONS
-          }
+          disabled={!newCompanionName.trim() || companions.length >= MAX_COMPANIONS}
           className="shrink-0 gap-1.5"
         >
           <Plus className="size-4" />
@@ -111,9 +101,7 @@ export function CompanionRoster({
         </Button>
       </form>
 
-      {companionError && (
-        <p className="text-xs text-destructive">{companionError}</p>
-      )}
+      {companionError && <p className="text-xs text-destructive">{companionError}</p>}
 
       {companions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line bg-paper-deep/30 px-3 py-2 text-xs leading-6 text-ink-soft">
@@ -123,8 +111,7 @@ export function CompanionRoster({
         <ul className="space-y-2">
           {companions.map((companion) => {
             const assignedOption =
-              options.find((option) => option.id === companion.optionId) ??
-              null
+              options.find((option) => option.id === companion.optionId) ?? null
 
             return (
               <li

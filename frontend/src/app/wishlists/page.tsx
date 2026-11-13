@@ -3,24 +3,12 @@
 import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
-import {
-  AlertCircle,
-  FolderOpen,
-  Heart,
-  LogIn,
-  RefreshCw,
-  Users,
-  Zap,
-} from "lucide-react"
+import { AlertCircle, FolderOpen, Heart, LogIn, RefreshCw, Users, Zap } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { apiClient, ApiError } from "@/lib/api-client"
 import { toPersianDigits } from "@/lib/format-fa"
 import { fetchAllPages } from "@/lib/pagination"
-import type {
-  WishlistItemResponse,
-  WishlistToggleResponse,
-  WishlistFolder,
-} from "@/types/wishlist"
+import type { WishlistItemResponse, WishlistToggleResponse, WishlistFolder } from "@/types/wishlist"
 import { PageHeader } from "@/components/layout/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { FolderCarousel } from "@/components/wishlist/folder-carousel"
@@ -86,10 +74,7 @@ function WishlistPageSkeleton() {
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="space-y-3 rounded-2xl border border-line/80 bg-paper-card p-3"
-            >
+            <div key={i} className="space-y-3 rounded-2xl border border-line/80 bg-paper-card p-3">
               <Skeleton className="aspect-[16/10] w-full rounded-xl" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
@@ -177,9 +162,7 @@ export default function WishlistsPage() {
             // The active folder may have been deleted in the other
             // tab: fall back to "all" instead of pointing at a
             // deleted folder.
-            setActiveFolderId((current) =>
-              valid.some((f) => f.id === current) ? current : "all"
-            )
+            setActiveFolderId((current) => (valid.some((f) => f.id === current) ? current : "all"))
           }
         }
       } catch {
@@ -198,9 +181,7 @@ export default function WishlistsPage() {
       setItems(allItems)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setFetchError(
-          toPersianApiError(err.detail, "بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
-        )
+        setFetchError(toPersianApiError(err.detail, "بارگذاری نشان‌شده‌ها با خطا مواجه شد."))
       } else {
         setFetchError("بارگذاری نشان‌شده‌ها با خطا مواجه شد.")
       }
@@ -232,14 +213,14 @@ export default function WishlistsPage() {
 
     try {
       const response = await apiClient.post<WishlistToggleResponse>(
-        `/wishlists/${accommodationId}/toggle`
+        `/wishlists/${accommodationId}/toggle`,
       )
       if (response.is_favorite) {
         // The toggle re-added the item (it was already removed
         // elsewhere): roll back and tell the user the removal failed.
         setItems(previousItems)
         setActionError(
-          "حذف انجام نشد؛ این اقامتگاه دوباره به علاقه‌مندی‌ها اضافه شد. لطفاً دوباره تلاش کنید."
+          "حذف انجام نشد؛ این اقامتگاه دوباره به علاقه‌مندی‌ها اضافه شد. لطفاً دوباره تلاش کنید.",
         )
         return
       }
@@ -248,19 +229,16 @@ export default function WishlistsPage() {
         prev.map((folder) => ({
           ...folder,
           accommodation_ids: (folder.accommodation_ids || []).filter(
-            (id) => id !== accommodationId
+            (id) => id !== accommodationId,
           ),
-        }))
+        })),
       )
     } catch (err: unknown) {
       // Rollback state on failure
       setItems(previousItems)
       if (err instanceof ApiError) {
         setActionError(
-          toPersianApiError(
-            err.detail,
-            "حذف اقامتگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید."
-          )
+          toPersianApiError(err.detail, "حذف اقامتگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید."),
         )
       } else {
         setActionError("حذف اقامتگاه با خطا مواجه شد. لطفاً دوباره تلاش کنید.")
@@ -281,7 +259,7 @@ export default function WishlistsPage() {
             ? ids.filter((id) => id !== accommodationId)
             : [...ids, accommodationId],
         }
-      })
+      }),
     )
   }
 
@@ -290,9 +268,7 @@ export default function WishlistsPage() {
   const filteredItems = useMemo(() => {
     if (activeFolderId === "all") return items
     if (!currentFolder) return items
-    return items.filter((item) =>
-      currentFolder.accommodation_ids?.includes(item.accommodation_id)
-    )
+    return items.filter((item) => currentFolder.accommodation_ids?.includes(item.accommodation_id))
   }, [items, activeFolderId, currentFolder])
 
   // Summary Metrics
@@ -300,9 +276,7 @@ export default function WishlistsPage() {
   const activeCount = useMemo(() => {
     return items.filter((i) => i.accommodation.is_active).length
   }, [items])
-  const customFoldersCount = folders.filter((f) =>
-    f.id.startsWith("folder_")
-  ).length
+  const customFoldersCount = folders.filter((f) => f.id.startsWith("folder_")).length
 
   // 1. Auth Loading State Guard
   if (isLoading) {
@@ -385,9 +359,7 @@ export default function WishlistsPage() {
         >
           <div className="flex items-center justify-between rounded-2xl border border-line/80 bg-paper-card p-4 shadow-soft">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-ink-soft">
-                کل اقامتگاه‌های ذخیره
-              </span>
+              <span className="text-xs font-medium text-ink-soft">کل اقامتگاه‌های ذخیره</span>
               <div className="text-2xl font-black tabular-nums text-ink">
                 {toPersianDigits(totalCount)}
               </div>
@@ -399,9 +371,7 @@ export default function WishlistsPage() {
 
           <div className="flex items-center justify-between rounded-2xl border border-line/80 bg-paper-card p-4 shadow-soft">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-ink-soft">
-                اقامتگاه‌های فعال
-              </span>
+              <span className="text-xs font-medium text-ink-soft">اقامتگاه‌های فعال</span>
               <div className="text-2xl font-black tabular-nums text-ink">
                 {toPersianDigits(activeCount)}
               </div>
@@ -413,9 +383,7 @@ export default function WishlistsPage() {
 
           <div className="flex items-center justify-between rounded-2xl border border-line/80 bg-paper-card p-4 shadow-soft">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-ink-soft">
-                پوشه‌های فعال سفر
-              </span>
+              <span className="text-xs font-medium text-ink-soft">پوشه‌های فعال سفر</span>
               <div className="text-2xl font-black tabular-nums text-ink">
                 {toPersianDigits(customFoldersCount)}
               </div>

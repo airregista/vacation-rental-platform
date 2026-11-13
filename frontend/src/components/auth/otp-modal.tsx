@@ -53,11 +53,7 @@ export function OtpModal() {
   const body = (
     <div className="flex flex-col gap-5">
       <OtpBrandHeader />
-      <OtpForm
-        key={session}
-        active={isOtpModalOpen}
-        onSuccess={handleClose}
-      />
+      <OtpForm key={session} active={isOtpModalOpen} onSuccess={handleClose} />
     </div>
   )
 

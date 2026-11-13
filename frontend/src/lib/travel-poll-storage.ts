@@ -41,8 +41,7 @@ export function isValidStoredPollOption(entry: unknown): entry is DatePollOption
     opt.votes >= 0 &&
     typeof opt.voted === "boolean" &&
     (opt.voters === undefined ||
-      (Array.isArray(opt.voters) &&
-        opt.voters.every((voter) => typeof voter === "string"))) &&
+      (Array.isArray(opt.voters) && opt.voters.every((voter) => typeof voter === "string"))) &&
     typeof opt.check_in === "string" &&
     opt.check_in.length > 0 &&
     !isNaN(Date.parse(opt.check_in)) &&
@@ -71,10 +70,7 @@ export function uniqueId(prefix: string, existingIds: string[]): string {
 
 // Old storage may contain arbitrary/invalid companion entries. Keep only
 // usable names, enforce the limit, dedupe, and drop votes for removed options.
-export function sanitizeCompanions(
-  entries: unknown,
-  optionIds: Set<string>
-): PollCompanion[] {
+export function sanitizeCompanions(entries: unknown, optionIds: Set<string>): PollCompanion[] {
   if (!Array.isArray(entries)) return []
 
   const companions: PollCompanion[] = []
@@ -84,8 +80,7 @@ export function sanitizeCompanions(
     if (companions.length >= MAX_COMPANIONS) return
     if (typeof entry !== "object" || entry === null) return
     const raw = entry as Record<string, unknown>
-    const name =
-      typeof raw.name === "string" ? normalizeCompanionName(raw.name) : ""
+    const name = typeof raw.name === "string" ? normalizeCompanionName(raw.name) : ""
     if (!name) return
 
     const nameKey = name.toLocaleLowerCase()
@@ -93,21 +88,19 @@ export function sanitizeCompanions(
     seenNames.add(nameKey)
 
     const optionId =
-      typeof raw.optionId === "string" && optionIds.has(raw.optionId)
-        ? raw.optionId
-        : null
+      typeof raw.optionId === "string" && optionIds.has(raw.optionId) ? raw.optionId : null
 
     const baseId =
       typeof raw.id === "string" && raw.id.length > 0
         ? raw.id
         : uniqueId(
             "comp",
-            companions.map((companion) => companion.id)
+            companions.map((companion) => companion.id),
           )
     const id = companions.some((companion) => companion.id === baseId)
       ? uniqueId(
           "comp",
-          companions.map((companion) => companion.id)
+          companions.map((companion) => companion.id),
         )
       : baseId
 
@@ -120,12 +113,10 @@ export function sanitizeCompanions(
 // Persist derived vote totals so the stored shape stays backwards compatible.
 export function serializeOptions(
   options: DatePollOption[],
-  companions: PollCompanion[]
+  companions: PollCompanion[],
 ): DatePollOption[] {
   return options.map((option) => {
-    const companionVoters = companions.filter(
-      (companion) => companion.optionId === option.id
-    )
+    const companionVoters = companions.filter((companion) => companion.optionId === option.id)
     return {
       ...option,
       votes: (option.voted ? 1 : 0) + companionVoters.length,
@@ -153,9 +144,7 @@ export function loadPollState(seedOptions: DatePollOption[]): {
   options: DatePollOption[]
   companions: PollCompanion[]
 } {
-  let loadedOptions: DatePollOption[] = seedOptions.filter((opt) =>
-    isFutureCheckIn(opt.check_in)
-  )
+  let loadedOptions: DatePollOption[] = seedOptions.filter((opt) => isFutureCheckIn(opt.check_in))
   let migratedFromLegacy = false
 
   try {
@@ -203,7 +192,7 @@ export function loadPollState(seedOptions: DatePollOption[]): {
     if (storedCompanions) {
       loadedCompanions = sanitizeCompanions(
         JSON.parse(storedCompanions),
-        new Set(loadedOptions.map((option) => option.id))
+        new Set(loadedOptions.map((option) => option.id)),
       )
     }
   } catch {

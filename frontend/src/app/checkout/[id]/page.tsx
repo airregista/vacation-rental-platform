@@ -142,7 +142,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           setReservation(res)
           try {
             const acc = await apiClient.get<CheckoutAccommodationInfo>(
-              `/accommodations/${res.accommodation_id}`
+              `/accommodations/${res.accommodation_id}`,
             )
             if (!isCancelled) setAccommodation(acc)
           } catch {
@@ -159,7 +159,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               let found: PaymentResponse | null = null
               for (let page = 0; page < 10 && !found; page += 1) {
                 const myPayments = await apiClient.get<PaymentResponse[]>(
-                  `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`
+                  `/payments/my?limit=${PAGE_SIZE}&skip=${skip}`,
                 )
                 found =
                   myPayments.find((p) => p.reservation_id === res.id && p.status === "success") ||
@@ -172,14 +172,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   setLatestPayment(found)
                 } else {
                   setPaymentLookupError(
-                    "پرداخت موفق این رزرو یافت نشد؛ فاکتور رسمی در دسترس نیست. در صورت کسر وجه، با پشتیبانی تماس بگیرید."
+                    "پرداخت موفق این رزرو یافت نشد؛ فاکتور رسمی در دسترس نیست. در صورت کسر وجه، با پشتیبانی تماس بگیرید.",
                   )
                 }
               }
             } catch {
               if (!isCancelled) {
                 setPaymentLookupError(
-                  "دریافت اطلاعات پرداخت ناموفق بود؛ فاکتور رسمی در دسترس نیست. لطفا دوباره تلاش کنید."
+                  "دریافت اطلاعات پرداخت ناموفق بود؛ فاکتور رسمی در دسترس نیست. لطفا دوباره تلاش کنید.",
                 )
               }
             }
@@ -239,40 +239,38 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
       setReservation((prev) => (prev ? { ...prev, status: "confirmed" } : null))
       router.push(`/checkout/${payment.reservation_id}/success`)
     },
-    [router]
+    [router],
   )
 
   // Terminal gateway failures get their own screen; generic network errors
   // stay inline in the modal with retry.
   const handlePaymentFailure = React.useCallback(
     (reason: string) => {
-      router.push(
-        `/checkout/${reservationId}/failed?reason=${encodeURIComponent(reason)}`
-      )
+      router.push(`/checkout/${reservationId}/failed?reason=${encodeURIComponent(reason)}`)
     },
-    [router, reservationId]
+    [router, reservationId],
   )
 
   // Handle terminal status change from payment gateway (e.g. 409 conflict or expiration)
-  const handleReservationStatusChange = React.useCallback(
-    (status: "cancelled", reason: string) => {
-      setReservation((prev) =>
-        prev
-          ? {
-              ...prev,
-              status,
-              cancellation_reason: reason,
-            }
-          : null
-      )
-    },
-    []
-  )
+  const handleReservationStatusChange = React.useCallback((status: "cancelled", reason: string) => {
+    setReservation((prev) =>
+      prev
+        ? {
+            ...prev,
+            status,
+            cancellation_reason: reason,
+          }
+        : null,
+    )
+  }, [])
 
   // InvoiceData builder (strictly produced only when reservation is confirmed/completed
   // AND a real successful payment was found — never fabricate a payment (R1))
   const invoiceData: InvoiceData | null = React.useMemo(() => {
-    if (!reservation || (reservation.status !== "confirmed" && reservation.status !== "completed")) {
+    if (
+      !reservation ||
+      (reservation.status !== "confirmed" && reservation.status !== "completed")
+    ) {
       return null
     }
     if (!latestPayment) {
@@ -293,7 +291,15 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         email: guestEmail || "-",
       },
     }
-  }, [reservation, accommodation, latestPayment, guestName, guestPhone, guestNationalCode, guestEmail])
+  }, [
+    reservation,
+    accommodation,
+    latestPayment,
+    guestName,
+    guestPhone,
+    guestNationalCode,
+    guestEmail,
+  ])
 
   // Invalid ID Guard
   if (!reservationId || isNaN(reservationId)) {
@@ -305,7 +311,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           </div>
           <div className="space-y-1.5">
             <h1 className="text-lg font-black tracking-tight text-ink">شناسه رزرو نامعتبر است</h1>
-            <p className="text-sm leading-6 text-ink-soft">شناسه ارسال شده برای رزرو صحیح نمی‌باشد.</p>
+            <p className="text-sm leading-6 text-ink-soft">
+              شناسه ارسال شده برای رزرو صحیح نمی‌باشد.
+            </p>
           </div>
           <Button
             type="button"
@@ -331,14 +339,11 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           <div className="space-y-1.5">
             <h1 className="text-xl font-black tracking-tight text-ink">ورود به حساب کاربری</h1>
             <p className="text-sm leading-6 text-ink-soft">
-              برای مشاهده جزئیات فاکتور، تکمیل رزرو و اتصال به درگاه بانکی، ابتدا وارد حساب کاربری خود شوید.
+              برای مشاهده جزئیات فاکتور، تکمیل رزرو و اتصال به درگاه بانکی، ابتدا وارد حساب کاربری
+              خود شوید.
             </p>
           </div>
-          <Button
-            type="button"
-            onClick={openOtpModal}
-            className="h-11 w-full font-bold"
-          >
+          <Button type="button" onClick={openOtpModal} className="h-11 w-full font-bold">
             ورود / ثبت‌نام سریع با شماره موبایل
           </Button>
         </Card>
@@ -361,7 +366,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
           </div>
           <div className="space-y-1.5">
             <h1 className="text-lg font-black tracking-tight text-ink">خطا در بارگذاری رزرو</h1>
-            <p className="text-sm leading-6 text-ink-soft">{fetchError || "رزرو مورد نظر یافت نشد."}</p>
+            <p className="text-sm leading-6 text-ink-soft">
+              {fetchError || "رزرو مورد نظر یافت نشد."}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -372,11 +379,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             >
               صفحه اصلی
             </Button>
-            <Button
-              type="button"
-              onClick={handleRetry}
-              className="flex-1 font-bold"
-            >
+            <Button type="button" onClick={handleRetry} className="flex-1 font-bold">
               تلاش مجدد
             </Button>
           </div>
@@ -390,16 +393,11 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   const isCancelled = reservation.status === "cancelled"
   const isCompleted = reservation.status === "completed"
 
-  const policyLabel = getCancellationPolicyLabel(
-    accommodation?.cancellation_policy
-  )
-  const policyDescription = describeCancellationPolicy(
-    accommodation?.cancellation_policy,
-    {
-      freeHours: accommodation?.cancellation_free_hours,
-      penaltyPercent: accommodation?.cancellation_penalty_percent,
-    }
-  )
+  const policyLabel = getCancellationPolicyLabel(accommodation?.cancellation_policy)
+  const policyDescription = describeCancellationPolicy(accommodation?.cancellation_policy, {
+    freeHours: accommodation?.cancellation_free_hours,
+    penaltyPercent: accommodation?.cancellation_penalty_percent,
+  })
   const isPhoneValid = isValidIranianMobile(guestPhone)
   const isNationalCodeValid = isValidNationalCode(guestNationalCode)
   const isFormValid =
@@ -446,9 +444,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               <div
                 className={cn(
                   "flex size-9 items-center justify-center rounded-full text-xs font-bold sm:text-sm",
-                  isConfirmed || isCompleted
-                    ? "bg-trust text-on-brick"
-                    : "bg-brick text-on-brick"
+                  isConfirmed || isCompleted ? "bg-trust text-on-brick" : "bg-brick text-on-brick",
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۱"}
@@ -465,8 +461,8 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   isConfirmed || isCompleted
                     ? "bg-trust text-on-brick"
                     : isPending
-                    ? "bg-brick text-on-brick ring-4 ring-brick/15"
-                    : "bg-paper-deep text-ink-soft"
+                      ? "bg-brick text-on-brick ring-4 ring-brick/15"
+                      : "bg-paper-deep text-ink-soft",
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۲"}
@@ -474,7 +470,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               <span
                 className={cn(
                   "text-xs font-bold sm:text-sm",
-                  isPending ? "text-brick" : "text-ink"
+                  isPending ? "text-brick" : "text-ink",
                 )}
               >
                 شیوه پرداخت
@@ -489,7 +485,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   "flex size-9 items-center justify-center rounded-full text-xs font-bold sm:text-sm",
                   isConfirmed || isCompleted
                     ? "bg-trust text-on-brick ring-4 ring-trust/15"
-                    : "bg-paper-deep text-ink-soft"
+                    : "bg-paper-deep text-ink-soft",
                 )}
               >
                 {isConfirmed || isCompleted ? <Check className="size-4" /> : "۳"}
@@ -497,12 +493,14 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
               <span
                 className={cn(
                   "text-xs font-bold sm:text-sm",
-                  isConfirmed || isCompleted ? "font-black text-trust" : "text-ink-soft"
+                  isConfirmed || isCompleted ? "font-black text-trust" : "text-ink-soft",
                 )}
               >
                 صدور فاکتور و ووچر
               </span>
-              <span className="hidden text-[11px] text-ink-soft sm:inline">تایید نهایی اقامتگاه</span>
+              <span className="hidden text-[11px] text-ink-soft sm:inline">
+                تایید نهایی اقامتگاه
+              </span>
             </div>
           </div>
         </div>
@@ -623,7 +621,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
                     {mapCancellationReason(
                       reservation.cancellation_reason,
-                      "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."
+                      "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد.",
                     )}
                   </p>
                 </div>
@@ -678,7 +676,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <div className="space-y-1.5">
                     <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>شماره موبایل *</span>
-                      <span className="text-[11px] font-normal text-ink-soft">ارسال پیامک تایید</span>
+                      <span className="text-[11px] font-normal text-ink-soft">
+                        ارسال پیامک تایید
+                      </span>
                     </label>
                     <Input
                       type="tel"
@@ -709,7 +709,9 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <div className="space-y-1.5">
                     <label className="flex items-center justify-between text-xs font-semibold text-ink">
                       <span>ایمیل (اختیاری)</span>
-                      <span className="text-[11px] font-normal text-ink-soft">ارسال فاکتور الکترونیک</span>
+                      <span className="text-[11px] font-normal text-ink-soft">
+                        ارسال فاکتور الکترونیک
+                      </span>
                     </label>
                     <Input
                       type="email"
@@ -754,7 +756,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "mellat"
                         ? "border-brick bg-brick-soft/40 font-bold"
-                        : "border-line bg-paper hover:border-line-strong"
+                        : "border-line bg-paper hover:border-line-strong",
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -777,7 +779,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "sep"
                         ? "border-brick bg-brick-soft/40 font-bold"
-                        : "border-line bg-paper hover:border-line-strong"
+                        : "border-line bg-paper hover:border-line-strong",
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -797,7 +799,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                       "flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3.5 text-xs transition-colors sm:text-sm",
                       gateway === "snapppay"
                         ? "border-brick bg-brick-soft/40 font-bold"
-                        : "border-line bg-paper hover:border-line-strong"
+                        : "border-line bg-paper hover:border-line-strong",
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -835,9 +837,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   <div className="flex items-center justify-between font-bold text-ink">
                     <span>قوانین استرداد: {policyLabel}</span>
                   </div>
-                  <p className="leading-6 text-ink-soft">
-                    {policyDescription}
-                  </p>
+                  <p className="leading-6 text-ink-soft">{policyDescription}</p>
                 </div>
 
                 <div className="flex items-start gap-2.5 pt-1">
@@ -852,7 +852,8 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                     htmlFor="terms"
                     className="cursor-pointer select-none text-xs leading-6 text-ink sm:text-sm"
                   >
-                    <span className="font-bold">قوانین و مقررات آشیانک</span>، شرایط کنسلی این اقامتگاه و قوانین ورود و خروج را مطالعه نموده و با آن موافقم.
+                    <span className="font-bold">قوانین و مقررات آشیانک</span>، شرایط کنسلی این
+                    اقامتگاه و قوانین ورود و خروج را مطالعه نموده و با آن موافقم.
                   </label>
                 </div>
               </CardContent>
@@ -868,13 +869,11 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                   className="h-12 w-full gap-2 text-base font-black shadow-lift"
                 >
                   <Lock className="size-5" />
-                  انتقال به درگاه امن بانکی و پرداخت (
-                  {formatFaPrice(reservation.total_price)} تومان)
+                  انتقال به درگاه امن بانکی و پرداخت ({formatFaPrice(reservation.total_price)}{" "}
+                  تومان)
                 </Button>
                 {!isFormValid && guestFormError && (
-                  <p className="mt-2 text-center text-xs text-ink-soft">
-                    {guestFormError}
-                  </p>
+                  <p className="mt-2 text-center text-xs text-ink-soft">{guestFormError}</p>
                 )}
               </div>
             )}
