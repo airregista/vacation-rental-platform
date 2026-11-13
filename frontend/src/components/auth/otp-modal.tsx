@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useSyncExternalStore } from "react"
 import { useAuth } from "@/context/auth-context"
+import { useIsMobile, useIsMounted } from "@/lib/use-responsive"
 import { AshianakLogo } from "@/components/brand/ashianak-logo"
 import {
   Dialog,
@@ -19,32 +19,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { OtpForm } from "./otp-form"
-
-function subscribeMediaQuery(callback: () => void) {
-  const mql = window.matchMedia("(max-width: 639px)")
-  mql.addEventListener("change", callback)
-  return () => mql.removeEventListener("change", callback)
-}
-
-function getMobileSnapshot(): boolean {
-  return window.matchMedia("(max-width: 639px)").matches
-}
-
-function getServerMobileSnapshot(): boolean {
-  return false
-}
-
-function subscribeMounted() {
-  return () => {}
-}
-
-function getMountedSnapshot(): boolean {
-  return true
-}
-
-function getServerMountedSnapshot(): boolean {
-  return false
-}
 
 /** Visible brand header shared by the sheet and dialog frames. */
 function OtpBrandHeader() {
@@ -64,16 +38,8 @@ function OtpBrandHeader() {
 export function OtpModal() {
   const { isOtpModalOpen, closeOtpModal } = useAuth()
 
-  const mounted = useSyncExternalStore(
-    subscribeMounted,
-    getMountedSnapshot,
-    getServerMountedSnapshot
-  )
-  const isMobile = useSyncExternalStore(
-    subscribeMediaQuery,
-    getMobileSnapshot,
-    getServerMobileSnapshot
-  )
+  const isMobile = useIsMobile()
+  const mounted = useIsMounted()
 
   // Bumping the key remounts OtpForm, clearing step/phone/OTP/error state
   // without leaking it into the next sign-in.

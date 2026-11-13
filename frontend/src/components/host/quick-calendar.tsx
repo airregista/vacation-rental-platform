@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useSyncExternalStore } from "react"
+import { useState, useEffect } from "react"
 import { AlertCircle } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
+import { useIsMobile } from "@/lib/use-responsive"
 import { Button } from "@/components/ui/button"
 import { JalaliDateField } from "@/components/shared/date-field"
 import { PersianNumberInput } from "@/components/shared/persian-number-input"
@@ -33,19 +34,6 @@ export interface QuickCalendarProps {
 // The backend caps one batch call at 90 days (CALENDAR_MAX_BLOCK_DAYS).
 const MAX_BLOCK_DAYS = 90
 
-function subscribeResize(callback: () => void) {
-  window.addEventListener("resize", callback)
-  return () => window.removeEventListener("resize", callback)
-}
-
-function getMobileSnapshot() {
-  return window.innerWidth < 640
-}
-
-function getServerMobileSnapshot() {
-  return false
-}
-
 function toISODate(d: Date): string {
   const yyyy = d.getUTCFullYear()
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
@@ -74,7 +62,7 @@ function splitRange(
 }
 
 export function QuickCalendar({ accommodationId, open, onClose, onSuccess }: QuickCalendarProps) {
-  const isMobile = useSyncExternalStore(subscribeResize, getMobileSnapshot, getServerMobileSnapshot)
+  const isMobile = useIsMobile()
 
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")

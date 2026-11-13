@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useIsMobile, useIsMounted } from "@/lib/use-responsive"
 import {
   Users,
   CheckCircle2,
@@ -92,23 +93,6 @@ const INITIAL_POLL_OPTIONS: DatePollOption[] = [
   },
 ]
 
-function subscribeResize(callback: () => void) {
-  window.addEventListener("resize", callback)
-  return () => window.removeEventListener("resize", callback)
-}
-
-function getMobileSnapshot() {
-  return window.innerWidth < 640
-}
-
-function getServerMobileSnapshot() {
-  return false
-}
-
-const emptySubscribe = () => () => {}
-const getClientSnapshot = () => true
-const getServerClientSnapshot = () => false
-
 export interface TravelPollModalProps {
   isOpen: boolean
   onClose: () => void
@@ -121,16 +105,8 @@ export function TravelPollModal({
   folderName = "سفرهای تابستانه شمال",
 }: TravelPollModalProps) {
   const router = useRouter()
-  const isMounted = useSyncExternalStore(
-    emptySubscribe,
-    getClientSnapshot,
-    getServerClientSnapshot
-  )
-  const isMobile = useSyncExternalStore(
-    subscribeResize,
-    getMobileSnapshot,
-    getServerMobileSnapshot
-  )
+  const isMounted = useIsMounted()
+  const isMobile = useIsMobile()
 
   // Seeds whose check-in has passed are never offered.
   const [options, setOptions] = useState<DatePollOption[]>(() =>
