@@ -545,7 +545,7 @@ export function TravelPollModal({
     // Never finalize a past date range.
     if (!chosen || !isFutureCheckIn(chosen.check_in)) return
     onClose()
-    router.push(`/?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
+    router.push(`/search?check_in=${chosen.check_in}&check_out=${chosen.check_out}`)
   }
 
   const modalBody = (
