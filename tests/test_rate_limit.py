@@ -140,9 +140,7 @@ async def test_login_identifier_length_is_bounded(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_otp_verify_is_rate_limited_per_phone(client: AsyncClient):
     phone = "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"
-    sent = await client.post(
-        f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone}
-    )
+    sent = await client.post(f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone})
     assert sent.status_code == 200
 
     for _ in range(settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS):
@@ -204,9 +202,7 @@ async def test_otp_verify_lockout_is_scoped_to_requesting_ip(
     client: AsyncClient,
 ) -> None:
     phone = "0912" + f"{uuid.uuid4().int % 10_000_000:07d}"
-    sent = await client.post(
-        f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone}
-    )
+    sent = await client.post(f"{settings.API_V1_STR}/auth/otp/send", json={"phone": phone})
     assert sent.status_code == 200
 
     # Burn the per-phone budget from the default test IP.
@@ -357,3 +353,30 @@ async def test_password_checks_run_off_the_event_loop_thread(
     assert hash_threads
     assert all(thread != loop_thread for thread in verify_threads)
     assert all(thread != loop_thread for thread in hash_threads)
+
+
+@pytest.mark.asyncio
+async def test_register_returns_429_after_ip_budget(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP", 3)
+    for _ in range(3):
+        res = await client.post(
+            f"{settings.API_V1_STR}/auth/register",
+            json={
+                "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+                "password": "Password123!",
+            },
+        )
+        assert res.status_code == 201
+
+    blocked = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "password": "Password123!",
+        },
+    )
+    assert blocked.status_code == 429
+    assert "retry-after" in {k.lower() for k in blocked.headers}
+    assert blocked.json()["detail"] == ("Too many registration attempts. Try again later.")

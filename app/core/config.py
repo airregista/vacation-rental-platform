@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS: int = Field(default=10, ge=1)
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP: int = Field(default=50, ge=1)
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=300, ge=1)
+    REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP: int = Field(default=20, ge=1)
     CALENDAR_FEED_TTL_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
     CALENDAR_MAX_BLOCK_DAYS: int = 90  # Max days between start_date and end_date in batch blocking
     RESERVATION_MAX_CHECKIN_MONTHS: int = 18  # Max forward booking horizon (18 * 30 = 540 days)
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
         if key and any(marker in key.lower() for marker in PLACEHOLDER_SECRET_MARKERS):
             raise ValueError(
                 "SECRET_KEY is a placeholder value. Generate one with: "
-                "python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+                'python -c "import secrets; print(secrets.token_urlsafe(48))"'
             )
 
         if not key:
@@ -90,8 +91,7 @@ class Settings(BaseSettings):
         username = (url.username or "").strip()
         if not username:
             raise ValueError(
-                "The production database URL must include a dedicated "
-                "least-privilege username"
+                "The production database URL must include a dedicated least-privilege username"
             )
         if username.lower() in DISALLOWED_PRODUCTION_DB_USERS:
             raise ValueError(

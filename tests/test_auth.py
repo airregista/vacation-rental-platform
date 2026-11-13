@@ -291,7 +291,37 @@ async def test_register_duplicate_integrity_error_handled_as_400(client: AsyncCl
     ):
         res = await client.post(f"{settings.API_V1_STR}/auth/register", json=payload)
         assert res.status_code == 400
-        assert "already exists" in res.json()["detail"].lower()
+        assert res.json()["detail"] == (
+            "Registration could not be completed with the provided details"
+        )
+
+
+@pytest.mark.asyncio
+async def test_duplicate_registration_does_not_reveal_field(client: AsyncClient):
+    phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    email = f"generic_{uuid.uuid4().hex[:6]}@example.com"
+    payload = {"phone": phone, "email": email, "password": "Password123!"}
+
+    first = await client.post(f"{settings.API_V1_STR}/auth/register", json=payload)
+    assert first.status_code == 201
+
+    duplicate_phone = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={**payload, "email": f"other_{uuid.uuid4().hex[:6]}@example.com"},
+    )
+    assert duplicate_phone.status_code == 400
+    assert duplicate_phone.json()["detail"] == (
+        "Registration could not be completed with the provided details"
+    )
+
+    duplicate_email = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={**payload, "phone": f"0912{uuid.uuid4().int % 10000000:07d}"},
+    )
+    assert duplicate_email.status_code == 400
+    assert duplicate_email.json()["detail"] == (
+        "Registration could not be completed with the provided details"
+    )
 
 
 @pytest.mark.asyncio
@@ -399,9 +429,7 @@ async def test_passwords_are_bounded_by_bcrypt_limit(client: AsyncClient):
     assert too_long.status_code == 422
 
     # 37 Persian characters are 74 UTF-8 bytes.
-    persian_too_long = await client.post(
-        url, json={**base, "password": "\u0627" * 37}
-    )
+    persian_too_long = await client.post(url, json={**base, "password": "\u0627" * 37})
     assert persian_too_long.status_code == 422
 
     ok = await client.post(url, json={**base, "password": "a" * 72})
@@ -443,7 +471,9 @@ async def test_become_host_flow(client: AsyncClient):
         "beds_count": 2,
         "rules": "قوانین اقامتگاه",
         "is_active": True,
-        "images": [{"image_url": "https://example.com/host.jpg", "is_cover": True, "sort_order": 1}],
+        "images": [
+            {"image_url": "https://example.com/host.jpg", "is_cover": True, "sort_order": 1}
+        ],
     }
 
     guest_create = await client.post(

@@ -35,16 +35,25 @@ from app.schemas.user import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+_REGISTRATION_REJECTED = "Registration could not be completed with the provided details"
+
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def register(user_in: UserRegister, db: SessionDep) -> Token:
+async def register(user_in: UserRegister, request: Request, db: SessionDep) -> Token:
+    client_ip = request.client.host if request.client else "unknown"
+    check_and_record_failed_login(
+        f"register-ip:{client_ip}",
+        limit=settings.REGISTER_RATE_LIMIT_MAX_ATTEMPTS_PER_IP,
+        detail="Too many registration attempts. Try again later.",
+    )
+
     # Check phone uniqueness
     stmt = select(User).where(User.phone == user_in.phone)
     result = await db.execute(stmt)
     if result.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this phone number already exists",
+            detail=_REGISTRATION_REJECTED,
         )
 
     # Check email uniqueness if provided
@@ -54,7 +63,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
         if result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A user with this email address already exists",
+                detail=_REGISTRATION_REJECTED,
             )
 
     new_user = User(
@@ -72,7 +81,7 @@ async def register(user_in: UserRegister, db: SessionDep) -> Token:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this phone number or email address already exists",
+            detail=_REGISTRATION_REJECTED,
         )
     await db.refresh(new_user)
 
@@ -91,17 +100,13 @@ async def login(login_data: UserLogin, request: Request, db: SessionDep) -> Toke
     rate_key = f"login:{client_ip}:{identifier.lower()}"
     ip_rate_key = f"login-ip:{client_ip}"
     check_login_rate_limit(rate_key)
-    check_login_rate_limit(
-        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
-    )
+    check_login_rate_limit(ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP)
     stmt = select(User).where(or_(User.phone == identifier, User.email == identifier))
     result = await db.execute(stmt)
     user = result.scalars().first()
 
     password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
-    password_ok = await run_in_threadpool(
-        verify_password, login_data.password, password_hash
-    )
+    password_ok = await run_in_threadpool(verify_password, login_data.password, password_hash)
 
     if user is None or not password_ok:
         # Count the failure against both the identifier and the source IP.
@@ -142,9 +147,7 @@ async def update_me(
         if user_update.email is None:
             current_user.email = None
         elif user_update.email != current_user.email:
-            stmt = select(User).where(
-                User.email == user_update.email, User.id != current_user.id
-            )
+            stmt = select(User).where(User.email == user_update.email, User.id != current_user.id)
             result = await db.execute(stmt)
             if result.scalars().first():
                 raise HTTPException(
@@ -172,14 +175,10 @@ async def update_me(
 
 
 @router.post("/otp/send", response_model=OTPResponse)
-async def send_otp(
-    req: UserOTPRequest, request: Request, db: SessionDep
-) -> OTPResponse:
+async def send_otp(req: UserOTPRequest, request: Request, db: SessionDep) -> OTPResponse:
     client_ip = request.client.host if request.client else "unknown"
     ip_rate_key = f"otp-send-ip:{client_ip}"
-    check_login_rate_limit(
-        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
-    )
+    check_login_rate_limit(ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP)
 
     # Prune expired codes to avoid unbounded table growth. OTP codes live
     # in PostgreSQL (not in-process memory) so a code sent by one worker
@@ -217,9 +216,7 @@ async def send_otp(
             )
     # Count only sends that pass the per-phone cooldown: rejected retries do no
     # DB write and should not consume the caller's IP budget.
-    check_and_record_failed_login(
-        ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
-    )
+    check_and_record_failed_login(ip_rate_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP)
     await db.execute(stmt)
     await db.commit()
     return OTPResponse(
@@ -230,9 +227,7 @@ async def send_otp(
 
 
 @router.post("/otp/verify", response_model=Token)
-async def verify_otp(
-    payload: UserOTPVerify, request: Request, db: SessionDep
-) -> Token:
+async def verify_otp(payload: UserOTPVerify, request: Request, db: SessionDep) -> Token:
     phone = payload.phone
     code = payload.code
     client_ip = request.client.host if request.client else "unknown"
@@ -241,9 +236,7 @@ async def verify_otp(
     otp_rate_key = f"otp:{client_ip}:{phone}"
     otp_ip_key = f"otp-ip:{client_ip}"
     check_login_rate_limit(otp_rate_key)
-    check_login_rate_limit(
-        otp_ip_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP
-    )
+    check_login_rate_limit(otp_ip_key, limit=settings.LOGIN_RATE_LIMIT_MAX_ATTEMPTS_PER_IP)
 
     # Atomically consume the OTP: the DELETE only removes a live row
     # matching this phone+code, so two concurrent verifies can never both
@@ -252,12 +245,16 @@ async def verify_otp(
     # which one.
     now = datetime.now(timezone.utc)
     consumed = (
-        await db.execute(
-            delete(OTPCode)
-            .where(OTPCode.phone == phone, OTPCode.code == code, OTPCode.expires_at > now)
-            .returning(OTPCode.phone)
+        (
+            await db.execute(
+                delete(OTPCode)
+                .where(OTPCode.phone == phone, OTPCode.code == code, OTPCode.expires_at > now)
+                .returning(OTPCode.phone)
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if consumed is None:
         check_and_record_failed_login(otp_rate_key)
         check_and_record_failed_login(
@@ -292,9 +289,7 @@ async def verify_otp(
     if not user:
         user = User(
             phone=phone,
-            password_hash=await run_in_threadpool(
-                get_password_hash, secrets.token_hex(16)
-            ),
+            password_hash=await run_in_threadpool(get_password_hash, secrets.token_hex(16)),
             first_name=payload.first_name or "کاربر",
             last_name=payload.last_name or "مهمان",
             role="guest",
@@ -315,9 +310,7 @@ async def verify_otp(
             # The rollback also undid the atomic OTP consumption, and the
             # user was created by a concurrent request — consume the code
             # again before issuing a token.
-            await db.execute(
-                delete(OTPCode).where(OTPCode.phone == phone, OTPCode.code == code)
-            )
+            await db.execute(delete(OTPCode).where(OTPCode.phone == phone, OTPCode.code == code))
             await db.commit()
 
     # Persist the OTP consumption (a no-op when the user-creation commit
