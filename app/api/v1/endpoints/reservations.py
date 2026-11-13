@@ -91,6 +91,12 @@ async def create_reservation(
             detail="Accommodation not found or is currently inactive",
         )
 
+    if acc.host_id == current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hosts cannot book their own accommodation",
+        )
+
     validate_reservation_horizon(res_in.check_in, res_in.check_out)
 
     # Overlap check

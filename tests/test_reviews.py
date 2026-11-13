@@ -588,7 +588,10 @@ async def test_review_integrity_error_mapped_to_400(
         db_res.check_out = date.today() - timedelta(days=3)
         await session.commit()
 
-    with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=IntegrityError("statement", {}, Exception())):
+    with patch(
+        "sqlalchemy.ext.asyncio.AsyncSession.commit",
+        side_effect=IntegrityError("statement", {}, Exception()),
+    ):
         review_res = await client.post(
             f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
             json={
@@ -738,3 +741,58 @@ async def test_review_eligibility_lifecycle(
     assert body["reason"] == "already_reviewed"
 
 
+@pytest.mark.asyncio
+async def test_host_cannot_review_own_accommodation(client: AsyncClient, admin_token: str):
+    uid = uuid.uuid4().hex[:8]
+    phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": phone,
+            "password": "hostPassword123",
+            "first_name": "Self",
+            "last_name": "Reviewer",
+        },
+    )
+    assert reg.status_code == 201
+    host_id = reg.json()["user"]["id"]
+    host_token = reg.json()["access_token"]
+
+    promote = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote.status_code == 200
+
+    cities = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories = await client.get(f"{settings.API_V1_STR}/categories/")
+    create_acc = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": categories.json()[0]["id"],
+            "city_id": cities.json()[0]["id"],
+            "host_id": host_id,
+            "title": f"Self Review Guard {uid}",
+            "address": "تهران، تست نقد خودی، پلاک ۲",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 3,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_acc.status_code == 201
+    acc_id = create_acc.json()["id"]
+
+    review = await client.post(
+        f"{settings.API_V1_STR}/accommodations/{acc_id}/reviews",
+        json={
+            "reservation_id": 1,
+            "rating": 5,
+            "cleanliness_rating": 5,
+            "accuracy_rating": 5,
+            "comment": "Self review should never be accepted.",
+        },
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert review.status_code == 403
+    assert "own accommodation" in review.json()["detail"].lower()

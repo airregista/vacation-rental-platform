@@ -176,6 +176,12 @@ async def create_review(
             detail="Accommodation not found",
         )
 
+    if acc.host_id == current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hosts cannot review their own accommodation",
+        )
+
     # 2. Proof of stay: Verify reservation
     res_stmt = select(Reservation).where(Reservation.id == review_in.reservation_id)
     reservation = (await db.execute(res_stmt)).scalars().first()
@@ -204,7 +210,9 @@ async def create_review(
         )
 
     tehran_tz = ZoneInfo("Asia/Tehran")
-    checkout_dt = datetime.combine(reservation.check_out, acc.check_out_time).replace(tzinfo=tehran_tz)
+    checkout_dt = datetime.combine(reservation.check_out, acc.check_out_time).replace(
+        tzinfo=tehran_tz
+    )
     now_tehran = datetime.now(tehran_tz)
     if now_tehran < checkout_dt:
         raise HTTPException(

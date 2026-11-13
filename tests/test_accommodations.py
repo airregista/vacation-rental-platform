@@ -757,6 +757,16 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
     assert create_res.status_code == 201
     acc_id = create_res.json()["id"]
 
+    booker_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "password": "guestPassword123",
+        },
+    )
+    assert booker_reg.status_code == 201
+    booker_token = booker_reg.json()["access_token"]
+
     res_res = await client.post(
         f"{settings.API_V1_STR}/reservations/",
         json={
@@ -765,7 +775,7 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
             "check_out": (date.today() + timedelta(days=12)).isoformat(),
             "guests_count": 2,
         },
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
     assert res_res.status_code == 201
     res_id = res_res.json()["id"]
@@ -773,7 +783,7 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
     checkout_res = await client.post(
         f"{settings.API_V1_STR}/payments/checkout",
         json={"reservation_id": res_id},
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
     await client.post(
         f"{settings.API_V1_STR}/payments/verify",
@@ -782,7 +792,7 @@ async def test_ical_export_requires_auth_or_valid_feed_token(
             "tracking_code": checkout_res.json()["tracking_code"],
             "simulate_success": True,
         },
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
 
     # 1. Unauthenticated request without token returns 404
@@ -982,8 +992,9 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
     guest_token: str,
 ):
     # R1: an admin may only assign a listing to a host/admin — promote the
-    # seed guest (user 2) to host first. User 2 is both the host and the
-    # booking guest in this test; promotion changes neither role in the flow.
+    # seed guest (user 2) to host first. User 2 stays the host; a separate
+    # registered guest does the booking, since hosts cannot book their own
+    # listing.
     promote_res = await client.post(
         f"{settings.API_V1_STR}/auth/become-host",
         headers={"Authorization": f"Bearer {guest_token}"},
@@ -1012,6 +1023,16 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
     assert create_res.status_code == 201
     acc_id = create_res.json()["id"]
 
+    booker_reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": f"0912{uuid.uuid4().int % 10000000:07d}",
+            "password": "guestPassword123",
+        },
+    )
+    assert booker_reg.status_code == 201
+    booker_token = booker_reg.json()["access_token"]
+
     # Guest books and pays
     ci = (date.today() + timedelta(days=25)).isoformat()
     co = (date.today() + timedelta(days=27)).isoformat()
@@ -1023,7 +1044,7 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
             "check_out": co,
             "guests_count": 2,
         },
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
     assert book_res.status_code == 201
     res_id = book_res.json()["id"]
@@ -1031,7 +1052,7 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
     checkout_res = await client.post(
         f"{settings.API_V1_STR}/payments/checkout",
         json={"reservation_id": res_id},
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
     assert checkout_res.status_code == 201
     await client.post(
@@ -1041,7 +1062,7 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
             "tracking_code": checkout_res.json()["tracking_code"],
             "simulate_success": True,
         },
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
 
     # Host deactivates accommodation
@@ -1073,7 +1094,7 @@ async def test_inactive_accommodation_accessible_to_confirmed_guest_and_calculat
     # Confirmed booked guest -> 200
     booked_guest_get = await client.get(
         f"{settings.API_V1_STR}/accommodations/{acc_id}",
-        headers={"Authorization": f"Bearer {guest_token}"},
+        headers={"Authorization": f"Bearer {booker_token}"},
     )
     assert booked_guest_get.status_code == 200
     assert booked_guest_get.json()["id"] == acc_id
