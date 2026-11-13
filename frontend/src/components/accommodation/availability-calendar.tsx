@@ -3,6 +3,7 @@
 import * as React from "react"
 import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, AlertCircle, RotateCcw } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { formatFaNumber } from "@/lib/format-fa"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { CalendarDayInfo } from "@/types/detail"
@@ -275,7 +276,7 @@ export function AvailabilityCalendar({
     onDateRangeChange(null, null)
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   if (!isClient) {
     return <div className="h-64 animate-pulse rounded-2xl bg-paper-deep/50" />

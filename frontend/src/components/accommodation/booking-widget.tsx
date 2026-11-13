@@ -18,7 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { apiClient, ApiError } from "@/lib/api-client"
-import { formatPersianDate as formatFullPersianDate } from "@/lib/format-fa"
+import { formatPersianDate as formatFullPersianDate, formatFaNumber } from "@/lib/format-fa"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -219,7 +219,7 @@ export function BookingWidget({
     }
   }
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   const formatPersianDate = (isoStr: string | null) => {
     if (!isoStr) return "انتخاب تاریخ"

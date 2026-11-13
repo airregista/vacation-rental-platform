@@ -10,6 +10,7 @@ import {
   LogIn,
 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { formatFaNumber } from "@/lib/format-fa"
 import { useAuth } from "@/context/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -177,7 +178,7 @@ export function ReviewsSection({
     }
   }, [reviews])
 
-  const formatPersian = (n: number) => new Intl.NumberFormat("fa-IR").format(n)
+  const formatPersian = formatFaNumber
 
   const formatRating = (n: number) =>
     new Intl.NumberFormat("fa-IR", {
