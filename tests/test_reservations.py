@@ -779,9 +779,7 @@ async def test_host_payout_settlement_rejected_for_cancelled_reservation(
 
 
 @pytest.mark.asyncio
-async def test_reservation_messaging_flow(
-    client: AsyncClient, admin_token: str, guest_token: str
-):
+async def test_reservation_messaging_flow(client: AsyncClient, admin_token: str, guest_token: str):
     # 1. Register a dedicated host user
     uid = uuid.uuid4().hex[:6]
     host_phone = f"0912{uuid.uuid4().int % 10000000:07d}"
@@ -1168,3 +1166,59 @@ async def test_my_reservations_include_accommodation_image_city_province(
     assert single.json()["accommodation_image"] == acc["cover_image"]
     assert single.json()["city"] == acc["city"]["name"]
     assert single.json()["province"] == acc["city"]["province"]["name"]
+
+
+@pytest.mark.asyncio
+async def test_host_cannot_book_own_accommodation(client: AsyncClient, admin_token: str):
+    uid = uuid.uuid4().hex[:8]
+    phone = f"0912{uuid.uuid4().int % 10000000:07d}"
+    reg = await client.post(
+        f"{settings.API_V1_STR}/auth/register",
+        json={
+            "phone": phone,
+            "password": "hostPassword123",
+            "first_name": "Self",
+            "last_name": "Host",
+        },
+    )
+    assert reg.status_code == 201
+    host_id = reg.json()["user"]["id"]
+    host_token = reg.json()["access_token"]
+
+    promote = await client.post(
+        f"{settings.API_V1_STR}/auth/become-host",
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert promote.status_code == 200
+
+    cities = await client.get(f"{settings.API_V1_STR}/geo/cities")
+    categories = await client.get(f"{settings.API_V1_STR}/categories/")
+    create_acc = await client.post(
+        f"{settings.API_V1_STR}/accommodations/",
+        json={
+            "category_id": categories.json()[0]["id"],
+            "city_id": cities.json()[0]["id"],
+            "host_id": host_id,
+            "title": f"Self Booking Guard {uid}",
+            "address": "?????? ??? ???? ????? ???? ?",
+            "base_price": 1000000,
+            "capacity": 2,
+            "max_capacity": 3,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert create_acc.status_code == 201
+    acc_id = create_acc.json()["id"]
+
+    booking = await client.post(
+        f"{settings.API_V1_STR}/reservations/",
+        json={
+            "accommodation_id": acc_id,
+            "check_in": (date.today() + timedelta(days=200)).isoformat(),
+            "check_out": (date.today() + timedelta(days=203)).isoformat(),
+            "guests_count": 2,
+        },
+        headers={"Authorization": f"Bearer {host_token}"},
+    )
+    assert booking.status_code == 403
+    assert "own accommodation" in booking.json()["detail"].lower()
