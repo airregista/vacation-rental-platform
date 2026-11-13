@@ -512,17 +512,42 @@ async def export_accommodation_calendar_ics(
                 detail="Accommodation not found or calendar feed access is invalid or expired",
             )
 
-    res_stmt = select(Reservation).where(
-        Reservation.accommodation_id == id,
-        Reservation.status == "confirmed",
+    today = today_tehran()
+    window_start, window_end = _calendar_export_window(today)
+
+    res_stmt = (
+        select(Reservation)
+        .where(
+            Reservation.accommodation_id == id,
+            Reservation.status == "confirmed",
+            Reservation.check_out > window_start,
+            Reservation.check_in <= window_end,
+        )
+        .order_by(Reservation.check_in.asc(), Reservation.id.asc())
     )
     reservations = (await db.execute(res_stmt)).scalars().all()
 
-    block_stmt = select(PricingException).where(
-        PricingException.accommodation_id == id,
-        PricingException.is_blocked.is_(True),
+    block_stmt = (
+        select(PricingException)
+        .where(
+            PricingException.accommodation_id == id,
+            PricingException.is_blocked.is_(True),
+            PricingException.date >= window_start,
+            PricingException.date <= window_end,
+        )
+        .order_by(PricingException.date.asc(), PricingException.id.asc())
     )
     blocked = (await db.execute(block_stmt)).scalars().all()
+
+    if len(reservations) + len(blocked) > MAX_ICS_EVENTS:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=(
+                "Calendar export has too many events; narrow the listing's "
+                "blocked dates or contact support"
+            ),
+            headers={"X-Max-Calendar-Events": str(MAX_ICS_EVENTS)},
+        )
 
     lines = [
         "BEGIN:VCALENDAR",
@@ -601,6 +626,18 @@ async def rotate_calendar_feed_token(
 logger = logging.getLogger(__name__)
 MAX_CALENDAR_FEED_BYTES = 2 * 1024 * 1024
 CALENDAR_SYNC_TIMEOUT_SECONDS = 30.0
+MAX_ICS_EVENTS = 5000
+MAX_ICS_BLOCKED_DATES = 600
+EXPORT_PAST_DAYS = 7
+
+
+def _calendar_horizon_end(today: date) -> date:
+    return today + timedelta(days=settings.RESERVATION_MAX_CHECKIN_MONTHS * 30)
+
+
+def _calendar_export_window(today: date) -> tuple[date, date]:
+    return today - timedelta(days=EXPORT_PAST_DAYS), _calendar_horizon_end(today)
+
 
 _ALLOWED_FEED_PORTS = {None, 80, 443}
 _BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
@@ -758,10 +795,21 @@ async def _fetch_calendar_feed(url: str) -> str:
         ) from None
 
 
-def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
+def parse_ical_blocked_ranges(
+    ics_content: str, *, max_events: int = MAX_ICS_EVENTS
+) -> list[tuple[date, date]]:
+    """Return usable DTSTART/DTEND ranges, rejecting oversized feeds.
+
+    The cap counts usable ranges (valid dates, DTEND > DTSTART), not raw
+    VEVENTs. A feed full of malformed events is still bounded by the 2 MB
+    body cap; do not silently drop a valid feed just because it contains
+    junk.
+    """
     ranges: list[tuple[date, date]] = []
     vevents = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_content, re.DOTALL)
     for vevent in vevents:
+        if len(ranges) >= max_events:
+            raise ValueError(f"Calendar feed contains more than {max_events} usable events")
         dtstart_match = re.search(r"DTSTART(?:;[^:\r\n]*)?:?(\d{8})", vevent)
         dtend_match = re.search(r"DTEND(?:;[^:\r\n]*)?:?(\d{8})", vevent)
         if dtstart_match and dtend_match:
@@ -847,9 +895,16 @@ async def sync_external_calendar(
             detail="Calendar URL changed during sync; retry",
         )
 
-    event_ranges = parse_ical_blocked_ranges(ics_text)
+    try:
+        event_ranges = parse_ical_blocked_ranges(ics_text, max_events=MAX_ICS_EVENTS)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
     today = today_tehran()
-    max_future = today + timedelta(days=180)
+    max_future = _calendar_horizon_end(today)
 
     dates_to_block: set[date] = set()
     for s_date, e_date in event_ranges:
@@ -857,6 +912,13 @@ async def sync_external_calendar(
         end_d = min(max_future, e_date)
         while curr < end_d:
             dates_to_block.add(curr)
+            if len(dates_to_block) > MAX_ICS_BLOCKED_DATES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Calendar feed blocks too many dates; narrow the feed window and retry"
+                    ),
+                )
             curr += timedelta(days=1)
 
     if dates_to_block:
