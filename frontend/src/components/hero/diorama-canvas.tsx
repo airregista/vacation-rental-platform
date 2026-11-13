@@ -3,7 +3,7 @@
 import * as React from "react"
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { getScene } from "./scene-registry"
+import { getScene, type HeroSceneComponent } from "./scene-registry"
 import { getScenePalette } from "./scene-palette"
 import type { SceneId, SceneTier } from "./scene-types"
 
@@ -88,7 +88,29 @@ export default function DioramaCanvas({
   onReady?: () => void
 }) {
   const palette = React.useMemo(() => getScenePalette(), [])
-  const Scene = getScene(scene).Scene
+  // Scene modules pull in three.js, so resolve them through the lazy loader
+  // instead of a synchronous registry lookup. The resolved component is kept
+  // with its scene id so a pending load never renders the previous scene.
+  const [resolved, setResolved] = React.useState<{
+    scene: SceneId
+    Scene: HeroSceneComponent
+  } | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    getScene(scene)
+      .loadScene()
+      .then((module) => {
+        if (!cancelled) setResolved({ scene, Scene: module.Scene })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [scene])
+
+  const Scene = resolved?.scene === scene ? resolved.Scene : null
+
+  if (!Scene) return null
 
   return (
     <Canvas
