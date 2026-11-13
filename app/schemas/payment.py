@@ -30,6 +30,7 @@ class PaymentResponse(BaseModel):
     amount: Decimal
     tracking_code: str | None = None
     status: str
+    payment_type: str = "charge"
     paid_at: datetime | None = None
     created_at: datetime
 
