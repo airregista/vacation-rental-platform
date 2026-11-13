@@ -112,6 +112,33 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
   const [latestPayment, setLatestPayment] = React.useState<PaymentResponse | null>(null)
   const [paymentLookupError, setPaymentLookupError] = React.useState<string | null>(null)
 
+  // Reset page-level checkout state when the [id] param changes client-side:
+  // same-route navigation (e.g. /checkout/A → back → /checkout/B) does NOT
+  // remount this page in the App Router, so without this, reservation A's
+  // amounts/dates render under URL B — with the pay button enabled and the
+  // payment modal posting against the stale reservation.id.
+  // Adjusting state during render is the documented pattern for "reset state
+  // when a prop changes" — an effect would cascade re-renders.
+  const [prevReservationId, setPrevReservationId] = React.useState(reservationId)
+  if (prevReservationId !== reservationId) {
+    setPrevReservationId(reservationId)
+    setReservation(null)
+    setAccommodation(null)
+    setLatestPayment(null)
+    setPaymentLookupError(null)
+    setFetchError(null)
+    setCustomGuestName(null)
+    setCustomGuestPhone(null)
+    setGuestNationalCode("")
+    setCustomGuestEmail(null)
+    setGateway("mellat")
+    setAgreedToTerms(false)
+    setIsPaymentModalOpen(false)
+    setIsInvoiceModalOpen(false)
+    setReloadTrigger(0)
+    setIsLoading(true)
+  }
+
   // Fetch reservation and accommodation details
   React.useEffect(() => {
     if (isAuthLoading || !isAuthenticated || !reservationId || isNaN(reservationId)) return
