@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.core.config import settings
 from app.schemas.amenity import AmenityResponse
 from app.schemas.category import CategoryResponse
+from app.schemas.constraints import INTEGER_MAX, SMALLINT_MAX
 from app.schemas.geo import CityResponse
 from app.schemas.user import PublicHostResponse
 
@@ -35,9 +36,9 @@ def _normalize_custom_amenities(items: list[str] | None) -> list[str] | None:
 
 
 class AccommodationImageCreate(BaseModel):
-    image_url: str
+    image_url: str = Field(min_length=1, max_length=255)
     is_cover: bool = False
-    sort_order: int = 0
+    sort_order: int = Field(default=0, le=INTEGER_MAX)
 
 
 class AccommodationImageResponse(BaseModel):
@@ -51,9 +52,9 @@ class AccommodationImageResponse(BaseModel):
 
 class PricingExceptionCreate(BaseModel):
     date: date
-    price: Decimal | None = None
+    price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=0)
     is_blocked: bool = False
-    min_nights: int | None = Field(default=None, ge=1)
+    min_nights: int | None = Field(default=None, ge=1, le=SMALLINT_MAX)
 
 
 class PricingExceptionResponse(BaseModel):
@@ -71,9 +72,9 @@ class PricingExceptionResponse(BaseModel):
 class PricingExceptionBatchCreate(BaseModel):
     start_date: date
     end_date: date
-    price: Decimal | None = Field(default=None, ge=0)
+    price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=0)
     is_blocked: bool = True
-    min_nights: int | None = Field(default=None, ge=1)
+    min_nights: int | None = Field(default=None, ge=1, le=SMALLINT_MAX)
 
     @model_validator(mode="after")
     def validate_date_range(self) -> Self:
@@ -101,24 +102,22 @@ class AccommodationCreate(BaseModel):
     address: str = Field(min_length=5, max_length=255)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
-    base_price: Decimal = Field(ge=0)
-    cleaning_fee: Decimal = Field(default=Decimal(0), ge=0)
-    capacity: int = Field(default=2, gt=0)
-    max_capacity: int = Field(default=4, gt=0)
-    extra_guest_fee: Decimal = Field(default=Decimal(0), ge=0)
-    rooms_count: int = Field(default=1, ge=0)
-    beds_count: int = Field(default=1, ge=0)
-    min_nights: int = Field(default=1, ge=1)
+    base_price: Decimal = Field(ge=0, max_digits=12, decimal_places=0)
+    cleaning_fee: Decimal = Field(default=Decimal(0), ge=0, max_digits=10, decimal_places=0)
+    capacity: int = Field(default=2, gt=0, le=SMALLINT_MAX)
+    max_capacity: int = Field(default=4, gt=0, le=SMALLINT_MAX)
+    extra_guest_fee: Decimal = Field(default=Decimal(0), ge=0, max_digits=10, decimal_places=0)
+    rooms_count: int = Field(default=1, ge=0, le=SMALLINT_MAX)
+    beds_count: int = Field(default=1, ge=0, le=SMALLINT_MAX)
+    min_nights: int = Field(default=1, ge=1, le=SMALLINT_MAX)
     check_in_time: time = time(14, 0)
     check_out_time: time = time(12, 0)
     rules: str | None = None
     cancellation_policy: str = Field(
         default="flexible", pattern="^(flexible|moderate|strict|custom)$"
     )
-    cancellation_free_hours: int = Field(default=24, ge=0)
-    cancellation_penalty_percent: Decimal = Field(
-        default=Decimal(50), ge=0, le=100
-    )
+    cancellation_free_hours: int = Field(default=24, ge=0, le=INTEGER_MAX)
+    cancellation_penalty_percent: Decimal = Field(default=Decimal(50), ge=0, le=100)
     is_active: bool = True
     external_calendar_url: str | None = Field(default=None, max_length=500)
     amenity_ids: list[int] = Field(default_factory=list)
@@ -145,21 +144,21 @@ class AccommodationUpdate(BaseModel):
     address: str | None = Field(default=None, min_length=5, max_length=255)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
-    base_price: Decimal | None = Field(default=None, ge=0)
-    cleaning_fee: Decimal | None = Field(default=None, ge=0)
-    capacity: int | None = Field(default=None, gt=0)
-    max_capacity: int | None = Field(default=None, gt=0)
-    extra_guest_fee: Decimal | None = Field(default=None, ge=0)
-    rooms_count: int | None = Field(default=None, ge=0)
-    beds_count: int | None = Field(default=None, ge=0)
-    min_nights: int | None = Field(default=None, ge=1)
+    base_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=0)
+    cleaning_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=0)
+    capacity: int | None = Field(default=None, gt=0, le=SMALLINT_MAX)
+    max_capacity: int | None = Field(default=None, gt=0, le=SMALLINT_MAX)
+    extra_guest_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=0)
+    rooms_count: int | None = Field(default=None, ge=0, le=SMALLINT_MAX)
+    beds_count: int | None = Field(default=None, ge=0, le=SMALLINT_MAX)
+    min_nights: int | None = Field(default=None, ge=1, le=SMALLINT_MAX)
     check_in_time: time | None = None
     check_out_time: time | None = None
     rules: str | None = None
     cancellation_policy: str | None = Field(
         default=None, pattern="^(flexible|moderate|strict|custom)$"
     )
-    cancellation_free_hours: int | None = Field(default=None, ge=0)
+    cancellation_free_hours: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     cancellation_penalty_percent: Decimal | None = Field(default=None, ge=0, le=100)
     is_active: bool | None = None
     external_calendar_url: str | None = Field(default=None, max_length=500)

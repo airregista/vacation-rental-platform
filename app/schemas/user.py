@@ -30,7 +30,7 @@ def validate_password_length(value: str) -> str:
 
 class UserRegister(BaseModel):
     phone: str = Field(min_length=11, max_length=11, pattern=r"^09\d{9}$")
-    email: str | None = None
+    email: str | None = Field(default=None, max_length=100)
     password: str = Field(min_length=6, max_length=72)
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
@@ -78,10 +78,10 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    email: str | None = None
+    email: str | None = Field(default=None, max_length=100)
     first_name: str | None = Field(default=None, max_length=50)
     last_name: str | None = Field(default=None, max_length=50)
-    avatar_url: str | None = None
+    avatar_url: str | None = Field(default=None, max_length=255)
     shaba_number: str | None = Field(default=None, pattern=r"^IR\d{24}$")
 
     @field_validator("email")

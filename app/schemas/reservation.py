@@ -5,13 +5,15 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.constraints import SMALLINT_MAX
+
 
 class BaseReservationRequest(BaseModel):
     accommodation_id: int
     check_in: date
     check_out: date
-    guests_count: int = Field(default=1, gt=0)
-    coupon_code: str | None = None
+    guests_count: int = Field(default=1, gt=0, le=SMALLINT_MAX)
+    coupon_code: str | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def validate_reservation_dates(self) -> Self:
@@ -132,4 +134,3 @@ class ReservationMessageResponse(BaseModel):
     message: str
     read_at: datetime | None = None
     created_at: datetime
-
