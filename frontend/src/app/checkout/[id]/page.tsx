@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import {
   describeCancellationPolicy,
   getCancellationPolicyLabel,
+  mapCancellationReason,
 } from "@/lib/cancellation-policy"
 import { toPersianDigits } from "@/lib/format-fa"
 import {
@@ -61,18 +62,6 @@ function isValidIranianMobile(phone: string): boolean {
 function isValidNationalCode(code: string): boolean {
   const trimmed = code.trim()
   return trimmed === "" || /^\d{10}$/.test(normalizeFaDigits(trimmed))
-}
-
-function formatCancellationReason(reason?: string | null): string {
-  if (!reason) return "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."
-  const lower = reason.toLowerCase()
-  if (lower.includes("ttl") || lower.includes("expire") || lower.includes("timeout")) {
-    return "مهلت پرداخت ۳۰ دقیقه‌ای این رزرو به پایان رسیده است و تاریخ‌های انتخابی آزاد شدند."
-  }
-  if (lower.includes("concurrent") || lower.includes("conflict") || lower.includes("occupied")) {
-    return "متاسفانه این اقامتگاه در این بازه تاریخی هم‌اکنون توسط کاربر دیگری رزرو شد."
-  }
-  return reason
 }
 
 export default function CheckoutPage({ params }: CheckoutPageProps) {
@@ -633,7 +622,10 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
                     این رزرو منقضی یا لغو شده است
                   </h2>
                   <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
-                    {formatCancellationReason(reservation.cancellation_reason)}
+                    {mapCancellationReason(
+                      reservation.cancellation_reason,
+                      "مهلت پرداخت ۳۰ دقیقه‌ای به پایان رسید و تقویم اقامتگاه آزاد شد."
+                    )}
                   </p>
                 </div>
               </div>
