@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import ipaddress
@@ -13,6 +14,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from sqlalchemy import delete, distinct, exists, func, not_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -60,7 +62,6 @@ def _require_host_or_admin(
 ) -> None:
     if user.role != "admin" and accommodation.host_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-
 
 
 def generate_calendar_feed_token(
@@ -494,9 +495,7 @@ async def export_accommodation_calendar_ics(
     if not acc:
         raise HTTPException(status_code=404, detail="Accommodation not found")
 
-    is_token_valid = validate_calendar_feed_token(
-        token, acc.id, acc.calendar_feed_token_version
-    )
+    is_token_valid = validate_calendar_feed_token(token, acc.id, acc.calendar_feed_token_version)
     is_authorized_user = bool(
         current_user and (current_user.role == "admin" or acc.host_id == current_user.id)
     )
@@ -572,11 +571,7 @@ async def rotate_calendar_feed_token(
     current_user: CurrentUserDep,
 ) -> CalendarFeedTokenResponse:
     """Generate a fresh calendar feed token with new TTL for accommodation owner or admin."""
-    acc_stmt = (
-        select(Accommodation)
-        .where(Accommodation.id == id)
-        .with_for_update(of=Accommodation)
-    )
+    acc_stmt = select(Accommodation).where(Accommodation.id == id).with_for_update(of=Accommodation)
     acc = (await db.execute(acc_stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
@@ -604,6 +599,7 @@ async def rotate_calendar_feed_token(
 
 logger = logging.getLogger(__name__)
 MAX_CALENDAR_FEED_BYTES = 2 * 1024 * 1024
+CALENDAR_SYNC_TIMEOUT_SECONDS = 30.0
 
 _ALLOWED_FEED_PORTS = {None, 80, 443}
 _BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost")
@@ -705,11 +701,7 @@ def validate_external_feed_url(url_str: str, *, resolve: bool = True) -> None:
             detail="Cannot resolve calendar feed host",
         )
 
-    addresses = {
-        info[4][0].split("%", 1)[0]
-        for info in infos
-        if info[4] and info[4][0]
-    }
+    addresses = {str(info[4][0]).split("%", 1)[0] for info in infos if info[4] and info[4][0]}
     if not addresses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -717,6 +709,52 @@ def validate_external_feed_url(url_str: str, *, resolve: bool = True) -> None:
         )
     for address in addresses:
         _assert_global_ip(address)
+
+
+async def _fetch_calendar_feed(url: str) -> str:
+    """Fetch and decode an iCal feed with a hard total time budget.
+
+    Redirect targets are re-validated through the SSRF guard. The DNS lookup
+    runs in the threadpool so it cannot block the event loop.
+    """
+    max_redirects = 5
+    target_url = url
+    try:
+        async with asyncio.timeout(CALENDAR_SYNC_TIMEOUT_SECONDS):
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+                for _ in range(max_redirects):
+                    await run_in_threadpool(validate_external_feed_url, target_url)
+                    async with client.stream("GET", target_url) as resp:
+                        if (
+                            resp.status_code in (301, 302, 303, 307, 308)
+                            and "location" in resp.headers
+                        ):
+                            target_url = urllib.parse.urljoin(
+                                target_url, resp.headers.get("location", "")
+                            )
+                            continue
+
+                        resp.raise_for_status()
+                        content = bytearray()
+                        async for chunk in resp.aiter_bytes():
+                            content.extend(chunk)
+                            if len(content) > MAX_CALENDAR_FEED_BYTES:
+                                raise HTTPException(
+                                    status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=(
+                                        "Calendar feed content exceeds maximum permitted size (2MB)"
+                                    ),
+                                )
+                        return content.decode(resp.encoding or "utf-8", errors="replace")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Too many redirects fetching external calendar feed",
+                )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="External calendar feed fetch timed out",
+        ) from None
 
 
 def parse_ical_blocked_ranges(ics_content: str) -> list[tuple[date, date]]:
@@ -750,7 +788,7 @@ async def sync_external_calendar(
     current_user: CurrentUserDep,
     db: SessionDep,
 ) -> CalendarSyncResponse:
-    stmt = select(Accommodation).where(Accommodation.id == id).with_for_update(of=Accommodation)
+    stmt = select(Accommodation).where(Accommodation.id == id)
     acc = (await db.execute(stmt)).scalars().first()
     if not acc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found")
@@ -762,37 +800,22 @@ async def sync_external_calendar(
         )
 
     target_url = acc.external_calendar_url
-    max_redirects = 5
-    ics_text = ""
-    try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
-            for _ in range(max_redirects):
-                validate_external_feed_url(target_url)
-                async with client.stream("GET", target_url) as resp:
-                    if resp.status_code in (301, 302, 303, 307, 308) and "location" in resp.headers:
-                        target_url = urllib.parse.urljoin(
-                            target_url, resp.headers.get("location", "")
-                        )
-                        continue
 
-                    resp.raise_for_status()
-                    content = bytearray()
-                    async for chunk in resp.aiter_bytes():
-                        content.extend(chunk)
-                        if len(content) > MAX_CALENDAR_FEED_BYTES:
-                            raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Calendar feed content exceeds maximum permitted size (2MB)",
-                            )
-                    ics_text = content.decode(resp.encoding or "utf-8", errors="replace")
-                    break
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Too many redirects fetching external calendar feed",
-                )
+    # End the read-only transaction and return the connection to the pool so
+    # the network fetch below holds no row lock. This expires every object in
+    # the session (including current_user), so re-lock and refresh before any
+    # further ORM access.
+    await db.rollback()
+
+    try:
+        ics_text = await _fetch_calendar_feed(target_url)
     except HTTPException:
         raise
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="External calendar feed fetch timed out",
+        ) from None
     except Exception as exc:
         # Do not log the exception text or the stack trace: httpx errors embed
         # the request URL, which can carry a private token or API key.
@@ -804,6 +827,23 @@ async def sync_external_calendar(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to fetch external calendar feed",
+        )
+
+    lock_stmt = (
+        select(Accommodation)
+        .where(Accommodation.id == id)
+        .with_for_update(of=Accommodation)
+        .execution_options(populate_existing=True)
+    )
+    acc = (await db.execute(lock_stmt)).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Accommodation not found")
+    await db.refresh(current_user)
+    _require_host_or_admin(acc, current_user, "Access forbidden")
+    if acc.external_calendar_url != target_url:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Calendar URL changed during sync; retry",
         )
 
     event_ranges = parse_ical_blocked_ranges(ics_text)
@@ -853,9 +893,7 @@ async def sync_external_calendar(
         .values(ical_blocked=False)
     )
     if dates_to_block:
-        stale_stmt = stale_stmt.where(
-            PricingException.date.notin_(sorted(dates_to_block))
-        )
+        stale_stmt = stale_stmt.where(PricingException.date.notin_(sorted(dates_to_block)))
     await db.execute(stale_stmt)
 
     await db.execute(
@@ -1071,9 +1109,7 @@ async def update_accommodation(
     if update_data.get("custom_amenities") is None:
         update_data.pop("custom_amenities", None)
     if update_data.get("external_calendar_url"):
-        validate_external_feed_url(
-            update_data["external_calendar_url"], resolve=False
-        )
+        validate_external_feed_url(update_data["external_calendar_url"], resolve=False)
     for field, value in update_data.items():
         setattr(acc, field, value)
 
