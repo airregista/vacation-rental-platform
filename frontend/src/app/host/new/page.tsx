@@ -312,11 +312,14 @@ function NewAccommodationContent() {
                 >
                   {formatFaNumber(item.n)}
                 </span>
+                {/* On phones the five labels can't fit next to their number
+                    circles (29px each -> "…"). Show only the active step's
+                    label there; every label appears from sm: up. */}
                 <span
                   className={
                     isActive
-                      ? "truncate text-[11px] font-bold text-ink sm:text-xs"
-                      : "truncate text-[11px] font-medium text-ink-soft sm:text-xs"
+                      ? "block shrink-0 text-[11px] font-bold text-ink sm:block sm:shrink sm:text-xs"
+                      : "hidden truncate text-[11px] font-medium text-ink-soft sm:block sm:text-xs"
                   }
                 >
                   {item.label}
