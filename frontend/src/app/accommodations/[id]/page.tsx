@@ -321,7 +321,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   return (
     <main key={accommodationId} className="min-h-screen bg-paper pb-28 text-ink lg:pb-16">
       <div className="mx-auto w-full max-w-[1360px] space-y-6 px-4 py-5 sm:px-6 lg:space-y-8 lg:px-8 lg:py-8">
-        {/* Breadcrumb Navigation */}
+        {/* Breadcrumb Navigation — every level links into /search filters */}
         <nav
           aria-label="مسیریابی"
           className="no-scrollbar flex items-center gap-1.5 overflow-x-auto text-xs text-ink-soft"
@@ -332,13 +332,23 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
           {data.city?.province && (
             <>
               <ChevronLeft className="size-3 flex-shrink-0 text-line-strong" />
-              <span className="flex-shrink-0">{data.city.province.name}</span>
+              <Link
+                href={`/search?province_id=${data.city.province_id}`}
+                className="flex-shrink-0 transition-colors hover:text-brick"
+              >
+                {data.city.province.name}
+              </Link>
             </>
           )}
           {data.city && (
             <>
               <ChevronLeft className="size-3 flex-shrink-0 text-line-strong" />
-              <span className="flex-shrink-0">{data.city.name}</span>
+              <Link
+                href={`/search?city_id=${data.city_id}`}
+                className="flex-shrink-0 transition-colors hover:text-brick"
+              >
+                {data.city.name}
+              </Link>
             </>
           )}
           <ChevronLeft className="size-3 flex-shrink-0 text-line-strong" />
