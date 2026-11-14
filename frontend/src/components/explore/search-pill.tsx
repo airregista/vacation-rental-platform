@@ -6,6 +6,7 @@ import type { City, AccommodationSearchParams } from "@/types/accommodation"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { JalaliDateField } from "@/components/shared/date-field"
+import { CityCombobox } from "@/components/shared/city-combobox"
 import {
   Sheet,
   SheetContent,
@@ -171,21 +172,17 @@ export function SearchPill({
           <MapPin className="size-4 text-primary shrink-0" />
           <div className="flex flex-col text-right w-full min-w-0">
             <span className="text-[11px] font-bold text-foreground">مقصد</span>
-            <select
-              value={cityId || ""}
-              onChange={(e) => setCityId(e.target.value ? Number(e.target.value) : undefined)}
-              aria-label="انتخاب شهر مقصد"
-              className="bg-transparent text-xs font-medium text-muted-foreground focus:outline-none cursor-pointer w-full truncate border-none p-0"
-            >
-              <option value="" className="text-foreground bg-background">
-                همه شهرها (کجا می‌روید؟)
-              </option>
-              {cities.map((city) => (
-                <option key={city.id} value={city.id} className="text-foreground bg-background">
-                  {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
-                </option>
-              ))}
-            </select>
+            <CityCombobox
+              compact
+              cities={cities}
+              value={cityId ?? 0}
+              onChange={(id) => setCityId(id === 0 ? undefined : id)}
+              showAllOption
+              allLabel="همه شهرها"
+              placeholder="همه شهرها (کجا می‌روید؟)"
+              ariaLabel="انتخاب شهر مقصد"
+              className="text-xs font-medium [&>span]:text-xs [&>span>span]:text-xs [&>span>span.font-bold]:font-medium [&>span>span.text-ink-soft]:font-medium"
+            />
           </div>
         </div>
 
@@ -352,21 +349,15 @@ export function SearchPill({
                 <MapPin className="size-3.5 text-primary" />
                 مقصد
               </label>
-              <select
-                value={cityId || ""}
-                onChange={(e) => setCityId(e.target.value ? Number(e.target.value) : undefined)}
-                aria-label="انتخاب شهر مقصد"
-                className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="" className="text-foreground bg-background">
-                  همه شهرها
-                </option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id} className="text-foreground bg-background">
-                    {city.province?.name ? `${city.name} (${city.province.name})` : city.name}
-                  </option>
-                ))}
-              </select>
+              <CityCombobox
+                cities={cities}
+                value={cityId ?? 0}
+                onChange={(id) => setCityId(id === 0 ? undefined : id)}
+                isLoading={cities.length === 0}
+                showAllOption
+                allLabel="همه شهرها"
+                placeholder="همه شهرها"
+              />
             </div>
 
             {/* Step 2: Dates */}

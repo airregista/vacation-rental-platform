@@ -15,11 +15,23 @@ export interface CityComboboxProps {
   disabled?: boolean
   isLoading?: boolean
   id?: string
+  /** Inline/pill usage: no leading icon and no floating clear button. */
+  compact?: boolean
+  /** Extra classes merged onto the trigger (tailwind-merge decides wins). */
+  className?: string
+  /** Prepend a "no city" option whose value is 0. */
+  showAllOption?: boolean
+  allLabel?: string
+  /** Trigger text when no city is selected. */
+  placeholder?: string
+  /** Accessible name for the trigger when no visible label wraps it. */
+  ariaLabel?: string
 }
 
 /**
- * Searchable city picker shared by the host create/edit forms. Built from the
- * existing shadcn Popover primitives so no extra combobox dependency is needed.
+ * Searchable city picker shared by the host create/edit forms and the search
+ * pill. Built from the existing shadcn Popover primitives so no extra
+ * combobox dependency is needed.
  */
 export function CityCombobox({
   cities,
@@ -28,6 +40,12 @@ export function CityCombobox({
   disabled = false,
   isLoading = false,
   id,
+  compact = false,
+  className,
+  showAllOption = false,
+  allLabel = "همه شهرها",
+  placeholder = "شهر را انتخاب کنید",
+  ariaLabel,
 }: CityComboboxProps) {
   const generatedId = React.useId()
   const triggerId = id ?? generatedId
@@ -41,17 +59,21 @@ export function CityCombobox({
     [cities, value],
   )
 
+  const allCities = showAllOption
+    ? [{ id: 0, province_id: 0, name: allLabel, province: null } satisfies City, ...cities]
+    : cities
+
   const filteredCities = React.useMemo(() => {
     const term = query.trim().toLocaleLowerCase()
-    if (!term) return cities
-    return cities.filter((city) => {
+    if (!term) return allCities
+    return allCities.filter((city) => {
       const provinceName = city.province?.name ?? ""
       return (
         city.name.toLocaleLowerCase().includes(term) ||
         provinceName.toLocaleLowerCase().includes(term)
       )
     })
-  }, [cities, query])
+  }, [allCities, query])
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen)
@@ -76,27 +98,35 @@ export function CityCombobox({
             aria-expanded={open}
             aria-haspopup="listbox"
             aria-controls={open ? listboxId : undefined}
-            aria-label={id ? undefined : "انتخاب شهر"}
+            aria-label={id ? undefined : (ariaLabel ?? "انتخاب شهر")}
             disabled={disabled}
-            className="h-11 w-full min-w-0 justify-between gap-2 border-line bg-paper-card px-3 font-normal text-ink hover:bg-paper-card"
+            className={cn(
+              compact
+                ? "h-auto w-full min-w-0 justify-between gap-1 border-none bg-transparent px-0 shadow-none hover:bg-transparent"
+                : "h-11 w-full min-w-0 justify-between gap-2 border-line bg-paper-card px-3 font-normal text-ink hover:bg-paper-card",
+              className,
+            )}
           >
             <span className="flex min-w-0 items-center gap-2">
-              <MapPin className="size-4 shrink-0 text-brick" aria-hidden="true" />
-              {selectedCity ? (
+              {!compact && <MapPin className="size-4 shrink-0 text-brick" aria-hidden="true" />}
+              {selectedCity && selectedCity.id !== 0 ? (
                 <>
                   <span className="truncate text-sm font-bold">{selectedCity.name}</span>
-                  {selectedCity.province?.name ? (
+                  {!compact && selectedCity.province?.name ? (
                     <span className="truncate text-xs text-ink-soft">
                       {selectedCity.province.name}
                     </span>
                   ) : null}
                 </>
               ) : (
-                <span className="truncate text-sm text-ink-soft">شهر را انتخاب کنید</span>
+                <span className="truncate text-sm text-ink-soft">{placeholder}</span>
               )}
             </span>
             <ChevronDown
-              className={cn("size-4 shrink-0 text-ink-soft", selectedCity && !disabled && "me-7")}
+              className={cn(
+                "size-4 shrink-0 text-ink-soft",
+                !compact && selectedCity && !disabled && "me-7",
+              )}
               aria-hidden="true"
             />
           </Button>
@@ -163,7 +193,7 @@ export function CityCombobox({
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{city.name}</span>
-                      {city.province?.name ? (
+                      {city.id !== 0 && city.province?.name ? (
                         <span className="block truncate text-[11px] font-medium text-ink-soft">
                           {city.province.name}
                         </span>
@@ -180,7 +210,7 @@ export function CityCombobox({
         </PopoverContent>
       </Popover>
 
-      {selectedCity && !disabled ? (
+      {selectedCity && selectedCity.id !== 0 && !disabled && !compact ? (
         <Button
           type="button"
           variant="ghost"
