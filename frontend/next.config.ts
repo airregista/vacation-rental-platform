@@ -20,9 +20,14 @@ const isDev = process.env.NODE_ENV === "development"
 const scriptSrc = isDev
   ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
   : "script-src 'self' 'unsafe-inline'"
+// Dev-only: allow same-origin framing so a local phone-size preview harness
+// (iframe at 390px) can render the real responsive layout. Production stays
+// unframeable everywhere.
+const frameAncestors = isDev ? "frame-ancestors 'self'" : "frame-ancestors 'none'"
+const xfoValue = isDev ? "SAMEORIGIN" : "DENY"
 
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: xfoValue },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
@@ -44,7 +49,7 @@ const securityHeaders = [
       "img-src 'self' data: blob:",
       "connect-src 'self'" + (apiOrigin ? ` ${apiOrigin}` : ""),
       "font-src 'self' data:",
-      "frame-ancestors 'none'",
+      frameAncestors,
       "base-uri 'self'",
       "form-action 'self'",
     ].join("; "),

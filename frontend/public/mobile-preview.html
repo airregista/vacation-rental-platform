@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>پیش‌نمایش موبایل آشیانک</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        background: #17181c;
+        font-family: Vazirmatn, sans-serif;
+        padding: 16px;
+      }
+      .controls {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .controls button {
+        background: #2a2c33;
+        color: #f1f0f4;
+        border: 1px solid #4a4c54;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-family: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .controls button.active {
+        background: #a94f2f;
+        border-color: #a94f2f;
+      }
+      .phone {
+        width: var(--phone-w, 390px);
+        height: var(--phone-h, 844px);
+        border: 8px solid #2a2c33;
+        border-radius: 32px;
+        overflow: hidden;
+        background: #f6efe4;
+        box-shadow: 0 16px 48px rgb(0 0 0 / 0.6);
+        flex-shrink: 0;
+      }
+      .phone iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+      .hint {
+        color: #b9b2a7;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="controls">
+      <button data-w="390" data-h="844" class="active">iPhone ۱۴ / ۱۵ (۳۹۰×۸۴۴)</button>
+      <button data-w="360" data-h="800">اندروید متوسط (۳۶۰×۸۰۰)</button>
+      <button data-w="320" data-h="690">کوچک (۳۲۰×۶۹۰)</button>
+      <button data-w="768" data-h="1024">تبلت (۷۶۸×۱۰۲۴)</button>
+      <button id="reload">رفرش</button>
+    </div>
+    <div class="phone" id="phone">
+      <iframe id="frame" src="/" title="پیش‌نمایش موبایل"></iframe>
+    </div>
+    <p class="hint">
+      فقط در محیط development سرو می‌شود؛ برای دیدن صفحه‌ها، مسیر را در URL همین هارنس با
+      <code>#/search</code> و… عوض کنید.
+    </p>
+    <script>
+      const phone = document.getElementById("phone");
+      const frame = document.getElementById("frame");
+      document.querySelectorAll(".controls button[data-w]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".controls button[data-w]")
+            .forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          phone.style.setProperty("--phone-w", btn.dataset.w + "px");
+          phone.style.setProperty("--phone-h", btn.dataset.h + "px");
+        });
+      });
+      document.getElementById("reload").addEventListener("click", () => {
+        frame.src = frame.src; // eslint-disable-line no-self-assign
+      });
+      // Route the inner site via hash: #/search -> iframe navigates to /search
+      function applyRoute() {
+        const route = location.hash.replace(/^#/, "");
+        if (route && route !== frame.dataset.route) {
+          frame.dataset.route = route;
+          frame.src = route;
+        }
+      }
+      window.addEventListener("hashchange", applyRoute);
+      applyRoute();
+    </script>
+  </body>
+</html>
