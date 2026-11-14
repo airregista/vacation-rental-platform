@@ -60,7 +60,14 @@ const PHONE = "۰۲۱–۹۱۰۰۰۰۰۰"
  * updates but the page never scrolls. When already on home, scroll ourselves
  * (scrollIntoView honors the section's scroll-mt) instead of routing; from
  * other pages the full navigation still lands on the section correctly.
+ *
+ * The e.preventDefault() here also cancels Radix SheetClose's navigation-
+ * triggered close (it closes on the same click's default behavior), so the
+ * mobile menu must be closed explicitly — the caller does that via the
+ * onHashNavigate callback.
  */
+let closeMobileMenu: (() => void) | null = null
+
 function handleHashNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
   const hash = href.split("#")[1]
   if (!hash || window.location.pathname !== "/") return
@@ -69,6 +76,7 @@ function handleHashNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string
   e.preventDefault()
   target.scrollIntoView({ behavior: "smooth", block: "start" })
   window.history.pushState(null, "", href)
+  closeMobileMenu?.()
 }
 
 export function Header() {
@@ -78,6 +86,16 @@ export function Header() {
   const [scrolled, setScrolled] = React.useState(false)
   const [isPromoting, setIsPromoting] = React.useState(false)
   const [hostError, setHostError] = React.useState<string | null>(null)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+
+  // Hash-link clicks preventDefault (see handleHashNavClick), which also
+  // cancels SheetClose's close-on-navigate — so the handler calls back here.
+  React.useEffect(() => {
+    closeMobileMenu = () => setIsMobileMenuOpen(false)
+    return () => {
+      closeMobileMenu = null
+    }
+  }, [])
 
   const isHome = pathname === "/"
   const overHero = isHome && !scrolled
@@ -332,7 +350,7 @@ export function Header() {
             </DropdownMenu>
           )}
 
-          <Sheet>
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button
                 type="button"
