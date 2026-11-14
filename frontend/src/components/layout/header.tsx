@@ -53,6 +53,24 @@ const NAV_LINKS = [
 
 const PHONE = "۰۲۱–۹۱۰۰۰۰۰۰"
 
+/**
+ * Hash links (/#stays, /#climates, /#guide) are unreliable as same-page Next
+ * soft navigations: the hero rewrites the URL every few seconds with
+ * history.replaceState (?scene=...), which swallows the hash scroll — the URL
+ * updates but the page never scrolls. When already on home, scroll ourselves
+ * (scrollIntoView honors the section's scroll-mt) instead of routing; from
+ * other pages the full navigation still lands on the section correctly.
+ */
+function handleHashNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+  const hash = href.split("#")[1]
+  if (!hash || window.location.pathname !== "/") return
+  const target = document.getElementById(hash)
+  if (!target) return
+  e.preventDefault()
+  target.scrollIntoView({ behavior: "smooth", block: "start" })
+  window.history.pushState(null, "", href)
+}
+
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
@@ -152,6 +170,7 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={(e) => handleHashNavClick(e, link.href)}
               className={cn(
                 "rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 overHero ? "text-hero-ink/75 hover:text-hero-clay" : "text-ink/75 hover:text-brick",
@@ -350,6 +369,7 @@ export function Header() {
                   <SheetClose asChild key={link.href}>
                     <Link
                       href={link.href}
+                      onClick={(e) => handleHashNavClick(e, link.href)}
                       className="border-b border-line/70 py-4 text-base font-bold text-ink transition-colors hover:text-brick"
                     >
                       {link.label}
