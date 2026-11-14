@@ -120,20 +120,23 @@ export default function AccountPage() {
           {/* Identity card */}
           <Card className="overflow-hidden rounded-3xl border-line/80 bg-paper-card shadow-soft">
             <div className="flex flex-wrap items-center gap-4 border-b border-line/70 bg-paper-deep/35 p-5 sm:p-6">
-              <Avatar className="size-16 border border-line shadow-soft">
+              <Avatar className="size-16 shrink-0 border border-line shadow-soft">
                 {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={displayName} /> : null}
                 <AvatarFallback className="bg-brick/10 text-lg font-black text-brick">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-xl font-black text-ink">{displayName}</h2>
+                {/* Wrap instead of truncate: at phone widths the join-date
+                    pill squeezed this box down to ~40px and clipped the name
+                    to "ک…". The pill drops to its own row on phones. */}
+                <h2 className="break-words text-xl font-black text-ink">{displayName}</h2>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
                   <Phone className="size-3.5 text-brick" />
                   <span className="tabular-nums">{toPersianDigits(user.phone)}</span>
                 </p>
               </div>
-              <span className="rounded-full border border-line bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
+              <span className="w-full rounded-full border border-line bg-paper-card px-3 py-1.5 text-center text-[11px] font-semibold text-ink-soft sm:w-auto sm:text-start">
                 عضو از {formatPersianDate(user.created_at)}
               </span>
             </div>
