@@ -192,13 +192,19 @@ export function Header() {
               <Menu className="size-5" />
             </Button>
           </div>
-          <Link
+          {/* Plain <a>, not <Link>: before hydration completes the Next router
+              preventDefaults the click of a <Link> but silently drops the
+              navigation, so an early click on the logo did nothing ("clicking
+              the logo doesn't go home"). A native anchor navigates without
+              JS; after hydration Next still intercepts it and soft-navigates. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- deliberate: see comment above */}
+          <a
             href="/"
             aria-label="آشیانک — خانه"
             className="flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <AshianakLogo tone={overHero ? "hero" : "default"} />
-          </Link>
+          </a>
         </div>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-7 md:flex">
