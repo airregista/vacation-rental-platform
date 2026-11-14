@@ -291,14 +291,17 @@ function NewAccommodationContent() {
       ) : null}
 
       <div className="sticky top-16 z-30 -mx-4 mb-5 border-b border-line/60 bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
-        <ol className="flex items-center gap-1 sm:gap-2">
+        {/* One line on every size: number circles + active label on phones,
+            all labels from sm: up. flex-nowrap + whitespace-nowrap keep the
+            label beside its circle instead of wrapping underneath. */}
+        <ol className="flex flex-nowrap items-center gap-1 whitespace-nowrap sm:gap-2">
           {WIZARD_STEPS.map((item) => {
             const isActive = item.n === step
             const isDone = item.n < step
             return (
               <li
                 key={item.n}
-                className="flex min-w-0 flex-1 items-center gap-2"
+                className="flex shrink-0 items-center gap-1.5"
                 aria-current={isActive ? "step" : undefined}
               >
                 <span
@@ -312,14 +315,11 @@ function NewAccommodationContent() {
                 >
                   {formatFaNumber(item.n)}
                 </span>
-                {/* On phones the five labels can't fit next to their number
-                    circles (29px each -> "…"). Show only the active step's
-                    label there; every label appears from sm: up. */}
                 <span
                   className={
                     isActive
-                      ? "block shrink-0 text-[11px] font-bold text-ink sm:block sm:shrink sm:text-xs"
-                      : "hidden truncate text-[11px] font-medium text-ink-soft sm:block sm:text-xs"
+                      ? "block text-[11px] font-bold text-ink sm:block sm:text-xs"
+                      : "hidden text-[11px] font-medium text-ink-soft sm:block sm:text-xs"
                   }
                 >
                   {item.label}
