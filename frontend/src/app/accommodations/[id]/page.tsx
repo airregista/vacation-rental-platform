@@ -55,6 +55,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
 
   // Social actions
   const [isCopied, setIsCopied] = React.useState(false)
+  const [shareError, setShareError] = React.useState<string | null>(null)
   const [isWishlisted, setIsWishlisted] = React.useState(false)
 
   // Reset page-level booking state when the [id] param changes client-side
@@ -148,15 +149,54 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
   }
 
   const handleShare = async () => {
-    if (typeof window !== "undefined" && navigator.clipboard) {
+    const url = window.location.href
+    const shareData = { title: document.title, url }
+
+    // 1. Web Share API — mobile / OS share sheet when available.
+    if (typeof navigator.share === "function") {
       try {
-        await navigator.clipboard.writeText(window.location.href)
-        setIsCopied(true)
-        setTimeout(() => setIsCopied(false), 2500)
-      } catch {
-        // clipboard permission denied
+        await navigator.share(shareData)
+        return
+      } catch (err) {
+        // AbortError = user closed the sheet; anything else falls through to copy.
+        if (err instanceof DOMException && err.name === "AbortError") return
       }
     }
+
+    // 2. Async Clipboard API. Some embedding browsers deny clipboard-write
+    //    (NotAllowedError) even in secure contexts.
+    try {
+      await navigator.clipboard.writeText(url)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2500)
+      return
+    } catch {
+      // fall through to the legacy path
+    }
+
+    // 3. Legacy execCommand fallback — still works where the async API is denied.
+    try {
+      const textarea = document.createElement("textarea")
+      textarea.value = url
+      textarea.style.position = "fixed"
+      textarea.style.opacity = "0"
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      const copied = document.execCommand("copy")
+      document.body.removeChild(textarea)
+      if (copied) {
+        setIsCopied(true)
+        setTimeout(() => setIsCopied(false), 2500)
+        return
+      }
+    } catch {
+      // fall through to the failure notice
+    }
+
+    // 4. Everything failed — surface it instead of failing silently.
+    setShareError("کپی نشد. لینک صفحه را از نوار آدرس مرورگر کپی کنید.")
+    setTimeout(() => setShareError(null), 4000)
   }
 
   const formatPersian = formatFaNumber
@@ -354,6 +394,7 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
               size="sm"
               onClick={handleShare}
               className="h-9 gap-1.5 border-line bg-paper-card text-xs text-ink shadow-none hover:bg-paper"
+              aria-live="polite"
             >
               {isCopied ? (
                 <>
@@ -382,6 +423,12 @@ export default function AccommodationDetailPage({ params }: AccommodationPagePro
             </Button>
           </div>
         </div>
+
+        {shareError ? (
+          <p role="alert" className="text-xs font-medium text-destructive">
+            {shareError}
+          </p>
+        ) : null}
 
         {/* Photo Gallery Mosaic */}
         <PhotoGallery
