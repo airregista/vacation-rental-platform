@@ -284,6 +284,27 @@ body {
   font-family: var(--font-vazirmatn);
 }
 
+/* Tailwind v4 preflight removed the browser's default pointer cursor on
+   buttons (and everything else but links). Restore the hand cursor for
+   every clickable control site-wide: buttons, label-wrapped radio/checkbox
+   cards, and any element with an explicit click handler (tabs, sliders,
+   calendar days, poll cards). role="button" covers div/span click targets. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="radio"],
+  [role="checkbox"],
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  label:has(input:not(:disabled)),
+  summary,
+  select:not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
+}
+
 /* Mobile Safe Area utilities */
 .safe-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
