@@ -319,6 +319,51 @@ body {
   display: none;
 }
 
+/* Styled scrollbars everywhere something can scroll — the page itself,
+   dialogs, dropdowns, sheets, lists, textareas. Colors come from the design
+   tokens so light/dark follow the theme automatically.
+   Split by engine: Chromium 121+/Safari ignore ::-webkit-scrollbar rules once
+   the standard scrollbar-width/color properties are set, so the standard
+   properties are gated to engines that can't parse the webkit selector
+   (Firefox), leaving the rounded pill below for Chromium/WebKit. */
+@layer base {
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line-strong) transparent;
+    }
+  }
+
+  *::-webkit-scrollbar {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-color: var(--line-strong);
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
+    background-color: var(--ink-soft);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--brick);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
 /* Hero entrance — staggered, transform-only so it never affects layout. */
 @keyframes hero-rise {
   from {

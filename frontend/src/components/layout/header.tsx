@@ -40,7 +40,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
@@ -175,13 +174,32 @@ export function Header() {
       ) : null}
 
       <div className="mx-auto flex h-16 w-full max-w-[1360px] items-center justify-between gap-3 px-4 sm:px-6 md:h-20 lg:px-8">
-        <Link
-          href="/"
-          aria-label="آشیانک — خانه"
-          className="flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <AshianakLogo tone={overHero ? "hero" : "default"} />
-        </Link>
+        {/* RTL layout: the hamburger lives at the inline-start (right) edge,
+            before the logo. Both stay in one group so justify-between keeps
+            them together on the right; the Sheet content is defined further
+            down where the trigger used to sit. */}
+        <div className="flex items-center gap-1">
+          <div className="md:hidden">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              shape="pill"
+              className={iconTone}
+              aria-label="باز کردن منو"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu className="size-5" />
+            </Button>
+          </div>
+          <Link
+            href="/"
+            aria-label="آشیانک — خانه"
+            className="flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <AshianakLogo tone={overHero ? "hero" : "default"} />
+          </Link>
+        </div>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-7 md:flex">
           {NAV_LINKS.map((link) => (
@@ -350,19 +368,10 @@ export function Header() {
             </DropdownMenu>
           )}
 
+          {/* Controlled mobile menu: the open button lives at the header's
+              inline-start (right edge in RTL); this Sheet has no trigger and
+              is driven entirely by isMobileMenuOpen. */}
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                shape="pill"
-                className={cn("md:hidden", iconTone)}
-                aria-label="باز کردن منو"
-              >
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
             <SheetContent side="right" className="bg-paper text-ink">
               <SheetHeader className="text-right">
                 <SheetTitle className="flex items-center gap-2 text-right text-ink">
